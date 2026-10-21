@@ -72,7 +72,10 @@ export const saveProduct = (p) => rpc('store_admin_save_product', {
 })
 export const suppliers = () => rpc('store_admin_suppliers')
 export const addSupplier = (name) => rpc('store_admin_add_supplier', { p_name: name })
-export const prices = (category) => rpc('store_admin_prices', { p_category: category || null })
+// Includes stopped cards (active = false) and the usual purchase cost
+export const priceList = (category) => rpc('store_admin_price_list', { p_category: category || null })
+export const setDefaultCost = (productId, cost) => rpc('store_admin_set_default_cost', { p_product_id: productId, p_cost: cost ?? null })
+export const productCosts = () => rpc('store_admin_product_costs')
 // mode: 'fixed' | 'amount' | 'pct' | 'inherit' (customer only); customerId null = default row
 export const setPrice = (customerId, productId, mode, value) =>
   rpc('store_admin_set_price', { p_customer_id: customerId, p_product_id: productId, p_mode: mode, p_value: value ?? null })

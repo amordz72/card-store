@@ -1,12 +1,9 @@
 <template>
   <q-page class="page">
     <q-input v-model="query" outlined dense clearable label="بحث" placeholder="مثال: موبيليس 1000" bg-color="white" />
-    <div class="row q-gutter-sm">
-      <q-btn v-for="c in cats" :key="c.id" rounded no-caps :unelevated="cat === c.id" :outline="cat !== c.id"
-        :color="cat === c.id ? 'primary' : 'grey-8'" :label="c.label" @click="cat = c.id" />
-      <q-btn rounded no-caps :unelevated="availOnly" :outline="!availOnly" color="positive"
-        :label="availOnly ? '✓ المتوفر فقط' : 'المتوفر فقط'" :aria-pressed="availOnly" @click="availOnly = !availOnly" />
-    </div>
+    <CatalogFilter v-model:cat="cat" v-model:brand="brand" :brands="brandList" />
+    <q-btn rounded no-caps class="self-start" :unelevated="availOnly" :outline="!availOnly" color="positive"
+      :label="availOnly ? '✓ المتوفر فقط' : 'المتوفر فقط'" :aria-pressed="availOnly" @click="availOnly = !availOnly" />
 
     <div class="grid-2">
       <div v-for="p in shownProducts" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !p.available }">
@@ -56,8 +53,9 @@ import { useRun } from 'src/composables/useRun'
 import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
 import { newRequestId } from 'src/api/rpc'
-import { money, brandColor, CATEGORIES } from 'src/api/format'
+import { money, brandColor } from 'src/api/format'
 import CodesDialog from 'components/CodesDialog.vue'
+import CatalogFilter from 'components/CatalogFilter.vue'
 
 const buyer = useBuyer()
 const { busy, run } = useRun()
@@ -67,12 +65,14 @@ const loaded = ref(false)
 const query = ref('')
 const cat = ref('all')
 const availOnly = ref(false)
-const cats = [{ id: 'all', label: 'الكل' }, ...CATEGORIES]
+const brand = ref('all')
+const inCat = (p) => cat.value === 'all' || p.category === cat.value
+const brandList = computed(() => [...new Set(products.value.filter(inCat).map((p) => p.brand))])
 
 const shownProducts = computed(() => {
   const q = (query.value || '').trim().toLowerCase()
   return products.value
-    .filter((p) => (cat.value === 'all' || p.category === cat.value))
+    .filter((p) => inCat(p) && (brand.value === 'all' || p.brand === brand.value))
     .filter((p) => !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q))
     .filter((p) => !availOnly.value || p.available)
     // out-of-stock cards stay visible, at the end

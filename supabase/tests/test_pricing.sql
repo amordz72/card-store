@@ -81,6 +81,21 @@ select pg_temp.check('fixed rule sells cost-less code', jsonb_array_length(:'l_c
 reset role;
 set role authenticated;
 select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
+-- v1.4 usual cost: used before any codes exist, stock cost wins once codes arrive
+select public.store_admin_save_product(null, (select brand_id from public.store_admin_brands() where name = 'Ooredoo'), 'Ooredoo 500', 500, 2, true) as o5 \gset
+select pg_temp.check('no cost yet', (select current_cost is null and cost_source is null from public.store_admin_price_list('phone') where customer_id is null and product_id = :o5));
+select public.store_admin_set_default_cost(:o5, 470);
+select public.store_admin_set_price(null, :o5, 'amount', 10);
+select pg_temp.check('usual cost drives the editor', (select current_cost = 470 and cost_source = 'usual' and charge_now = 480 and default_cost = 470
+  from public.store_admin_price_list('phone') where customer_id is null and product_id = :o5));
+select pg_temp.check('product costs list', (select default_cost = 470 from public.store_admin_product_costs() where product_id = :o5));
+select added from public.store_admin_add_codes(:o5, null, 465, 'O5-1') \g /dev/null
+select pg_temp.check('stock cost wins', (select current_cost = 465 and cost_source = 'stock' and charge_now = 475 from public.store_admin_price_list('phone') where customer_id is null and product_id = :o5));
+select pg_temp.check('bad usual cost', pg_temp.err(format($$select public.store_admin_set_default_cost(%s, 0)$$, :o5)) like '%INVALID_COST%');
+select public.store_admin_save_product(:o5, null, null, null, null, false) \g /dev/null
+select pg_temp.check('stopped card listed as inactive', (select not active from public.store_admin_price_list('phone') where customer_id is null and product_id = :o5));
+select pg_temp.check('old price list hides stopped', not exists (select 1 from public.store_admin_prices('phone') where product_id = :o5));
+select public.store_admin_set_default_cost(:o5, null);
 select pg_temp.check('reconcile clean', (select count(*) from public.store_admin_reconcile()) = 0);
 reset role;
 

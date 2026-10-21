@@ -26,26 +26,26 @@
       <div class="section-title">البطاقات والمخزون</div>
       <q-btn dense unelevated color="primary" icon="add" label="بطاقة جديدة" @click="openProduct(null)" />
     </div>
+    <CatalogFilter v-model:cat="cat" v-model:brand="brand" :brands="brandList" />
     <div class="card q-pa-none" style="overflow-x:auto">
-      <q-markup-table flat dense separator="horizontal">
+      <q-markup-table flat dense separator="horizontal" class="stock-table">
         <thead>
-          <tr><th class="text-right">البطاقة</th><th>السعر</th><th>متوفر</th><th>مباع</th><th>ملغى</th><th>الحالة</th></tr>
+          <tr><th class="text-right">البطاقة</th><th>السعر</th><th>متوفر</th><th>مباع</th><th></th></tr>
         </thead>
         <tbody>
-          <tr v-for="p in stock" :key="p.product_id">
+          <tr v-for="p in shownStock" :key="p.product_id">
             <td class="text-right">
               <a href="#" class="text-primary" :style="p.active ? '' : 'text-decoration:line-through;color:#6B7280'" @click.prevent="openProduct(p)">{{ p.name }}</a>
-              <div class="small muted ltr text-right">{{ p.brand }}</div>
+              <div class="small muted">{{ p.brand }}<span v-if="p.voided > 0"> · ملغى {{ p.voided }}</span></div>
             </td>
             <td class="text-center">{{ money(p.base_price) }}</td>
             <td class="text-center text-weight-bold" :class="p.available > 0 ? 'amount-pos' : 'amount-neg'">{{ p.available }}</td>
             <td class="text-center">{{ p.sold }}</td>
-            <td class="text-center">{{ p.voided }}</td>
             <td class="text-center">
               <q-btn dense outline size="sm" :color="p.active ? 'warning' : 'positive'" :label="p.active ? 'إيقاف' : 'تفعيل'" @click="toggleProduct(p)" />
             </td>
           </tr>
-          <tr v-if="!stock.length"><td colspan="6" class="text-center muted q-pa-md">لا توجد بطاقات بعد. أضف أول بطاقة.</td></tr>
+          <tr v-if="!shownStock.length"><td colspan="5" class="text-center muted q-pa-md">{{ stock.length ? 'لا توجد بطاقات في هذا التصنيف' : 'لا توجد بطاقات بعد. أضف أول بطاقة.' }}</td></tr>
         </tbody>
       </q-markup-table>
     </div>
@@ -56,7 +56,9 @@
           <div class="text-weight-bold">{{ productForm.id ? 'تعديل بطاقة' : 'بطاقة جديدة' }}</div>
           <q-select v-model="productForm.brandId" :options="brandOptions" emit-value map-options dense outlined label="العلامة" />
           <q-input v-model="productForm.name" dense outlined label="الاسم (مثال: Mobilis 1000)" />
-          <q-input v-model.number="productForm.basePrice" dense outlined type="number" label="سعر البيع الافتراضي (دج)" />
+          <q-input v-model.number="productForm.basePrice" dense outlined type="number" label="سعر البيع للزبون النهائي (دج)" />
+          <q-input v-model.number="productForm.usualCost" dense outlined type="number" label="سعر الشراء المعتاد (دج) — اختياري"
+            hint="يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح في «الأسعار» قبل وصولها" />
           <q-input v-model.number="productForm.sort" dense outlined type="number" label="الترتيب (اختياري)" />
         </q-card-section>
         <q-card-actions align="right">
@@ -85,20 +87,29 @@ import { Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
 import { money } from 'src/api/format'
+import CatalogFilter from 'components/CatalogFilter.vue'
 
 const { busy, run } = useRun()
 const stock = ref([])
 const brands = ref([])
 const suppliers = ref([])
 const announcement = ref('')
+const usualCost = ref({})   // product_id → usual purchase cost
 
-const productOptions = computed(() => stock.value.map((p) => ({ value: p.product_id, label: `${p.name} (متوفر ${p.available})` })))
+const cat = ref('all')
+const brand = ref('all')
+const inCat = (p) => cat.value === 'all' || p.category === cat.value
+const brandList = computed(() => [...new Set(stock.value.filter(inCat).map((p) => p.brand))])
+const shownStock = computed(() => stock.value.filter((p) => inCat(p) && (brand.value === 'all' || p.brand === brand.value)))
+
+const productOptions = computed(() => stock.value.filter((p) => p.active).map((p) => ({ value: p.product_id, label: `${p.name} (متوفر ${p.available})` })))
 const supplierOptions = computed(() => suppliers.value.map((s) => ({ value: s.supplier_id, label: s.name })))
 const brandOptions = computed(() => brands.value.map((b) => ({ value: b.brand_id, label: b.name })))
 
 async function load () {
-  const [s, b, sup] = await Promise.all([run(() => api.stock()), run(() => api.brands()), run(() => api.suppliers())])
+  const [s, b, sup, costs] = await Promise.all([run(() => api.stock()), run(() => api.brands()), run(() => api.suppliers()), run(() => api.productCosts())])
   if (s) stock.value = s
+  if (costs) usualCost.value = Object.fromEntries(costs.filter((c) => c.default_cost != null).map((c) => [c.product_id, Number(c.default_cost)]))
   if (b) brands.value = b
   if (sup) {
     suppliers.value = sup
@@ -118,6 +129,10 @@ async function saveAnnouncement () {
 // --- codes
 const codeForm = ref({ productId: null, supplierId: null, cost: null, lines: '' })
 const file = ref(null)
+// Picking a card fills the purchase cost with its usual cost (still editable)
+watch(() => codeForm.value.productId, (id) => {
+  if (id != null && usualCost.value[id] != null) codeForm.value.cost = usualCost.value[id]
+})
 watch(file, async (f) => {
   if (!f) return
   const text = await f.text()
@@ -152,12 +167,17 @@ const productOpen = ref(false)
 const productForm = ref({})
 function openProduct (p) {
   productForm.value = p
-    ? { id: p.product_id, brandId: p.brand_id, name: p.name, basePrice: Number(p.base_price), sort: p.sort }
-    : { id: null, brandId: null, name: '', basePrice: null, sort: 0 }
+    ? { id: p.product_id, brandId: p.brand_id, name: p.name, basePrice: Number(p.base_price), sort: p.sort, usualCost: usualCost.value[p.product_id] ?? null }
+    : { id: null, brandId: null, name: '', basePrice: null, sort: 0, usualCost: null }
   productOpen.value = true
 }
 async function saveProduct () {
-  const id = await run(() => api.saveProduct(productForm.value), { success: 'حُفظت البطاقة.' })
+  const f = productForm.value
+  const id = await run(async () => {
+    const pid = await api.saveProduct(f)
+    if ((f.usualCost || null) !== (usualCost.value[f.id] ?? null)) await api.setDefaultCost(pid, f.usualCost || null)
+    return pid
+  }, { success: 'حُفظت البطاقة.' })
   if (!id) return
   productOpen.value = false
   load()
@@ -170,3 +190,7 @@ async function toggleProduct (p) {
 
 onMounted(() => { load(); loadAnnouncement() })
 </script>
+
+<style scoped>
+.stock-table :deep(th), .stock-table :deep(td) { padding: 6px 4px; }
+</style>
