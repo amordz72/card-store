@@ -53,6 +53,12 @@
       <div v-else-if="r.price != null && r.price > r.base_price" class="small q-pa-sm rounded-borders warn-high">
         أعلى من سعر البيع ({{ money(r.base_price) }}) — الزبون يبيع بخسارة.
       </div>
+      <!-- How the whole margin (selling − cost) is split; every % is of the selling price -->
+      <div v-if="r.price != null && r.cost != null" class="small q-pa-sm rounded-borders" style="background:#F7F8FB">
+        الربح الكلي <b>{{ money(r.base_price - r.cost) }}</b> ({{ pctB(r, r.base_price - r.cost) }}%)
+        = ربحي <b class="amount-info">{{ money(r.price - r.cost) }}</b> ({{ pctB(r, r.price - r.cost) }}%)
+        + ربح الزبون <b>{{ money(r.base_price - r.price) }}</b> ({{ pctB(r, r.base_price - r.price) }}%)
+      </div>
       <div v-else-if="r.price != null" class="small muted">ربح الزبون حين يبيع بـ {{ money(r.base_price) }}: {{ money(r.base_price - r.price) }}</div>
 
       <div v-if="r.dirty" class="row q-gutter-sm">
@@ -100,6 +106,7 @@ const loaded = ref(false)
 
 const round2 = (n) => Math.round(n * 100) / 100
 // profit % is a share of the SELLING price (owner decision): 10 DZD on a 1000 card = 1%
+const pctB = (r, amount) => round2(amount / r.base_price * 100)
 const pctOf = (r, price) => (price != null && r.cost != null && r.base_price > 0 ? round2((price - r.cost) / r.base_price * 100) : null)
 
 const whoOptions = computed(() => {

@@ -56,9 +56,20 @@
           <div class="text-weight-bold">{{ productForm.id ? 'تعديل بطاقة' : 'بطاقة جديدة' }}</div>
           <q-select v-model="productForm.brandId" :options="brandOptions" emit-value map-options dense outlined label="العلامة" />
           <q-input v-model="productForm.name" dense outlined label="الاسم (مثال: Mobilis 1000)" />
-          <q-input v-model.number="productForm.basePrice" dense outlined type="number" label="سعر البيع للزبون النهائي (دج)" />
-          <q-input v-model.number="productForm.usualCost" dense outlined type="number" label="سعر الشراء المعتاد (دج) — اختياري"
-            hint="يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح في «الأسعار» قبل وصولها" />
+          <!-- Three linked fields: type any two, the third is computed (all % are of the selling price) -->
+          <div class="small muted">اكتب أي خانتين وتُحسب الثالثة. مثال: شراء 910 وربح 9% ← سعر البيع 1000.</div>
+          <div class="grid-3">
+            <q-input :model-value="productForm.basePrice" dense outlined type="number" stack-label label="سعر البيع" suffix="دج"
+              @update:model-value="(v) => editPrice('basePrice', v)" />
+            <q-input :model-value="productForm.usualCost" dense outlined type="number" stack-label label="سعر الشراء" suffix="دج"
+              @update:model-value="(v) => editPrice('usualCost', v)" />
+            <q-input :model-value="productForm.margin" dense outlined type="number" stack-label label="الربح الكلي" suffix="%"
+              @update:model-value="(v) => editPrice('margin', v)" />
+          </div>
+          <div v-if="productForm.basePrice > 0 && productForm.usualCost > 0" class="small" style="color:#4338CA">
+            الربح الكلي {{ money(productForm.basePrice - productForm.usualCost) }} = {{ productForm.margin }}% من سعر البيع (يُقسم بينك وبين الزبون في «الأسعار»)
+          </div>
+          <div class="small muted">سعر الشراء اختياري: يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح قبل وصولها.</div>
           <q-input v-model.number="productForm.sort" dense outlined type="number" label="الترتيب (اختياري)" />
         </q-card-section>
         <q-card-actions align="right">
@@ -165,10 +176,32 @@ async function addSupplier () {
 // --- products
 const productOpen = ref(false)
 const productForm = ref({})
+// Linked price fields: the two most recently typed stay, the oldest one is computed.
+// cost = selling × (1 − margin%)  ⇔  selling = cost ÷ (1 − margin%)
+let priceOrder = ['basePrice', 'usualCost', 'margin']
+const num = (v) => (v === '' || v == null ? null : Number(v))
+function recompute () {
+  const f = productForm.value
+  const target = priceOrder[2]
+  if (target === 'margin') {
+    f.margin = f.basePrice > 0 && f.usualCost > 0 ? Math.round((f.basePrice - f.usualCost) / f.basePrice * 10000) / 100 : null
+  } else if (target === 'basePrice') {
+    f.basePrice = f.usualCost > 0 && f.margin != null && f.margin < 100 ? Math.round(f.usualCost / (1 - f.margin / 100)) : f.basePrice
+  } else {
+    f.usualCost = f.basePrice > 0 && f.margin != null && f.margin < 100 ? Math.round(f.basePrice * (1 - f.margin / 100)) : f.usualCost
+  }
+}
+function editPrice (key, v) {
+  productForm.value[key] = num(v)
+  priceOrder = [key, ...priceOrder.filter((k) => k !== key)]
+  recompute()
+}
 function openProduct (p) {
   productForm.value = p
-    ? { id: p.product_id, brandId: p.brand_id, name: p.name, basePrice: Number(p.base_price), sort: p.sort, usualCost: usualCost.value[p.product_id] ?? null }
-    : { id: null, brandId: null, name: '', basePrice: null, sort: 0, usualCost: null }
+    ? { id: p.product_id, brandId: p.brand_id, name: p.name, basePrice: Number(p.base_price), sort: p.sort, usualCost: usualCost.value[p.product_id] ?? null, margin: null }
+    : { id: null, brandId: null, name: '', basePrice: null, sort: 0, usualCost: null, margin: null }
+  priceOrder = ['basePrice', 'usualCost', 'margin']
+  recompute()
   productOpen.value = true
 }
 async function saveProduct () {
