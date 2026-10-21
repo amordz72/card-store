@@ -1,7 +1,7 @@
 <template>
   <q-page class="page">
     <div class="small muted">
-      اكتب في أي خانة وتُحسب الأخريان. <b>آخر خانة تكتب فيها هي القاعدة</b>: السعر يبقى ثابتًا، أو الربح بالدينار يُضاف على سعر الشراء، أو النسبة تُحسب من المبلغ الذي يدفعه الزبون (مثال: شراء 910 ونسبة 9% ← 1000).
+      اكتب في أي خانة وتُحسب الأخريان. <b>آخر خانة تكتب فيها هي القاعدة</b>: السعر يبقى ثابتًا، أو الربح بالدينار يُضاف على سعر الشراء، أو النسبة تُحسب <b>من سعر البيع</b> (مثال: بطاقة 1000 وشراء 910 وربحي 1% ← 10 دج، فيدفع الزبون 920).
     </div>
     <q-select v-model="who" :options="whoOptions" emit-value map-options dense outlined label="أسعار مَن؟" />
     <div class="q-pa-sm rounded-borders text-weight-medium" :class="who === DEFAULT ? 'banner-default' : 'banner-own'">
@@ -88,7 +88,7 @@ const FIELDS = [
 const RULE_TEXT = {
   fixed: (r) => `سعر ثابت ${money(r.price)} مهما تغيّر سعر الشراء`,
   amount: (r) => `سعر الشراء + ${money(r.dzd)} (يتغيّر مع كل دفعة)`,
-  pct: (r) => `ربح ${r.pct}% من المبلغ المدفوع (يتغيّر مع كل دفعة)`
+  pct: (r) => `ربح ${r.pct}% من سعر البيع = ${money(Math.round(r.base_price * r.pct / 100))} فوق سعر الشراء (يتغيّر مع كل دفعة)`
 }
 
 const { busy, run } = useRun()
@@ -99,7 +99,8 @@ const rows = ref([])
 const loaded = ref(false)
 
 const round2 = (n) => Math.round(n * 100) / 100
-const pctOf = (price, cost) => (price > 0 && cost != null ? round2((price - cost) / price * 100) : null)
+// profit % is a share of the SELLING price (owner decision): 10 DZD on a 1000 card = 1%
+const pctOf = (r, price) => (price != null && r.cost != null && r.base_price > 0 ? round2((price - r.cost) / r.base_price * 100) : null)
 
 const whoOptions = computed(() => {
   const seen = new Map()
@@ -117,12 +118,12 @@ function derive (r) {
   const c = r.cost
   if (r.mode === 'fixed') {
     r.dzd = r.price != null && c != null ? r.price - c : null
-    r.pct = r.price != null ? pctOf(r.price, c) : null
+    r.pct = pctOf(r, r.price)
   } else if (r.mode === 'amount') {
     r.price = r.dzd != null && c != null ? c + r.dzd : null
-    r.pct = r.price != null ? pctOf(r.price, c) : null
+    r.pct = pctOf(r, r.price)
   } else {
-    r.price = r.pct != null && r.pct < 100 && c != null ? Math.round(c / (1 - r.pct / 100)) : null
+    r.price = r.pct != null && c != null ? c + Math.round(r.base_price * r.pct / 100) : null
     r.dzd = r.price != null ? r.price - c : null
   }
 }

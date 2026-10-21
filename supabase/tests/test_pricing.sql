@@ -28,12 +28,15 @@ select * from public.store_admin_transfer(:c2, 'cash', 10000, null, gen_random_u
 select pg_temp.check('no rule → selling price', (select source = 'base' and charge_now = 1000 and current_cost = 910
   from public.store_admin_prices('phone') where customer_id is null and product_id = :oo));
 
--- default: 9% of the amount paid → 910 / 0.91 = 1000
+-- default: 9% of the selling price → 910 + 90 = 1000
 select public.store_admin_set_price(null, :oo, 'pct', 9);
-select pg_temp.check('pct of paid amount: 910 → 1000', (select charge_now from public.store_admin_prices('phone') where customer_id = :c2 and product_id = :oo) = 1000);
+select pg_temp.check('pct of selling price: 910 + 9% of 1000 → 1000', (select charge_now from public.store_admin_prices('phone') where customer_id = :c2 and product_id = :oo) = 1000);
 -- customer override: cost + 30 DZD
 select public.store_admin_set_price(:c2, :oo, 'amount', 30);
 select pg_temp.check('customer amount rule', (select source = 'customer' and charge_now = 940 from public.store_admin_prices('phone') where customer_id = :c2 and product_id = :oo));
+select public.store_admin_set_price(null, :oo, 'pct', 1);
+select pg_temp.check('owner example: 910 + 1% of 1000 → 920', (select charge_now from public.store_admin_prices('phone') where customer_id is null and product_id = :oo) = 920);
+select public.store_admin_set_price(null, :oo, 'pct', 9);
 select pg_temp.check('bad pct rejected', pg_temp.err(format($$select public.store_admin_set_price(null, %s, 'pct', 100)$$, :oo)) like '%INVALID_PRICE_RULE%');
 select pg_temp.check('bad fixed rejected', pg_temp.err(format($$select public.store_admin_set_price(null, %s, 'fixed', 0)$$, :oo)) like '%INVALID_PRICE_RULE%');
 select pg_temp.check('inherit only for customers', pg_temp.err(format($$select public.store_admin_set_price(null, %s, 'inherit', null)$$, :oo)) like '%INVALID_PRICE_RULE%');
@@ -54,9 +57,9 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
 select pg_temp.check('real profit on order', (select profit from public.store_admin_orders(:c2, null, null, null, null, 1, 0)) = 2860 - 2770);
 
--- back to the default rule; current cost is now 950 → 950/0.91 = 1044
+-- back to the default rule; current cost is now 950 → 950 + 9% of 1000 = 1040
 select public.store_admin_set_price(:c2, :oo, 'inherit', null);
-select pg_temp.check('inherit → default again', (select source = 'default' and charge_now = 1044 from public.store_admin_prices('phone') where customer_id = :c2 and product_id = :oo));
+select pg_temp.check('inherit → default again', (select source = 'default' and charge_now = 1040 from public.store_admin_prices('phone') where customer_id = :c2 and product_id = :oo));
 
 reset role;
 select pg_temp.check('order keeps the rule', (select price_mode = 'amount' and price_value = 30 from store.orders where id = :b_order_id));
