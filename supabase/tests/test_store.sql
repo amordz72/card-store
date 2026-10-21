@@ -26,18 +26,19 @@ select public.store_admin_save_product(null, (select brand_id from public.store_
 \set p1 :prod_store_admin_save_product
 \set p2 :ff_store_admin_save_product
 
--- default rate 2% for p1, then create customer → copied
-select public.store_admin_set_rate(null, :p1, 2);
+-- default price 980 for p1 (fixed), then create customer → follows the default
+select public.store_admin_set_price(null, :p1, 'fixed', 980);
 select public.store_admin_create_customer('أحمد', '+213 661 00 00 01', 'secret123') as c1 \gset
 select pg_temp.check('phone normalized', (select phone from public.store_admin_customers() where customer_id = :c1) = '0661000001');
-select pg_temp.check('default rate copied', (select pct from public.store_admin_rates('phone') where customer_id = :c1 and product_id = :p1) = 2);
+select pg_temp.check('customer follows default price', (select source = 'default' and charge_now = 980 from public.store_admin_prices('phone') where customer_id = :c1 and product_id = :p1));
 select pg_temp.check('short password rejected', pg_temp.err($$select public.store_admin_create_customer('x', '0770000002', 'short')$$) like '%PASSWORD_TOO_SHORT%');
 select pg_temp.check('duplicate phone rejected', pg_temp.err($$select public.store_admin_create_customer('x', '0661000001', 'secret123')$$) like '%PHONE_EXISTS%');
 
 -- codes: paste with duplicates and serials
 select * from public.store_admin_add_codes(:p1, null, 920, E'AAA-1\nBBB-2 ; SN-2\n\nAAA-1\nCCC-3|SN3') \gset add_
 select pg_temp.check('codes added=3 dup=1', :add_added = 3 and :add_duplicates = 1, :add_added || '/' || :add_duplicates);
-select * from public.store_admin_add_codes(:p1, null, null, E'AAA-1\nDDD-4') \gset add2_
+select pg_temp.check('cost required', pg_temp.err(format($$select * from public.store_admin_add_codes(%s, null, null, 'X-1')$$, :p1)) like '%COST_REQUIRED%');
+select * from public.store_admin_add_codes(:p1, null, 920, E'AAA-1\nDDD-4') \gset add2_
 select pg_temp.check('existing code is duplicate', :add2_added = 1 and :add2_duplicates = 1);
 select pg_temp.check('stock available=4', (select available from public.store_admin_stock() where product_id = :p1) = 4);
 
@@ -74,7 +75,7 @@ select pg_temp.check('me: balance/debt/announcement', :me_balance = 2500 and :me
 select pg_temp.check('catalog shows base price only', (select base_price from public.store_catalog(:'tok') where product_id = :p1) = 1000);
 select pg_temp.check('catalog availability', (select available from public.store_catalog(:'tok') where product_id = :p2) = false);
 
--- buy 2 × Mobilis 1000 at 2% → 980 each = 1960
+-- buy 2 × Mobilis 1000 at fixed 980 = 1960
 select * from public.store_buy(:'tok', :p1, 2, '22222222-2222-2222-2222-222222222222') \gset b1_
 select pg_temp.check('buy returns 2 codes', jsonb_array_length(:'b1_codes'::jsonb) = 2);
 select * from public.store_buy(:'tok', :p1, 2, '22222222-2222-2222-2222-222222222222') \gset b1r_
