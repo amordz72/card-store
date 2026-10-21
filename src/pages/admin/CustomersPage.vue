@@ -1,0 +1,66 @@
+<template>
+  <q-page class="page">
+    <q-form class="card column q-gutter-sm" @submit.prevent="add">
+      <div class="text-weight-bold">إضافة زبون</div>
+      <div class="small muted">تضيفه يدويًا وتعطيه رقم هاتفه وكلمة السر ليدخل بهما.</div>
+      <div class="grid-2">
+        <q-input v-model="form.name" dense outlined label="الاسم" />
+        <q-input v-model="form.phone" dense outlined label="رقم الهاتف" inputmode="tel" placeholder="05xxxxxxxx" input-class="ltr text-right" />
+      </div>
+      <q-input v-model="form.password" dense outlined label="كلمة السر الأولى (8 أحرف على الأقل)" input-class="ltr text-right" />
+      <q-btn type="submit" unelevated color="primary" label="إضافة الزبون" :loading="busy"
+        :disable="!form.name.trim() || !form.phone || form.password.length < 8" />
+    </q-form>
+
+    <q-input v-model="query" dense outlined clearable label="بحث بالاسم أو الهاتف" bg-color="white" />
+    <q-list class="card q-pa-none">
+      <q-item v-for="c in shown" :key="c.customer_id" clickable :to="'/admin/customers/' + c.customer_id" style="border-top:1px solid #EEF0F5">
+        <q-item-section>
+          <q-item-label class="text-weight-bold">{{ c.name }}<q-badge v-if="!c.active" color="grey" class="q-ml-sm">موقوف</q-badge></q-item-label>
+          <q-item-label caption class="ltr text-right">{{ c.phone }}</q-item-label>
+        </q-item-section>
+        <q-item-section side class="items-end">
+          <span class="text-weight-bold amount-pos">رصيد {{ money(c.balance) }}</span>
+          <span class="small" :class="debtView(c.debt).cls">{{ debtView(c.debt).label }} {{ debtView(c.debt).text }}</span>
+        </q-item-section>
+      </q-item>
+      <div v-if="loaded && !shown.length" class="text-center muted q-pa-lg">لا يوجد زبائن</div>
+    </q-list>
+  </q-page>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useRun } from 'src/composables/useRun'
+import * as api from 'src/api/admin'
+import { money, debtView } from 'src/api/format'
+
+const router = useRouter()
+const { busy, run } = useRun()
+const list = ref([])
+const loaded = ref(false)
+const query = ref('')
+const form = ref({ name: '', phone: '', password: '' })
+
+const shown = computed(() => {
+  const q = (query.value || '').trim()
+  return q ? list.value.filter((c) => c.name.includes(q) || c.phone.includes(q.replace(/\s/g, ''))) : list.value
+})
+
+async function load () {
+  const data = await run(() => api.customers())
+  if (data) list.value = data
+  loaded.value = true
+}
+
+async function add () {
+  const id = await run(() => api.createCustomer(form.value.name, form.value.phone, form.value.password),
+    { success: 'أُضيف الزبون. رصيده ودينه وحد دينه 0، ونسبه = النسب الافتراضية.' })
+  if (!id) return
+  form.value = { name: '', phone: '', password: '' }
+  router.push('/admin/customers/' + id)
+}
+
+onMounted(load)
+</script>

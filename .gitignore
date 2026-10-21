@@ -1,0 +1,13 @@
+.DS_Store
+.thumbs.db
+node_modules
+/dist
+/.quasar
+/src-pwa/.quasar
+npm-debug.log*
+.env*
+.idea
+.vscode/*
+!.vscode/extensions.json
+/test-results
+/playwright-report
