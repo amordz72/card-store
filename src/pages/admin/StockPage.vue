@@ -12,12 +12,30 @@
         <template #prepend><q-icon name="upload_file" /></template>
       </q-file>
       <q-input v-model="codeForm.lines" type="textarea" outlined rows="5" label="الأكواد (كود في كل سطر، أو: الكود ; الرقم التسلسلي)" input-class="ltr text-left" />
+      <!-- What was read: one card per line (code, then optional serial) -->
+      <div v-if="parsed.cards" class="small q-pa-sm rounded-borders" :class="parsed.mismatch ? 'warn-loss' : 'preview-ok'">
+        <b>عدد البطاقات: {{ parsed.cards }}</b>
+        <span v-if="parsed.withSerial"> · منها {{ parsed.withSerial }} برقم تسلسلي</span>
+        <span v-if="parsed.dups"> · {{ parsed.dups }} مكررة في الملف (تُضاف مرة واحدة)</span>
+        <div v-if="parsed.expected != null">اسم الملف يذكر <b>{{ parsed.expected }}</b> بطاقة —
+          {{ parsed.mismatch ? 'العدد مختلف! راجع الملف قبل الإضافة.' : 'العدد مطابق ✓' }}</div>
+        <div class="ltr text-left muted">أول بطاقة: {{ parsed.first.code }}<span v-if="parsed.first.serial"> | SN {{ parsed.first.serial }}</span></div>
+      </div>
       <div class="row q-gutter-sm items-start">
         <q-select v-model="codeForm.supplierId" class="col" :options="supplierOptions" emit-value map-options dense outlined label="المصدر (المنصة / المورد)" />
         <q-btn outline color="primary" label="+ منصة" @click="addSupplierOpen = true" />
       </div>
       <q-input v-model.number="codeForm.cost" dense outlined type="number" inputmode="numeric" label="سعر الشراء للبطاقة الواحدة (دج) *"
         hint="إجباري — منه يُحسب ربحك وسعر الزبائن" />
+      <!-- Read-only check before adding: selling price stays on the card, only the cost comes with the batch -->
+      <div v-if="preview" class="small q-pa-sm rounded-borders column q-gutter-xs" :class="preview.loss ? 'warn-loss' : 'preview-ok'">
+        <div>سعر البيع: <b>{{ money(preview.base) }}</b> · سعر الشراء: <b>{{ money(preview.cost) }}</b> ·
+          الربح الكلي: <b>{{ money(preview.margin) }}</b> ({{ preview.marginPct }}%)</div>
+        <div v-if="preview.pay != null">يدفع الزبون (السعر الافتراضي): <b>{{ money(preview.pay) }}</b> · ربحك: <b>{{ money(preview.mine) }}</b></div>
+        <div v-if="preview.cost >= preview.base" class="text-weight-bold">تنبيه: سعر الشراء يساوي سعر البيع أو أكبر منه.</div>
+        <div v-else-if="preview.mine < 0" class="text-weight-bold">تنبيه: الزبون يدفع أقل من سعر الشراء — خسارة {{ money(-preview.mine) }} في كل بطاقة.</div>
+        <q-btn flat dense no-caps color="primary" icon="edit" label="تعديل سعر البيع" class="self-start" @click="openBase" />
+      </div>
       <q-btn type="submit" unelevated color="primary" size="lg" label="إضافة للمخزن" :loading="busy"
         :disable="!codeForm.productId || !codeForm.lines.trim() || !(codeForm.cost > 0)" />
     </q-form>
@@ -94,7 +112,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { Notify } from 'quasar'
+import { Dialog, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
 import { money } from 'src/api/format'
@@ -106,6 +124,33 @@ const brands = ref([])
 const suppliers = ref([])
 const announcement = ref('')
 const usualCost = ref({})   // product_id → usual purchase cost
+const defaultRule = ref({})  // product_id → default customer price rule { mode, value }
+
+// What this batch means before adding it (all % of the selling price)
+const preview = computed(() => {
+  const p = stock.value.find((x) => x.product_id === codeForm.value.productId)
+  const cost = Number(codeForm.value.cost)
+  if (!p || !(cost > 0)) return null
+  const base = Number(p.base_price)
+  const r = defaultRule.value[p.product_id] || { mode: 'fixed', value: base }
+  const pay = r.mode === 'fixed' ? Math.round(r.value) : r.mode === 'amount' ? cost + Math.round(r.value) : cost + Math.round(base * r.value / 100)
+  return { base, cost, margin: base - cost, marginPct: Math.round((base - cost) / base * 10000) / 100, pay, mine: pay - cost, loss: cost >= base || pay < cost }
+})
+
+// «تعديل سعر البيع»: changes the card's selling price for everyone (e.g. games when the dollar rate moves)
+function openBase () {
+  const p = stock.value.find((x) => x.product_id === codeForm.value.productId)
+  if (!p) return
+  Dialog.create({
+    title: 'تعديل سعر البيع', message: `${p.name}: السعر الجديد يظهر في المتجر لكل الزبائن.`,
+    prompt: { model: String(p.base_price), type: 'number' }, cancel: 'إلغاء', ok: 'حفظ'
+  }).onOk(async (v) => {
+    const price = Number(v)
+    if (!(price > 0)) return
+    const ok = await run(() => api.saveProduct({ id: p.product_id, basePrice: price }).then(() => true), { success: 'حُفظ سعر البيع.' })
+    if (ok) load()
+  })
+}
 
 const cat = ref('all')
 const brand = ref('all')
@@ -118,7 +163,8 @@ const supplierOptions = computed(() => suppliers.value.map((s) => ({ value: s.su
 const brandOptions = computed(() => brands.value.map((b) => ({ value: b.brand_id, label: b.name })))
 
 async function load () {
-  const [s, b, sup, costs] = await Promise.all([run(() => api.stock()), run(() => api.brands()), run(() => api.suppliers()), run(() => api.productCosts())])
+  const [s, b, sup, costs, prices] = await Promise.all([run(() => api.stock()), run(() => api.brands()), run(() => api.suppliers()), run(() => api.productCosts()), run(() => api.priceList(null))])
+  if (prices) defaultRule.value = Object.fromEntries(prices.filter((r) => r.customer_id == null).map((r) => [r.product_id, { mode: r.mode, value: Number(r.value) }]))
   if (s) stock.value = s
   if (costs) usualCost.value = Object.fromEntries(costs.filter((c) => c.default_cost != null).map((c) => [c.product_id, Number(c.default_cost)]))
   if (b) brands.value = b
@@ -144,12 +190,30 @@ const file = ref(null)
 watch(() => codeForm.value.productId, (id) => {
   if (id != null && usualCost.value[id] != null) codeForm.value.cost = usualCost.value[id]
 })
+// Same reading rule as the database: one card per line; first ; , or | separates code and serial
+const fileName = ref('')
+const parsed = computed(() => {
+  const rows = codeForm.value.lines.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const sep = (l.match(/[;,|]/) || [';'])[0]
+    const i = l.indexOf(sep)
+    return i < 0 ? { code: l, serial: '' } : { code: l.slice(0, i).trim(), serial: l.slice(i + 1).trim() }
+  }).filter((r) => r.code)
+  const unique = new Set(rows.map((r) => r.code)).size
+  const m = fileName.value.match(/\((\d+)\)/)   // e.g. MOBILIS_1000_DA(50)_…txt
+  const expected = m ? Number(m[1]) : null
+  return {
+    cards: unique, dups: rows.length - unique, withSerial: rows.filter((r) => r.serial).length,
+    first: rows[0] || {}, expected, mismatch: expected != null && expected !== unique
+  }
+})
+
 watch(file, async (f) => {
+  fileName.value = f ? f.name : ''
   if (!f) return
   const text = await f.text()
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
   codeForm.value.lines = lines.join('\n')
-  Notify.create({ type: 'info', message: `قُرئ الملف: ${lines.length} سطر. راجعها ثم اضغط «إضافة للمخزن».` })
+  Notify.create({ type: 'info', message: `قُرئ الملف: ${parsed.value.cards} بطاقة. راجع العدد ثم اضغط «إضافة للمخزن».` })
 })
 
 async function addCodes () {
@@ -225,5 +289,7 @@ onMounted(() => { load(); loadAnnouncement() })
 </script>
 
 <style scoped>
+.warn-loss { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
+.preview-ok { background: #F0F9FF; color: #075985; border: 1px solid #BAE6FD; }
 .stock-table :deep(th), .stock-table :deep(td) { padding: 6px 4px; }
 </style>
