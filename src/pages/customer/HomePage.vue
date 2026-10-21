@@ -1,5 +1,15 @@
 <template>
   <q-page class="page">
+    <!-- Reminder until the account turns the lock on («لاحقًا» hides it for 7 days on this device) -->
+    <div v-if="showLockHint" class="card row items-center no-wrap q-gutter-sm" style="background:#FFFBEB;border-color:#FCD34D">
+      <q-icon name="lock_open" size="28px" color="warning" />
+      <div class="col small" style="color:#92400E">احمِ حسابك: فعّل قفل البرنامج بالبصمة أو برمز، حتى لا يستعمله غيرك إن تركت جهازك مفتوحًا.</div>
+      <div class="column q-gutter-xs">
+        <q-btn dense unelevated color="warning" label="تفعيل" to="/account" />
+        <q-btn dense flat color="grey-8" label="لاحقًا" @click="snoozeLockHint" />
+      </div>
+    </div>
+
     <div v-if="announcement" class="card" style="background:#EEF0FF;border-color:#C7CAF5">
       <div class="small text-weight-bold" style="color:#3730A3">إعلان</div>
       <div class="text-subtitle1 text-weight-medium" style="white-space:pre-line">{{ announcement }}</div>
@@ -77,8 +87,18 @@ import * as adminApi from 'src/api/admin'
 import { money, dateTime, debtView } from 'src/api/format'
 import DateField from 'components/DateField.vue'
 import TopupDialog from 'components/TopupDialog.vue'
+import { LocalStorage } from 'quasar'
+import { useLockStore } from 'stores/lock'
 
 const session = useSessionStore()
+const lock = useLockStore()
+const HINT_KEY = 'cs_lock_hint_snooze'
+const snoozed = ref(Number(LocalStorage.getItem(HINT_KEY) || 0) > Date.now())
+const showLockHint = computed(() => !!lock.accountKey && !lock.enabled && !snoozed.value)
+function snoozeLockHint () {
+  LocalStorage.set(HINT_KEY, Date.now() + 7 * 24 * 3600 * 1000)
+  snoozed.value = true
+}
 const customer = useCustomerStore()
 const shop = useShopStore()
 const buyer = useBuyer()
