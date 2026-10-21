@@ -89,12 +89,18 @@ const MENU = [
     label: 'البطاقات',
     items: [
       { to: '/store', label: 'المتجر', icon: 'storefront' },
-      { to: '/profits', label: 'أرباحي في البطاقات', icon: 'savings', customer: true, needsProfit: true },
       { to: '/stock', label: 'المخزن', icon: 'inventory_2', admin: true },
       { to: '/prices', label: 'الأسعار', icon: 'sell', admin: true }
     ]
   },
-  { label: 'العمليات', items: [{ to: '/operations', label: 'كل العمليات', icon: 'receipt_long' }] },
+  {
+    label: 'العمليات',
+    items: [
+      { to: '/operations', label: 'كل العمليات', icon: 'receipt_long' },
+      // kept discreet at the end (owner decision): visible only when the customer earns on some card
+      { to: '/profits', label: 'أرباحي في البطاقات', icon: 'savings', customer: true, needsProfit: true }
+    ]
+  },
   {
     label: 'التحويلات',
     items: [
