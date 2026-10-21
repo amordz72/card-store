@@ -19,13 +19,8 @@
       <router-view />
     </q-page-container>
 
-    <q-footer class="bg-white" bordered>
-      <q-tabs dense no-caps active-color="primary" class="text-grey-8" indicator-color="transparent">
-        <q-route-tab to="/" exact icon="home" label="الرئيسية" />
-        <q-route-tab to="/store" icon="storefront" label="المتجر" />
-        <q-route-tab to="/operations" icon="receipt_long" label="العمليات" />
-        <q-route-tab to="/account" icon="person" label="حسابي" />
-      </q-tabs>
+    <q-footer class="bg-white">
+      <BottomNav :items="nav" />
     </q-footer>
   </q-layout>
 </template>
@@ -36,7 +31,14 @@ import { useRoute } from 'vue-router'
 import { useCustomerStore } from 'stores/customer'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
+import BottomNav from 'components/BottomNav.vue'
 
+const nav = [
+  { to: '/', label: 'الرئيسية', exact: true },
+  { to: '/store', label: 'المتجر' },
+  { to: '/operations', label: 'العمليات' },
+  { to: '/account', label: 'حسابي' }
+]
 const customer = useCustomerStore()
 const route = useRoute()
 const { run } = useRun()

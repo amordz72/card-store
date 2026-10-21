@@ -21,7 +21,7 @@
       </div>
       <div class="grid-2">
         <q-btn color="primary" unelevated size="lg" label="شراء بطاقة" to="/store" />
-        <q-btn outline color="primary" size="lg" label="عملياتي" to="/operations" />
+        <q-btn outline color="primary" size="lg" label="كشف حسابي" to="/account" />
       </div>
     </template>
     <q-inner-loading :showing="!p" />

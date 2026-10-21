@@ -1,10 +1,10 @@
 <template>
   <div class="card grid-2">
-    <q-select v-if="customers" v-model="f.customerId" :options="customerOptions" emit-value map-options dense outlined label="الزبون" />
-    <q-select v-model="f.category" :options="catOptions" emit-value map-options dense outlined label="نوع العمليات" />
-    <q-input v-model="f.from" type="date" dense outlined stack-label label="من تاريخ" />
-    <q-input v-model="f.to" type="date" dense outlined stack-label label="حتى تاريخ" />
-    <q-input v-model="f.query" dense outlined clearable debounce="400" label="بحث" placeholder="بطاقة، رقم" />
+    <q-select v-if="customers" v-model="f.customerId" :options="customerOptions" emit-value map-options dense outlined stack-label label="الزبون" />
+    <q-select v-model="f.category" :options="catOptions" emit-value map-options dense outlined stack-label label="نوع العمليات" />
+    <DateField v-model="f.from" label="من تاريخ" />
+    <DateField v-model="f.to" label="حتى تاريخ" />
+    <q-input v-model="f.query" dense outlined clearable stack-label debounce="400" label="بحث" placeholder="بطاقة، رقم" />
     <q-btn flat no-caps color="grey-8" icon="filter_alt_off" label="مسح الفلاتر" @click="clear" />
   </div>
 </template>
@@ -12,6 +12,7 @@
 <script setup>
 import { computed } from 'vue'
 import { CATEGORIES } from 'src/api/format'
+import DateField from 'components/DateField.vue'
 
 const props = defineProps({ customers: { type: Array, default: null } })
 const f = defineModel({ type: Object, required: true })

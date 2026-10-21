@@ -4,15 +4,15 @@
       <q-page class="flex flex-center q-pa-md">
         <q-form class="card column q-gutter-md" style="width:100%;max-width:380px" @submit.prevent="submit">
           <div class="text-h6 text-weight-bold text-center">متجر البطاقات</div>
-          <q-input v-model="phone" label="رقم الهاتف" outlined inputmode="tel" autocomplete="username" input-class="ltr text-right" />
+          <q-input v-model="id" label="رقم الهاتف أو البريد" outlined autocomplete="username" input-class="ltr text-right"
+            hint="الزبائن: رقم الهاتف · الإدارة: البريد" />
           <q-input v-model="password" label="كلمة السر" outlined :type="show ? 'text' : 'password'" autocomplete="current-password">
             <template #append>
               <q-icon :name="show ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="show = !show" />
             </template>
           </q-input>
-          <div v-if="failed" class="text-negative small">رقم الهاتف أو كلمة السر غير صحيحة.</div>
-          <q-btn type="submit" color="primary" unelevated size="lg" label="دخول" :loading="busy" :disable="!phone || !password" />
-          <router-link to="/admin/login" class="small muted text-center">دخول المدير</router-link>
+          <div v-if="failed" class="text-negative small">{{ failed }}</div>
+          <q-btn type="submit" color="primary" unelevated size="lg" label="دخول" :loading="busy" :disable="!id || !password" />
         </q-form>
       </q-page>
     </q-page-container>
@@ -23,20 +23,30 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCustomerStore } from 'stores/customer'
+import { useAdminStore } from 'stores/admin'
 import { useRun } from 'src/composables/useRun'
 
+// One login page: an e-mail signs the admin in (Supabase Auth), a phone number signs a customer in.
 const router = useRouter()
 const customer = useCustomerStore()
+const admin = useAdminStore()
 const { busy, run } = useRun()
-const phone = ref('')
+const id = ref('')
 const password = ref('')
 const show = ref(false)
-const failed = ref(false)
+const failed = ref('')
 
 async function submit () {
-  failed.value = false
-  const ok = await run(() => customer.login(phone.value, password.value))
+  failed.value = ''
+  const value = id.value.trim()
+  if (value.includes('@')) {
+    const ok = await run(() => admin.login(value, password.value))
+    if (ok) router.replace('/admin/customers')
+    else if (ok === false) failed.value = 'بيانات الدخول غير صحيحة، أو هذا الحساب ليس مديرًا للمتجر.'
+    return
+  }
+  const ok = await run(() => customer.login(value, password.value))
   if (ok) router.replace('/')
-  else if (ok === false) failed.value = true
+  else if (ok === false) failed.value = 'رقم الهاتف أو كلمة السر غير صحيحة.'
 }
 </script>

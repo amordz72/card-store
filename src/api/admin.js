@@ -36,7 +36,8 @@ export const entries = (f) => rpc('store_admin_entries', {
   p_from: f.from || null,
   p_to: f.to || null,
   p_limit: f.limit,
-  p_offset: f.offset
+  p_offset: f.offset,
+  p_scope: f.scope || null
 })
 
 export const orders = (f) => rpc('store_admin_orders', {
@@ -46,7 +47,8 @@ export const orders = (f) => rpc('store_admin_orders', {
   p_to: f.to || null,
   p_query: f.query || null,
   p_limit: f.limit,
-  p_offset: f.offset
+  p_offset: f.offset,
+  p_scope: f.scope || null
 })
 
 export const orderCodes = (orderId) => rpc('store_admin_order_codes', { p_order_id: orderId })
@@ -76,3 +78,15 @@ export const setRate = (customerId, productId, pct) =>
 export const getAnnouncement = () => rpc('store_admin_get_announcement')
 export const setAnnouncement = (text) => rpc('store_admin_set_announcement', { p_text: text })
 export const reconcile = () => rpc('store_admin_reconcile')
+
+// Shop account («حساب المحل»): the owner's own wallet
+export const shopCatalog = () => rpc('store_admin_shop_catalog')
+export async function shopBuy (productId, qty, requestId) {
+  const rows = await rpc('store_admin_shop_buy', { p_product_id: productId, p_qty: qty, p_request_id: requestId })
+  return rows[0]
+}
+export async function shopTopup (amount, note, requestId) {
+  const rows = await rpc('store_admin_shop_topup', { p_amount: amount, p_note: note || null, p_request_id: requestId })
+  return rows[0]
+}
+export const shopSummary = (from, to) => rpc('store_admin_shop_summary', { p_from: from || null, p_to: to || null })

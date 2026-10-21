@@ -14,6 +14,12 @@
           <div class="q-pa-sm rounded-borders column" style="background:#ECFDF3"><span class="small" style="color:#166534">الرصيد</span><b class="amount-pos" style="font-size:17px">{{ money(c.balance) }}</b></div>
           <div class="q-pa-sm rounded-borders column" style="background:#F7F8FB"><span class="small">{{ debt.label }} (الحد {{ money(c.debt_limit) }})</span><b :class="debt.cls" style="font-size:17px">{{ debt.text }}</b></div>
         </div>
+        <div class="row q-gutter-sm items-start">
+          <q-input v-model.number="limitDraft" class="col" dense outlined type="number" stack-label label="حد الدين (دج)" hint="يمنع الشحن الذاتي فقط؛ لا يمنعك أنت" />
+          <q-btn outline color="primary" label="حفظ" @click="save({ debtLimit: limitDraft }, 'حُفظ حد الدين')" />
+        </div>
+        <q-toggle :model-value="c.self_topup" label="السماح بالشحن الذاتي (للزبون الموثوق)" color="warning"
+          @update:model-value="(v) => save({ selfTopup: v }, v ? 'فُعّل الشحن الذاتي' : 'أُوقف الشحن الذاتي')" />
       </div>
 
       <div class="card column q-gutter-sm">
@@ -36,14 +42,8 @@
       </div>
       <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="entries.length" />
 
-      <div class="section-title">إعدادات الزبون</div>
+      <div class="section-title">إدارة الحساب</div>
       <div class="card column q-gutter-sm">
-        <div class="row q-gutter-sm items-start">
-          <q-input v-model.number="limitDraft" class="col" dense outlined type="number" label="حد الدين (دج)" hint="يمنع الشحن الذاتي فقط؛ لا يمنعك أنت" />
-          <q-btn outline color="primary" label="حفظ" @click="save({ debtLimit: limitDraft }, 'حُفظ حد الدين')" />
-        </div>
-        <q-toggle :model-value="c.self_topup" label="السماح بالشحن الذاتي (للزبون الموثوق)" color="warning"
-          @update:model-value="(v) => save({ selfTopup: v }, v ? 'فُعّل الشحن الذاتي' : 'أُوقف الشحن الذاتي')" />
         <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
           @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
         <div class="row q-gutter-sm items-start">

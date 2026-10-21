@@ -37,7 +37,7 @@
           </div>
           <q-separator />
           <div class="row justify-between"><span>المجموع (سعر البيع)</span><span class="text-weight-bold">{{ money(sel.base_price * qty) }}</span></div>
-          <div class="row justify-between small muted"><span>رصيدك الآن</span><span>{{ customer.hideAmounts ? '••••••' : money(customer.profile?.balance) }}</span></div>
+          <div class="row justify-between small muted"><span>{{ buyer.isShop.value ? 'رصيد المحل الآن' : 'رصيدك الآن' }}</span><span>{{ buyer.hide.value ? '••••••' : money(buyer.balance.value) }}</span></div>
         </q-card-section>
         <q-card-actions class="q-pa-md q-gutter-sm">
           <q-btn class="col-grow" unelevated color="primary" size="lg" label="تأكيد الشراء" :loading="busy" @click="confirmBuy" />
@@ -52,15 +52,14 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useCustomerStore } from 'stores/customer'
 import { useRun } from 'src/composables/useRun'
+import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
-import * as api from 'src/api/customer'
 import { newRequestId } from 'src/api/rpc'
 import { money, brandColor, CATEGORIES } from 'src/api/format'
 import CodesDialog from 'components/CodesDialog.vue'
 
-const customer = useCustomerStore()
+const buyer = useBuyer()
 const { busy, run } = useRun()
 
 const products = ref([])
@@ -81,7 +80,7 @@ const shownProducts = computed(() => {
 })
 
 async function load () {
-  const rows = await run(() => api.catalog(customer.token))
+  const rows = await run(() => buyer.catalog())
   if (rows) products.value = rows
   loaded.value = true
 }
@@ -102,7 +101,7 @@ const codesOpen = ref(false)
 const bought = ref({ subtitle: '', codes: [] })
 
 async function confirmBuy () {
-  const res = await run(() => api.buy(customer.token, sel.value.product_id, qty.value, requestId))
+  const res = await run(() => buyer.buy(sel.value.product_id, qty.value, requestId))
   if (!res) {
     await load()
     return
@@ -113,7 +112,7 @@ async function confirmBuy () {
     codes: res.codes.map((c) => ({ ...c, actionLabel: 'نسخ', action: () => copyText(c.code) }))
   }
   codesOpen.value = true
-  run(() => customer.refresh())
+  run(() => buyer.refresh())
   load()
 }
 

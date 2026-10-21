@@ -12,7 +12,8 @@ const routes = [
     ]
   },
 
-  { path: '/admin/login', component: () => import('pages/admin/AdminLoginPage.vue') },
+  // One login page for everyone; keep the old admin link working
+  { path: '/admin/login', redirect: '/login' },
   {
     path: '/admin',
     component: () => import('layouts/AdminLayout.vue'),
@@ -24,7 +25,11 @@ const routes = [
       { path: 'operations', component: () => import('pages/admin/AdminOperationsPage.vue') },
       { path: 'transfers', component: () => import('pages/admin/TransfersPage.vue') },
       { path: 'stock', component: () => import('pages/admin/StockPage.vue') },
-      { path: 'rates', component: () => import('pages/admin/RatesPage.vue') }
+      { path: 'rates', component: () => import('pages/admin/RatesPage.vue') },
+      // «حساب المحل»: the owner buys like a customer from his own wallet
+      { path: 'shop', component: () => import('pages/admin/ShopHomePage.vue'), meta: { shop: true } },
+      { path: 'shop/store', component: () => import('pages/customer/StorePage.vue'), meta: { shop: true } },
+      { path: 'shop/operations', component: () => import('pages/customer/OperationsPage.vue'), meta: { shop: true } }
     ]
   },
 

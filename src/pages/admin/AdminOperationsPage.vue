@@ -1,5 +1,9 @@
 <template>
   <q-page class="page">
+    <div class="row q-gutter-sm">
+      <q-btn v-for="s in SCOPES" :key="s.id" rounded no-caps :unelevated="f.scope === s.id" :outline="f.scope !== s.id"
+        :color="f.scope === s.id ? 'primary' : 'grey-8'" :label="s.label" @click="f.scope = s.id" />
+    </div>
     <OpsFilters v-model="f" :customers="customers" />
     <div class="card q-pa-none" style="overflow:hidden">
       <OperationRow v-for="op in rows" :key="op.order_id" :op="op" admin @open="openCodes(op)" />
@@ -23,7 +27,8 @@ import CodesDialog from 'components/CodesDialog.vue'
 
 const { busy, run } = useRun()
 const customers = ref([])
-const f = ref({ customerId: null, category: null, from: '', to: '', query: '' })
+const SCOPES = [{ id: null, label: 'الكل' }, { id: 'customers', label: 'الزبائن' }, { id: 'shop', label: 'المحل' }]
+const f = ref({ scope: null, customerId: null, category: null, from: '', to: '', query: '' })
 const page = ref(1)
 const size = ref(10)
 const rows = ref([])
@@ -69,8 +74,9 @@ async function openCodes (op) {
   const data = await run(() => api.orderCodes(op.order_id))
   if (!data) return
   codesTitle.value = op.status === 'done' ? 'أكواد العملية' : 'عملية مسترجعة'
-  codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id} — الأكواد مخفية؛ «كشف» يُسجَّل`
-  codes.value = data.map(codeItem)
+  codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id}` + (op.is_shop ? ' — من حساب المحل' : ' — الأكواد مخفية؛ «كشف» يُسجَّل')
+  // the shop's own codes come back in full; customers' codes are masked with a logged reveal
+  codes.value = op.is_shop ? data.map((c) => ({ code: c.masked_code, serial: c.serial, status: c.status, actionLabel: 'نسخ', action: () => copyText(c.masked_code) })) : data.map(codeItem)
   codesOpen.value = true
 }
 </script>

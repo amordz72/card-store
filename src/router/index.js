@@ -14,7 +14,7 @@ export default defineRouter(({ store }) => {
   router.beforeEach(async (to) => {
     if (to.matched.some((r) => r.meta.admin)) {
       const ok = await useAdminStore(store).check()
-      if (!ok) return '/admin/login'
+      if (!ok) return '/login'
     } else if (to.matched.some((r) => r.meta.customer)) {
       if (!useCustomerStore(store).signedIn) return '/login'
     }
