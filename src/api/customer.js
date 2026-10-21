@@ -47,3 +47,8 @@ export async function selfTopup (token, amount, requestId) {
 
 export const changePassword = (token, oldPassword, newPassword) =>
   rpc('store_change_password', { p_token: token, p_old: oldPassword, p_new: newPassword })
+
+// Device lock PIN (the fingerprint never reaches the server)
+export const lockStatus = (token) => rpc('store_lock_status', { p_token: token })
+export const setPin = (token, pin) => rpc('store_set_pin', { p_token: token, p_pin: pin })
+export const checkPin = (token, pin) => rpc('store_check_pin', { p_token: token, p_pin: pin })

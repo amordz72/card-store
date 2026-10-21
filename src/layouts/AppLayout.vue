@@ -29,12 +29,18 @@
           </q-item>
         </template>
         <q-separator class="q-my-sm" />
+        <q-item v-if="lock.enabled" clickable @click="lock.lock()">
+          <q-item-section avatar><q-icon name="lock" /></q-item-section>
+          <q-item-section>قفل الآن</q-item-section>
+        </q-item>
         <q-item clickable @click="logout">
           <q-item-section avatar><q-icon name="logout" color="negative" /></q-item-section>
           <q-item-section class="text-negative">خروج</q-item-section>
         </q-item>
       </q-list>
     </q-drawer>
+
+    <LockScreen />
 
     <q-page-container>
       <router-view />
@@ -47,7 +53,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useSessionStore } from 'stores/session'
@@ -57,6 +63,10 @@ import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
 import QuickBar from 'components/QuickBar.vue'
+import LockScreen from 'components/LockScreen.vue'
+import { useLockStore, markActive } from 'stores/lock'
+import * as adminApi from 'src/api/admin'
+import * as customerApi from 'src/api/customer'
 
 const route = useRoute()
 const router = useRouter()
@@ -108,10 +118,36 @@ const nav = [
 
 // on phones the menu closes after choosing a page; on wide screens it stays open
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
-onMounted(() => run(() => buyer.refresh()))
+const lock = useLockStore()
+
+// Lock after a period WITHOUT USE: any touch, click or key counts as use
+let lastWrite = 0
+function onActivity () {
+  if (lock.locked) return
+  const now = Date.now()
+  if (now - lastWrite > 15000) { lastWrite = now; markActive() }
+}
+const onVisible = () => { if (document.visibilityState === 'visible') lock.check() }
+const EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel']
+let timer = null
+
+onMounted(async () => {
+  await run(() => buyer.refresh())
+  const hasPin = await run(() => (session.isAdmin ? adminApi.lockStatus() : customerApi.lockStatus(customer.token)))
+  lock.init(session.isAdmin ? 'a:' + (admin.email || '') : 'c:' + (customer.profile?.phone || ''), hasPin)
+  EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
+  document.addEventListener('visibilitychange', onVisible)
+  timer = setInterval(() => lock.check(), 30000)
+})
+onBeforeUnmount(() => {
+  EVENTS.forEach((e) => window.removeEventListener(e, onActivity))
+  document.removeEventListener('visibilitychange', onVisible)
+  clearInterval(timer)
+})
 
 async function logout () {
   await session.logout()
+  lock.reset()
   router.replace('/login')
 }
 </script>

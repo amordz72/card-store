@@ -39,6 +39,8 @@
 
     </template>
 
+    <LockSettings />
+
     <q-btn flat color="negative" icon="logout" label="خروج" @click="logout" />
   </q-page>
 </template>
@@ -52,6 +54,8 @@ import * as api from 'src/api/customer'
 import { money, debtView } from 'src/api/format'
 import { useSessionStore } from 'stores/session'
 import { useAdminStore } from 'stores/admin'
+import LockSettings from 'components/LockSettings.vue'
+import { useLockStore } from 'stores/lock'
 
 const router = useRouter()
 const customer = useCustomerStore()
@@ -81,6 +85,7 @@ async function changePassword () {
 
 async function logout () {
   await session.logout()
+  useLockStore().reset()
   router.replace('/login')
 }
 </script>

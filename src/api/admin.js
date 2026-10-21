@@ -94,3 +94,8 @@ export async function shopTopup (amount, note, requestId) {
   return rows[0]
 }
 export const shopSummary = (from, to) => rpc('store_admin_shop_summary', { p_from: from || null, p_to: to || null })
+
+// Device lock PIN for the owner
+export const lockStatus = () => rpc('store_admin_lock_status')
+export const setPin = (pin) => rpc('store_admin_set_pin', { p_pin: pin })
+export const checkPin = (pin) => rpc('store_admin_check_pin', { p_pin: pin })
