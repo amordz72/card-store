@@ -15,18 +15,25 @@
       </q-item-section>
     </q-item>
     <div class="grid-3 q-px-md q-pb-sm small muted">
-      <span>المقتطع<br><b style="color:#B45309">{{ mask(money(op.charged_amount)) }}</b></span>
-      <span>{{ admin ? (op.is_shop ? 'ربحي حسب نسبتي' : 'خصم الزبون') : shop ? 'ربحي حسب نسبتي' : 'ربحك' }}<br><b class="amount-info">{{ mask(money(op.base_amount - op.charged_amount)) }}</b></span>
+      <span>{{ isShop ? 'سعر الشراء' : 'المقتطع' }}<br><b style="color:#B45309">{{ mask(money(op.charged_amount)) }}</b></span>
+      <span v-if="isShop">ربحي<br><b :class="profitClass">{{ mask(profitText) }}</b></span>
+      <span v-else>{{ admin ? 'ربح الزبون' : 'ربحك' }}<br><b :class="op.base_amount - op.charged_amount >= 0 ? 'amount-info' : 'amount-neg'">{{ mask(signed(op.base_amount - op.charged_amount)) }}</b></span>
       <span>الرصيد بعد<br><b class="text-dark">{{ mask(money(op.balance_after)) }}</b></span>
-      <span v-if="admin || shop">{{ op.is_shop ? 'الربح الحقيقي' : 'ربحي' }}<br><b :class="op.profit == null ? '' : op.profit >= 0 ? 'amount-info' : 'amount-neg'">{{ op.profit == null ? 'غير معروف' : (op.profit < 0 ? '−' : '') + money(op.profit) }}</b></span>
+      <span v-if="admin && !isShop">ربحي<br><b :class="profitClass">{{ profitText }}</b></span>
     </div>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { money, dateTime, brandColor } from 'src/api/format'
 
 const props = defineProps({ op: { type: Object, required: true }, admin: Boolean, shop: Boolean, hide: Boolean })
 defineEmits(['open'])
 const mask = (s) => (props.hide ? '••••' : s)
+const isShop = computed(() => props.shop || !!props.op.is_shop)
+const signed = (n) => (n < 0 ? '−' : '') + money(Math.abs(n))
+// Shop orders: selling price − purchase cost. Customer orders (admin view): amount charged − purchase cost.
+const profitText = computed(() => (props.op.profit == null ? 'غير معروف' : signed(Number(props.op.profit))))
+const profitClass = computed(() => (props.op.profit == null ? '' : props.op.profit >= 0 ? 'amount-info' : 'amount-neg'))
 </script>

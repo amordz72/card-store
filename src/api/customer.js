@@ -16,7 +16,7 @@ export async function me (token) {
 }
 
 export const catalog = (token) => rpc('store_catalog', { p_token: token })
-export const rates = (token) => rpc('store_rates', { p_token: token })
+export const myPrices = (token) => rpc('store_my_prices', { p_token: token })
 
 export async function buy (token, productId, qty, requestId) {
   const rows = await rpc('store_buy', { p_token: token, p_product_id: productId, p_qty: qty, p_request_id: requestId })

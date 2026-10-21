@@ -15,12 +15,18 @@
       </div>
     </div>
 
-    <div class="section-title">النسب الخاصة بي %</div>
-    <div class="card grid-2">
-      <div v-for="r in myRates" :key="r.product_id" class="row justify-between">
-        <span>{{ r.name }}</span><b style="color:#3730A3">{{ Number(r.pct) }}%</b>
+    <div class="section-title">أسعاري</div>
+    <div class="card q-pa-none" style="overflow:hidden">
+      <div class="row q-px-md q-py-xs small muted" style="background:#F7F8FB">
+        <span class="col">البطاقة</span><span class="col-3 text-center">سعر البيع</span><span class="col-3 text-center">أدفع</span><span class="col-2 text-center">ربحي</span>
       </div>
-      <div v-if="!myRates.length" class="muted small">لا توجد نسب بعد</div>
+      <div v-for="r in myPrices" :key="r.product_id" class="row items-center q-px-md q-py-sm" style="border-top:1px solid #EEF0F5">
+        <span class="col">{{ r.name }}</span>
+        <span class="col-3 text-center">{{ money(r.base_price) }}</span>
+        <b class="col-3 text-center" style="color:#B45309">{{ r.pay_now == null ? '—' : shown(r.pay_now) }}</b>
+        <b class="col-2 text-center amount-info">{{ r.pay_now == null ? '—' : shown(r.base_price - r.pay_now) }}</b>
+      </div>
+      <div v-if="!myPrices.length" class="muted small q-pa-md">لا توجد بطاقات بعد</div>
     </div>
 
     <div class="section-title">كشف الحساب</div>
@@ -59,7 +65,7 @@ const p = computed(() => customer.profile)
 const debt = computed(() => debtView(p.value?.debt || 0, true))
 const shown = (n) => (customer.hideAmounts ? '••••••' : money(n))
 
-const myRates = ref([])
+const myPrices = ref([])
 const entries = ref([])
 const total = ref(0)
 const page = ref(1)
@@ -76,8 +82,8 @@ watch(size, () => { page.value === 1 ? loadEntries() : (page.value = 1) })
 
 onMounted(async () => {
   await run(() => customer.refresh())
-  const r = await run(() => api.rates(customer.token))
-  if (r) myRates.value = r.filter((x) => Number(x.pct) > 0)
+  const r = await run(() => api.myPrices(customer.token))
+  if (r) myPrices.value = r
   loadEntries()
 })
 

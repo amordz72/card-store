@@ -56,7 +56,7 @@ const adminNav = [
   { to: '/admin/operations', label: 'العمليات' },
   { to: '/admin/transfers', label: 'التحويلات' },
   { to: '/admin/stock', label: 'المخزن' },
-  { to: '/admin/rates', label: 'النسب' }
+  { to: '/admin/prices', label: 'الأسعار' }
 ]
 const shopNav = [
   { to: '/admin/shop', label: 'الرئيسية', exact: true },
@@ -66,7 +66,7 @@ const shopNav = [
 
 const TITLES = {
   '/admin/shop': 'حساب المحل', '/admin/shop/store': 'المتجر', '/admin/shop/operations': 'عمليات المحل',
-  customers: 'الزبائن', operations: 'العمليات', transfers: 'التحويلات', stock: 'المخزن', rates: 'نسب الزبائن %'
+  customers: 'الزبائن', operations: 'العمليات', transfers: 'التحويلات', stock: 'المخزن', prices: 'أسعار الزبائن'
 }
 const title = computed(() => TITLES[route.path] || TITLES[route.path.split('/')[2]] || 'الإدارة')
 

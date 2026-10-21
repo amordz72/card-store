@@ -16,9 +16,10 @@
         <q-select v-model="codeForm.supplierId" class="col" :options="supplierOptions" emit-value map-options dense outlined label="المصدر (المنصة / المورد)" />
         <q-btn outline color="primary" label="+ منصة" @click="addSupplierOpen = true" />
       </div>
-      <q-input v-model.number="codeForm.cost" dense outlined type="number" label="تكلفة البطاقة (دج) — اختياري" hint="اتركها فارغة إن لم تتبعها" />
+      <q-input v-model.number="codeForm.cost" dense outlined type="number" inputmode="numeric" label="سعر الشراء للبطاقة الواحدة (دج) *"
+        hint="إجباري — منه يُحسب ربحك وسعر الزبائن" />
       <q-btn type="submit" unelevated color="primary" size="lg" label="إضافة للمخزن" :loading="busy"
-        :disable="!codeForm.productId || !codeForm.lines.trim()" />
+        :disable="!codeForm.productId || !codeForm.lines.trim() || !(codeForm.cost > 0)" />
     </q-form>
 
     <div class="row justify-between items-center">

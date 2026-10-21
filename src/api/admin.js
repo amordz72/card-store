@@ -72,9 +72,10 @@ export const saveProduct = (p) => rpc('store_admin_save_product', {
 })
 export const suppliers = () => rpc('store_admin_suppliers')
 export const addSupplier = (name) => rpc('store_admin_add_supplier', { p_name: name })
-export const rates = (category) => rpc('store_admin_rates', { p_category: category || null })
-export const setRate = (customerId, productId, pct) =>
-  rpc('store_admin_set_rate', { p_customer_id: customerId, p_product_id: productId, p_pct: pct })
+export const prices = (category) => rpc('store_admin_prices', { p_category: category || null })
+// mode: 'fixed' | 'amount' | 'pct' | 'inherit' (customer only); customerId null = default row
+export const setPrice = (customerId, productId, mode, value) =>
+  rpc('store_admin_set_price', { p_customer_id: customerId, p_product_id: productId, p_mode: mode, p_value: value ?? null })
 export const getAnnouncement = () => rpc('store_admin_get_announcement')
 export const setAnnouncement = (text) => rpc('store_admin_set_announcement', { p_text: text })
 export const reconcile = () => rpc('store_admin_reconcile')

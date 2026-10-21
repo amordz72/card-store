@@ -23,17 +23,14 @@
       <div class="small muted">{{ scopeHint }}</div>
       <div class="grid-2">
         <div class="column"><span class="small muted">مجموع ما شحنته</span><b style="font-size:18px">{{ m(row.topups) }}</b></div>
-        <div class="column"><span class="small muted">ما استهلكته (المقتطع)</span><b style="font-size:18px;color:#B45309">{{ m(row.consumed) }}</b></div>
+        <div class="column"><span class="small muted">ما استهلكته (سعر الشراء)</span><b style="font-size:18px;color:#B45309">{{ m(row.consumed) }}</b></div>
         <div class="column"><span class="small muted">الرصيد الحالي</span><b class="amount-pos" style="font-size:18px">{{ m(row.balance) }}</b></div>
         <div class="column"><span class="small muted">عدد العمليات</span><b style="font-size:18px">{{ row.orders_count }}</b></div>
       </div>
       <q-separator />
-      <div class="grid-2">
-        <div class="column"><span class="small muted">أرباحي (حسب نسبتي)</span><b class="big-number amount-info">{{ m(row.profit_pct) }}</b></div>
-        <div class="column">
-          <span class="small muted">الربح الحقيقي (السعر − التكلفة)</span><b class="big-number amount-info">{{ m(row.real_profit) }}</b>
-          <span v-if="Number(row.unknown_cost_orders)" class="small text-warning">{{ row.unknown_cost_orders }} عملية بلا تكلفة مسجّلة (غير محسوبة)</span>
-        </div>
+      <div class="column">
+        <span class="small muted">أرباحي (سعر البيع − سعر الشراء)</span><b class="big-number amount-info">{{ m(row.real_profit) }}</b>
+        <span v-if="Number(row.unknown_cost_orders)" class="small text-warning">{{ row.unknown_cost_orders }} عملية قديمة بلا سعر شراء (غير محسوبة)</span>
       </div>
     </div>
 

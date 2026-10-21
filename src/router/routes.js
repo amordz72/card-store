@@ -25,7 +25,8 @@ const routes = [
       { path: 'operations', component: () => import('pages/admin/AdminOperationsPage.vue') },
       { path: 'transfers', component: () => import('pages/admin/TransfersPage.vue') },
       { path: 'stock', component: () => import('pages/admin/StockPage.vue') },
-      { path: 'rates', component: () => import('pages/admin/RatesPage.vue') },
+      { path: 'prices', component: () => import('pages/admin/PricesPage.vue') },
+      { path: 'rates', redirect: '/admin/prices' },
       // «حساب المحل»: the owner buys like a customer from his own wallet
       { path: 'shop', component: () => import('pages/admin/ShopHomePage.vue'), meta: { shop: true } },
       { path: 'shop/store', component: () => import('pages/customer/StorePage.vue'), meta: { shop: true } },
