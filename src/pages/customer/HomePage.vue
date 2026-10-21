@@ -89,8 +89,8 @@ const shown = (n) => (hide.value ? '••••••' : money(n))
 // customer
 const p = computed(() => customer.profile)
 const debt = computed(() => debtView(p.value?.debt || 0, true))
-// «+» only for a trusted customer who still has room under his debt limit
-const canTopup = computed(() => !!p.value?.self_topup && Number(p.value.debt) < Number(p.value.debt_limit))
+// «+» only for a trusted customer who still has room for at least one 500 DZD step under his debt limit
+const canTopup = computed(() => !!p.value?.self_topup && Number(p.value.debt_limit) - Number(p.value.debt) >= 500)
 const topupOpen = ref(false)
 function reload () {
   run(() => (session.isAdmin ? shop.refresh(from.value, to.value) : customer.refresh()))

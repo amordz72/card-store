@@ -9,6 +9,7 @@ const MESSAGES = {
   PRODUCT_NOT_FOUND: 'هذه البطاقة غير متاحة.',
   INVALID_QTY: 'الكمية غير صحيحة.',
   INVALID_AMOUNT: 'المبلغ غير صحيح.',
+  AMOUNT_STEP_500: 'الشحن الذاتي بمضاعفات 500 دج فقط.',
   INVALID_PASSWORD: 'كلمة السر الحالية غير صحيحة.',
   PASSWORD_TOO_SHORT: 'كلمة السر 8 أحرف على الأقل.',
   PASSWORD_TOO_LONG: 'كلمة السر طويلة جدًا.',

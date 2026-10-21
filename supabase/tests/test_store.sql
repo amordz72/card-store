@@ -102,7 +102,8 @@ select set_config('request.jwt.claim.sub', '', false);
 set role anon;
 select * from public.store_self_topup(:'tok', 1500, gen_random_uuid()) \gset s1_
 select pg_temp.check('self topup within limit (debt -1000 → 500)', :s1_debt = 500 and :s1_balance = 2040);
-select pg_temp.check('self topup over limit blocked', pg_temp.err(format($$select * from public.store_self_topup(%L, 600, gen_random_uuid())$$, :'tok')) like '%DEBT_LIMIT%');
+select pg_temp.check('self topup over limit blocked', pg_temp.err(format($$select * from public.store_self_topup(%L, 1000, gen_random_uuid())$$, :'tok')) like '%DEBT_LIMIT%');
+select pg_temp.check('self topup only multiples of 500', pg_temp.err(format($$select * from public.store_self_topup(%L, 250, gen_random_uuid())$$, :'tok')) like '%AMOUNT_STEP_500%');
 
 reset role;
 set role authenticated;
