@@ -1,5 +1,13 @@
 <template>
   <q-page class="page">
+    <!-- Owner: the store settings page comes later (plan item 9); for now the signed-in e-mail -->
+    <div v-if="session.isAdmin" class="card column q-gutter-xs">
+      <div class="muted small">حساب المدير</div>
+      <div class="text-weight-bold ltr text-right">{{ admin.email }}</div>
+      <div class="small muted">كلمة سر المدير وحمايته الثنائية تُدار من Supabase.</div>
+    </div>
+
+    <template v-if="!session.isAdmin">
     <div v-if="p" class="card grid-3">
       <div class="column"><span class="small muted">رصيدي</span><b class="amount-pos">{{ shown(p.balance) }}</b></div>
       <div class="column"><span class="small muted">{{ debt.label }}</span><b :class="debt.cls">{{ customer.hideAmounts ? '••••••' : debt.text }}</b></div>
@@ -29,12 +37,7 @@
       <div v-if="!myPrices.length" class="muted small q-pa-md">لا توجد بطاقات بعد</div>
     </div>
 
-    <div class="section-title">كشف الحساب</div>
-    <div class="card q-pa-none" style="overflow:hidden">
-      <EntryRow v-for="e in entries" :key="e.entry_id" :e="e" :hide="customer.hideAmounts" />
-      <div v-if="!entries.length" class="text-center muted q-pa-lg">لا توجد حركات</div>
-    </div>
-    <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="entries.length" />
+    <q-btn outline color="primary" icon="swap_horiz" label="تحويلاتي (الدين، الدفع، النقد…)" to="/transfers" />
 
     <div class="section-title">تغيير كلمة السر</div>
     <q-form class="card column q-gutter-sm" @submit.prevent="changePassword">
@@ -42,6 +45,8 @@
       <q-input v-model="newPw" type="password" dense outlined label="كلمة السر الجديدة (8 أحرف على الأقل)" autocomplete="new-password" />
       <q-btn type="submit" outline color="primary" label="حفظ" :disable="!oldPw || newPw.length < 8" :loading="busy" />
     </q-form>
+
+    </template>
 
     <q-btn flat color="negative" icon="logout" label="خروج" @click="logout" />
   </q-page>
@@ -55,8 +60,8 @@ import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/customer'
 import { newRequestId } from 'src/api/rpc'
 import { money, debtView } from 'src/api/format'
-import EntryRow from 'components/EntryRow.vue'
-import PagerBar from 'components/PagerBar.vue'
+import { useSessionStore } from 'stores/session'
+import { useAdminStore } from 'stores/admin'
 
 const router = useRouter()
 const customer = useCustomerStore()
@@ -65,26 +70,15 @@ const p = computed(() => customer.profile)
 const debt = computed(() => debtView(p.value?.debt || 0, true))
 const shown = (n) => (customer.hideAmounts ? '••••••' : money(n))
 
+const session = useSessionStore()
+const admin = useAdminStore()
 const myPrices = ref([])
-const entries = ref([])
-const total = ref(0)
-const page = ref(1)
-const size = ref(10)
-
-async function loadEntries () {
-  const data = await run(() => api.entries(customer.token, size.value, (page.value - 1) * size.value))
-  if (!data) return
-  entries.value = data
-  total.value = data.length ? Number(data[0].total_count) : 0
-}
-watch(page, loadEntries)
-watch(size, () => { page.value === 1 ? loadEntries() : (page.value = 1) })
 
 onMounted(async () => {
+  if (session.isAdmin) return
   await run(() => customer.refresh())
   const r = await run(() => api.myPrices(customer.token))
   if (r) myPrices.value = r
-  loadEntries()
 })
 
 const topup = ref(null)
@@ -98,7 +92,6 @@ async function doTopup () {
   topup.value = null
   topupRequest = null
   await run(() => customer.refresh())
-  loadEntries()
 }
 
 const oldPw = ref('')
@@ -110,7 +103,7 @@ async function changePassword () {
 }
 
 async function logout () {
-  await customer.logout()
+  await session.logout()
   router.replace('/login')
 }
 </script>

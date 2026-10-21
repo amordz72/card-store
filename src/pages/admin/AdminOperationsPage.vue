@@ -4,7 +4,7 @@
       <q-btn v-for="s in SCOPES" :key="s.id" rounded no-caps :unelevated="f.scope === s.id" :outline="f.scope !== s.id"
         :color="f.scope === s.id ? 'primary' : 'grey-8'" :label="s.label" @click="f.scope = s.id" />
     </div>
-    <OpsFilters v-model="f" :customers="customers" />
+    <OpsFilters v-model="f" :customers="f.scope === 'shop' ? null : customers" />
     <div class="card q-pa-none" style="overflow:hidden">
       <OperationRow v-for="op in rows" :key="op.order_id" :op="op" admin @open="openCodes(op)" />
       <div v-if="!busy && !rows.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
@@ -27,8 +27,8 @@ import CodesDialog from 'components/CodesDialog.vue'
 
 const { busy, run } = useRun()
 const customers = ref([])
-const SCOPES = [{ id: null, label: 'الكل' }, { id: 'customers', label: 'الزبائن' }, { id: 'shop', label: 'المحل' }]
-const f = ref({ scope: null, customerId: null, category: null, from: '', to: '', query: '' })
+const SCOPES = [{ id: 'shop', label: 'مشترياتي' }, { id: 'customers', label: 'الزبائن' }, { id: null, label: 'الكل' }]
+const f = ref({ scope: 'shop', customerId: null, category: null, from: '', to: '', query: '' })
 const page = ref(1)
 const size = ref(10)
 const rows = ref([])
@@ -40,6 +40,8 @@ async function load () {
   rows.value = data
   total.value = data.length ? Number(data[0].total_count) : 0
 }
+// «مشترياتي» are the owner's own purchases, so a customer filter makes no sense there
+watch(() => f.value.scope, (s) => { if (s === 'shop') f.value.customerId = null })
 watch(f, () => { page.value === 1 ? load() : (page.value = 1) }, { deep: true })
 watch(size, () => { page.value === 1 ? load() : (page.value = 1) })
 watch(page, load)

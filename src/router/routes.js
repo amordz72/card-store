@@ -1,38 +1,35 @@
+// One app for the owner and the customers: the same paths and menu, admin-only pages carry meta.admin
 const routes = [
   { path: '/login', component: () => import('pages/customer/LoginPage.vue') },
   {
     path: '/',
-    component: () => import('layouts/CustomerLayout.vue'),
-    meta: { customer: true },
+    component: () => import('layouts/AppLayout.vue'),
+    meta: { auth: true },
     children: [
-      { path: '', component: () => import('pages/customer/HomePage.vue') },
-      { path: 'store', component: () => import('pages/customer/StorePage.vue') },
-      { path: 'operations', component: () => import('pages/customer/OperationsPage.vue') },
-      { path: 'account', component: () => import('pages/customer/AccountPage.vue') }
+      { path: '', component: () => import('pages/customer/HomePage.vue'), meta: { title: 'الرئيسية' } },
+      { path: 'store', component: () => import('pages/customer/StorePage.vue'), meta: { title: 'المتجر' } },
+      { path: 'operations', component: () => import('pages/OperationsSwitch.vue'), meta: { title: 'العمليات' } },
+      { path: 'transfers', component: () => import('pages/TransfersInPage.vue'), meta: { title: 'التحويلات' } },
+      { path: 'account', component: () => import('pages/customer/AccountPage.vue'), meta: { title: 'حسابي' } },
+      // owner only
+      { path: 'transfers/out', component: () => import('pages/admin/TransfersPage.vue'), meta: { admin: true, title: 'التحويلات الصادرة' } },
+      { path: 'customers', component: () => import('pages/admin/CustomersPage.vue'), meta: { admin: true, title: 'الزبائن' } },
+      { path: 'customers/:id', component: () => import('pages/admin/CustomerDetailPage.vue'), props: true, meta: { admin: true, title: 'الزبون' } },
+      { path: 'stock', component: () => import('pages/admin/StockPage.vue'), meta: { admin: true, title: 'المخزن' } },
+      { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار الزبائن' } }
     ]
   },
 
-  // One login page for everyone; keep the old admin link working
+  // Old links from the two-interface version
   { path: '/admin/login', redirect: '/login' },
-  {
-    path: '/admin',
-    component: () => import('layouts/AdminLayout.vue'),
-    meta: { admin: true },
-    children: [
-      { path: '', redirect: '/admin/customers' },
-      { path: 'customers', component: () => import('pages/admin/CustomersPage.vue') },
-      { path: 'customers/:id', component: () => import('pages/admin/CustomerDetailPage.vue'), props: true },
-      { path: 'operations', component: () => import('pages/admin/AdminOperationsPage.vue') },
-      { path: 'transfers', component: () => import('pages/admin/TransfersPage.vue') },
-      { path: 'stock', component: () => import('pages/admin/StockPage.vue') },
-      { path: 'prices', component: () => import('pages/admin/PricesPage.vue') },
-      { path: 'rates', redirect: '/admin/prices' },
-      // «حساب المحل»: the owner buys like a customer from his own wallet
-      { path: 'shop', component: () => import('pages/admin/ShopHomePage.vue'), meta: { shop: true } },
-      { path: 'shop/store', component: () => import('pages/customer/StorePage.vue'), meta: { shop: true } },
-      { path: 'shop/operations', component: () => import('pages/customer/OperationsPage.vue'), meta: { shop: true } }
-    ]
-  },
+  { path: '/admin', redirect: '/' },
+  { path: '/admin/shop', redirect: '/' },
+  { path: '/admin/shop/store', redirect: '/store' },
+  { path: '/admin/shop/operations', redirect: '/operations' },
+  { path: '/admin/transfers', redirect: '/transfers/out' },
+  { path: '/admin/rates', redirect: '/prices' },
+  { path: '/admin/customers/:id', redirect: (to) => '/customers/' + to.params.id },
+  { path: '/admin/:page(customers|operations|stock|prices)', redirect: (to) => '/' + to.params.page },
 
   { path: '/:catchAll(.*)*', redirect: '/' }
 ]

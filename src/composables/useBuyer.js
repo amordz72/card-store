@@ -1,21 +1,22 @@
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { useCustomerStore } from 'stores/customer'
 import { useShopStore } from 'stores/shop'
+import { useSessionStore } from 'stores/session'
 import * as customerApi from 'src/api/customer'
 import * as adminApi from 'src/api/admin'
 
-// The same store/operations screens serve a customer and «حساب المحل».
-// This picks the right API, balance and amount-hiding state from the route.
+// The same store/operations screens serve a customer and the owner (who buys from «حساب المحل»).
+// This picks the right API, balance and amount-hiding state from the signed-in role.
 export function useBuyer () {
-  const route = useRoute()
   const customer = useCustomerStore()
   const shop = useShopStore()
-  const isShop = computed(() => !!route.meta.shop)
+  const session = useSessionStore()
+  const isShop = computed(() => session.isAdmin)
 
   return {
     isShop,
     hide: computed(() => (isShop.value ? shop.hideAmounts : customer.hideAmounts)),
+    toggleHide: () => (isShop.value ? shop.toggleHide() : customer.toggleHide()),
     balance: computed(() => (isShop.value ? shop.balance : customer.profile?.balance)),
     refresh: () => (isShop.value ? shop.refresh() : customer.refresh()),
     catalog: () => (isShop.value ? adminApi.shopCatalog() : customerApi.catalog(customer.token)),

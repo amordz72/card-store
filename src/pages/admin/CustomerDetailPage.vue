@@ -1,6 +1,6 @@
 <template>
   <q-page class="page">
-    <q-btn flat dense no-caps color="primary" icon="arrow_forward" label="رجوع للزبائن" to="/admin/customers" class="self-start" />
+    <q-btn flat dense no-caps color="primary" icon="arrow_forward" label="رجوع للزبائن" to="/customers" class="self-start" />
     <template v-if="c">
       <div class="card column q-gutter-sm">
         <div class="row justify-between items-center">

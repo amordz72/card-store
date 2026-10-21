@@ -14,7 +14,7 @@
 
     <q-input v-model="query" dense outlined clearable label="بحث بالاسم أو الهاتف" bg-color="white" />
     <q-list class="card q-pa-none">
-      <q-item v-for="c in shown" :key="c.customer_id" clickable :to="'/admin/customers/' + c.customer_id" style="border-top:1px solid #EEF0F5">
+      <q-item v-for="c in shown" :key="c.customer_id" clickable :to="'/customers/' + c.customer_id" style="border-top:1px solid #EEF0F5">
         <q-item-section>
           <q-item-label class="text-weight-bold">{{ c.name }}<q-badge v-if="!c.active" color="grey" class="q-ml-sm">موقوف</q-badge></q-item-label>
           <q-item-label caption class="ltr text-right">{{ c.phone }}</q-item-label>
@@ -59,7 +59,7 @@ async function add () {
     { success: 'أُضيف الزبون. رصيده ودينه وحد دينه 0، ونسبه = النسب الافتراضية.' })
   if (!id) return
   form.value = { name: '', phone: '', password: '' }
-  router.push('/admin/customers/' + id)
+  router.push('/customers/' + id)
 }
 
 onMounted(load)

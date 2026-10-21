@@ -24,12 +24,14 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCustomerStore } from 'stores/customer'
 import { useAdminStore } from 'stores/admin'
+import { useSessionStore } from 'stores/session'
 import { useRun } from 'src/composables/useRun'
 
 // One login page: an e-mail signs the admin in (Supabase Auth), a phone number signs a customer in.
 const router = useRouter()
 const customer = useCustomerStore()
 const admin = useAdminStore()
+const session = useSessionStore()
 const { busy, run } = useRun()
 const id = ref('')
 const password = ref('')
@@ -41,12 +43,12 @@ async function submit () {
   const value = id.value.trim()
   if (value.includes('@')) {
     const ok = await run(() => admin.login(value, password.value))
-    if (ok) router.replace('/admin/customers')
+    if (ok) { session.set('admin'); router.replace('/') }
     else if (ok === false) failed.value = 'بيانات الدخول غير صحيحة، أو هذا الحساب ليس مديرًا للمتجر.'
     return
   }
   const ok = await run(() => customer.login(value, password.value))
-  if (ok) router.replace('/')
+  if (ok) { session.set('customer'); router.replace('/') }
   else if (ok === false) failed.value = 'رقم الهاتف أو كلمة السر غير صحيحة.'
 }
 </script>

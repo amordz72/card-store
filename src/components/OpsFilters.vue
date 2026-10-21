@@ -22,6 +22,6 @@ const customerOptions = computed(() =>
   [{ value: null, label: 'كل الزبائن' }, ...(props.customers || []).map((c) => ({ value: c.customer_id, label: c.name }))])
 
 function clear () {
-  Object.assign(f.value, { customerId: null, category: null, from: '', to: '', query: '' })
+  Object.assign(f.value, { customerId: null, category: null, from: '', to: '', query: '' })   // scope chips stay as chosen
 }
 </script>

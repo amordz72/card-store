@@ -35,6 +35,10 @@ export const orders = (token, f) => rpc('store_orders', {
 
 export const orderCodes = (token, orderId) => rpc('store_order_codes', { p_token: token, p_order_id: orderId })
 export const entries = (token, limit, offset) => rpc('store_entries', { p_token: token, p_limit: limit, p_offset: offset })
+// «التحويلات»: wallet movements that are not purchases. kind: null | 'debt' | 'cash' | 'pay' | 'self' (with its refunds)
+export const transfers = (token, f) => rpc('store_transfers', {
+  p_token: token, p_kind: f.kind || null, p_from: f.from || null, p_to: f.to || null, p_limit: f.limit, p_offset: f.offset
+})
 
 export async function selfTopup (token, amount, requestId) {
   const rows = await rpc('store_self_topup', { p_token: token, p_amount: amount, p_request_id: requestId })
