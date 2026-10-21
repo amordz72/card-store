@@ -14,15 +14,6 @@
       <div class="column"><span class="small muted">حد الدين</span><b>{{ money(p.debt_limit) }}</b></div>
     </div>
 
-    <div v-if="p && p.self_topup" class="card column q-gutter-sm" style="background:#FFFBEB;border-color:#F59E0B">
-      <div class="text-weight-bold" style="color:#92400E">شحن ذاتي (بالدين)</div>
-      <div class="small" style="color:#78350F">يضاف المبلغ إلى رصيدك وإلى دينك. المتاح لك الآن: {{ money(Math.max(0, p.debt_limit - p.debt)) }}</div>
-      <div class="row q-gutter-sm items-start">
-        <q-input v-model.number="topup" class="col" dense outlined type="number" inputmode="numeric" label="المبلغ (دج)" bg-color="white" />
-        <q-btn unelevated color="warning" label="شحن" :loading="busy" :disable="!(topup > 0)" @click="doTopup" />
-      </div>
-    </div>
-
     <div class="section-title">أسعاري</div>
     <div class="card q-pa-none" style="overflow:hidden">
       <div class="row q-px-md q-py-xs small muted" style="background:#F7F8FB">
@@ -53,12 +44,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCustomerStore } from 'stores/customer'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/customer'
-import { newRequestId } from 'src/api/rpc'
 import { money, debtView } from 'src/api/format'
 import { useSessionStore } from 'stores/session'
 import { useAdminStore } from 'stores/admin'
@@ -80,19 +70,6 @@ onMounted(async () => {
   const r = await run(() => api.myPrices(customer.token))
   if (r) myPrices.value = r
 })
-
-const topup = ref(null)
-let topupRequest = null
-watch(topup, () => { topupRequest = null })
-async function doTopup () {
-  topupRequest = topupRequest || newRequestId()
-  const res = await run(() => api.selfTopup(customer.token, topup.value, topupRequest),
-    { success: 'تم الشحن وأضيف المبلغ إلى دينك.' })
-  if (!res) return
-  topup.value = null
-  topupRequest = null
-  await run(() => customer.refresh())
-}
 
 const oldPw = ref('')
 const newPw = ref('')

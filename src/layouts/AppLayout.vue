@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="hHh lpR fFf">
+  <q-layout view="hHh LpR lFf">
     <q-header class="bg-white text-dark" bordered>
       <q-toolbar class="q-py-sm">
         <q-btn flat round icon="menu" aria-label="القائمة" @click="drawer = !drawer" />
@@ -17,7 +17,8 @@
     </q-header>
 
     <!-- One menu for everyone; admin-only items are simply not shown to customers -->
-    <q-drawer v-model="drawer" side="left" overlay behavior="mobile" bordered :width="280">
+    <!-- Closed on phones; always open beside the page on tablets and computers -->
+    <q-drawer v-model="drawer" side="left" show-if-above :breakpoint="1024" bordered :width="270">
       <q-list padding>
         <q-item-label header class="text-weight-bold text-dark">{{ subtitle }}</q-item-label>
         <template v-for="g in menu" :key="g.label">
@@ -40,7 +41,7 @@
     </q-page-container>
 
     <q-footer class="bg-white">
-      <BottomNav :items="nav" />
+      <QuickBar :items="nav" />
     </q-footer>
   </q-layout>
 </template>
@@ -48,13 +49,14 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { useSessionStore } from 'stores/session'
 import { useCustomerStore } from 'stores/customer'
 import { useAdminStore } from 'stores/admin'
 import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
-import BottomNav from 'components/BottomNav.vue'
+import QuickBar from 'components/QuickBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -63,6 +65,7 @@ const customer = useCustomerStore()
 const admin = useAdminStore()
 const buyer = useBuyer()
 const { run } = useRun()
+const $q = useQuasar()
 const drawer = ref(false)
 
 const subtitle = computed(() => (session.isAdmin ? `المدير · ${admin.email || ''}` : customer.profile?.name || ''))
@@ -94,15 +97,17 @@ const MENU = [
 const allowed = (x) => (x.admin ? session.isAdmin : x.customer ? !session.isAdmin : true)
 const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.items.filter(allowed) })))
 
+// Right to left: two free slots for frequent services (e.g. flexy later), «الرئيسية» in the centre, then cards and operations
 const nav = [
-  { to: '/', label: 'الرئيسية', exact: true },
-  { to: '/store', label: 'المتجر' },
-  { to: '/operations', label: 'العمليات' },
-  { to: '/transfers', label: 'التحويلات' },
-  { label: 'القائمة', click: () => { drawer.value = true } }
+  { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
+  { to: '/account', label: 'حسابي', icon: 'person' },
+  { to: '/', label: 'الرئيسية', icon: 'home', exact: true, home: true },
+  { to: '/store', label: 'البطاقات', icon: 'style' },
+  { to: '/operations', label: 'العمليات', icon: 'receipt_long' }
 ]
 
-watch(() => route.fullPath, () => { drawer.value = false })
+// on phones the menu closes after choosing a page; on wide screens it stays open
+watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 onMounted(() => run(() => buyer.refresh()))
 
 async function logout () {

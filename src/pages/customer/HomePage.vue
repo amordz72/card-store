@@ -7,17 +7,20 @@
 
     <!-- Customer -->
     <template v-if="!session.isAdmin && p">
-      <div class="card">
-        <div class="muted text-weight-medium">رصيدي</div>
-        <div class="big-number amount-pos">{{ shown(p.balance) }}</div>
+      <div class="card row items-center no-wrap">
+        <div class="col">
+          <div class="row items-center q-gutter-x-sm muted text-weight-medium"><q-icon name="account_balance_wallet" size="24px" /><span>رصيدي</span></div>
+          <div class="big-number amount-pos">{{ shown(p.balance) }}</div>
+        </div>
+        <q-btn v-if="canTopup" round unelevated color="positive" icon="add" size="md" aria-label="شحن رصيدي" @click="topupOpen = true" />
       </div>
       <div class="card">
-        <div class="muted text-weight-medium">{{ debt.label }}</div>
+        <div class="row items-center q-gutter-x-sm muted text-weight-medium"><q-icon name="bookmark_remove" size="24px" /><span>{{ debt.label }}</span></div>
         <div class="big-number" :class="debt.cls">{{ hide ? '••••••' : debt.text }}</div>
         <div class="small muted">حد الدين: {{ money(p.debt_limit) }}</div>
       </div>
       <div class="card">
-        <div class="muted text-weight-medium">أرباحي</div>
+        <div class="row items-center q-gutter-x-sm muted text-weight-medium"><q-icon name="bookmark_add" size="24px" /><span>أرباحي</span></div>
         <div class="big-number amount-info">{{ shown(p.profit) }}</div>
         <div class="small muted">الفرق بين سعر البيع وما اقتُطع من رصيدك</div>
       </div>
@@ -25,9 +28,12 @@
 
     <!-- Owner: the same cards for «حساب المحل», with a period selector -->
     <template v-if="session.isAdmin && row">
-      <div class="card">
-        <div class="muted text-weight-medium">رصيدي</div>
-        <div class="big-number amount-pos">{{ shown(row.balance) }}</div>
+      <div class="card row items-center no-wrap">
+        <div class="col">
+          <div class="row items-center q-gutter-x-sm muted text-weight-medium"><q-icon name="account_balance_wallet" size="24px" /><span>رصيدي</span></div>
+          <div class="big-number amount-pos">{{ shown(row.balance) }}</div>
+        </div>
+        <q-btn round unelevated color="positive" icon="add" size="md" aria-label="شحن رصيد المحل" @click="topupOpen = true" />
       </div>
       <div class="row q-gutter-sm">
         <q-btn v-for="s in SCOPES" :key="s.id" rounded no-caps :ripple="false" :unelevated="scope === s.id" :outline="scope !== s.id"
@@ -39,7 +45,7 @@
       </div>
       <div class="card column q-gutter-sm">
         <div class="small muted">{{ scopeHint }}</div>
-        <div class="muted text-weight-medium">أرباحي (سعر البيع − سعر الشراء)</div>
+        <div class="row items-center q-gutter-x-sm muted text-weight-medium"><q-icon name="bookmark_add" size="24px" /><span>أرباحي (سعر البيع − سعر الشراء)</span></div>
         <div class="big-number amount-info">{{ shown(row.real_profit) }}</div>
         <span v-if="Number(row.unknown_cost_orders)" class="small text-warning">{{ row.unknown_cost_orders }} عملية قديمة بلا سعر شراء (غير محسوبة)</span>
         <q-separator />
@@ -56,6 +62,7 @@
       <q-btn outline color="primary" size="lg" label="التحويلات" to="/transfers" />
     </div>
     <q-inner-loading :showing="session.isAdmin ? !row : !p" />
+    <TopupDialog v-model="topupOpen" @done="reload" />
   </q-page>
 </template>
 
@@ -69,6 +76,7 @@ import { useRun } from 'src/composables/useRun'
 import * as adminApi from 'src/api/admin'
 import { money, dateTime, debtView } from 'src/api/format'
 import DateField from 'components/DateField.vue'
+import TopupDialog from 'components/TopupDialog.vue'
 
 const session = useSessionStore()
 const customer = useCustomerStore()
@@ -81,6 +89,12 @@ const shown = (n) => (hide.value ? '••••••' : money(n))
 // customer
 const p = computed(() => customer.profile)
 const debt = computed(() => debtView(p.value?.debt || 0, true))
+// «+» only for a trusted customer who still has room under his debt limit
+const canTopup = computed(() => !!p.value?.self_topup && Number(p.value.debt) < Number(p.value.debt_limit))
+const topupOpen = ref(false)
+function reload () {
+  run(() => (session.isAdmin ? shop.refresh(from.value, to.value) : customer.refresh()))
+}
 
 // owner
 const SCOPES = [
