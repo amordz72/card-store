@@ -63,6 +63,7 @@ import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
 import QuickBar from 'components/QuickBar.vue'
+import { useMyProfits } from 'src/composables/useMyProfits'
 import LockScreen from 'components/LockScreen.vue'
 import { useLockStore, markActive } from 'stores/lock'
 import * as adminApi from 'src/api/admin'
@@ -88,6 +89,7 @@ const MENU = [
     label: 'البطاقات',
     items: [
       { to: '/store', label: 'المتجر', icon: 'storefront' },
+      { to: '/profits', label: 'أرباحي في البطاقات', icon: 'savings', customer: true, needsProfit: true },
       { to: '/stock', label: 'المخزن', icon: 'inventory_2', admin: true },
       { to: '/prices', label: 'الأسعار', icon: 'sell', admin: true }
     ]
@@ -104,7 +106,9 @@ const MENU = [
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
-const allowed = (x) => (x.admin ? session.isAdmin : x.customer ? !session.isAdmin : true)
+const { rows: profitRows } = useMyProfits()
+// «أرباحي في البطاقات» only when the customer earns on at least one card
+const allowed = (x) => (x.admin ? session.isAdmin : x.customer ? !session.isAdmin && (!x.needsProfit || profitRows.value.length > 0) : true)
 const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.items.filter(allowed) })))
 
 // Right to left: two free slots for frequent services (e.g. flexy later), «الرئيسية» in the centre, then cards and operations
@@ -134,6 +138,7 @@ let timer = null
 onMounted(async () => {
   await run(() => buyer.refresh())
   const hasPin = await run(() => (session.isAdmin ? adminApi.lockStatus() : customerApi.lockStatus(customer.token)))
+  if (!session.isAdmin) run(() => useMyProfits().load())
   lock.init(session.isAdmin ? 'a:' + (admin.email || '') : 'c:' + (customer.profile?.phone || ''), hasPin)
   EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
   document.addEventListener('visibilitychange', onVisible)

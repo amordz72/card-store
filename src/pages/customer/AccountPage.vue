@@ -14,19 +14,6 @@
       <div class="column"><span class="small muted">حد الدين</span><b>{{ money(p.debt_limit) }}</b></div>
     </div>
 
-    <div class="section-title">أسعاري</div>
-    <div class="card q-pa-none" style="overflow:hidden">
-      <div class="row q-px-md q-py-xs small muted" style="background:#F7F8FB">
-        <span class="col">البطاقة</span><span class="col-3 text-center">سعر البيع</span><span class="col-3 text-center">أدفع</span><span class="col-2 text-center">ربحي</span>
-      </div>
-      <div v-for="r in myPrices" :key="r.product_id" class="row items-center q-px-md q-py-sm" style="border-top:1px solid #EEF0F5">
-        <span class="col">{{ r.name }}</span>
-        <span class="col-3 text-center">{{ money(r.base_price) }}</span>
-        <b class="col-3 text-center" style="color:#B45309">{{ r.pay_now == null ? '—' : shown(r.pay_now) }}</b>
-        <b class="col-2 text-center amount-info">{{ r.pay_now == null ? '—' : shown(r.base_price - r.pay_now) }}</b>
-      </div>
-      <div v-if="!myPrices.length" class="muted small q-pa-md">لا توجد بطاقات بعد</div>
-    </div>
 
     <q-btn outline color="primary" icon="swap_horiz" label="تحويلاتي (الدين، الدفع، النقد…)" to="/transfers" />
 
@@ -66,13 +53,10 @@ const shown = (n) => (customer.hideAmounts ? '••••••' : money(n))
 
 const session = useSessionStore()
 const admin = useAdminStore()
-const myPrices = ref([])
 
 onMounted(async () => {
   if (session.isAdmin) return
   await run(() => customer.refresh())
-  const r = await run(() => api.myPrices(customer.token))
-  if (r) myPrices.value = r
 })
 
 const oldPw = ref('')

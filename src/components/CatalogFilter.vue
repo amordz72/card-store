@@ -13,12 +13,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { CATEGORIES } from 'src/api/format'
 
 // Category chips + brand chips of the chosen category (shared by «المخزن» and «الأسعار»)
-defineProps({ cat: { type: String, required: true }, brand: { type: String, required: true }, brands: { type: Array, default: () => [] } })
+const props = defineProps({
+  cat: { type: String, required: true },
+  brand: { type: String, required: true },
+  brands: { type: Array, default: () => [] },
+  only: { type: Array, default: null }   // show only these categories (e.g. those with profit)
+})
 const emit = defineEmits(['update:cat', 'update:brand'])
-const cats = [{ id: 'all', label: 'الكل' }, ...CATEGORIES]
+const cats = computed(() => [{ id: 'all', label: 'الكل' }, ...CATEGORIES.filter((c) => !props.only || props.only.includes(c.id))])
 function pickCat (id) {
   emit('update:cat', id)
   emit('update:brand', 'all')

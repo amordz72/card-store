@@ -16,6 +16,7 @@ export default defineRouter(({ store }) => {
     if (!role) return '/login'
     // a customer opening an owner page lands on the home page
     if (to.matched.some((r) => r.meta.admin) && role !== 'admin') return '/'
+    if (to.matched.some((r) => r.meta.customer) && role !== 'customer') return '/'
     return true
   })
 
