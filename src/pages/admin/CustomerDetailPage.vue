@@ -43,6 +43,14 @@
       <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="entries.length" />
 
       <div class="section-title">إدارة الحساب</div>
+      <q-form class="card column q-gutter-sm" @submit.prevent="saveInfo">
+        <div class="text-weight-bold">بيانات الزبون</div>
+        <q-input v-model="infoDraft.name" dense outlined label="الاسم" />
+        <q-input v-model="infoDraft.phone" dense outlined label="رقم الهاتف (يدخل به)" inputmode="tel" input-class="ltr text-right"
+          hint="10 أرقام يبدأ بـ 05 أو 06 أو 07، ولا يتكرر لزبونين" />
+        <q-btn type="submit" outline color="primary" label="حفظ البيانات" class="self-start" :loading="busy"
+          :disable="!infoDraft.name.trim() || !infoDraft.phone.trim() || (infoDraft.name.trim() === c.name && infoDraft.phone.trim() === c.phone)" />
+      </q-form>
       <div class="card column q-gutter-sm">
         <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
           @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
@@ -87,11 +95,15 @@ const { busy, run } = useRun()
 const c = ref(null)
 const debt = computed(() => debtView(c.value?.debt || 0, false))
 const limitDraft = ref(0)
+const infoDraft = ref({ name: '', phone: '' })
 
 async function loadCustomer () {
   const list = await run(() => api.customers())
   c.value = list?.find((x) => Number(x.customer_id) === cid.value) || null
-  if (c.value) limitDraft.value = Number(c.value.debt_limit)
+  if (c.value) {
+    limitDraft.value = Number(c.value.debt_limit)
+    infoDraft.value = { name: c.value.name, phone: c.value.phone }
+  }
 }
 
 const entries = ref([])
@@ -170,6 +182,11 @@ async function doReverse () {
 async function save (patch, msg) {
   const ok = await run(() => api.updateCustomer(cid.value, patch).then(() => true), { success: msg })
   if (ok) loadCustomer()
+}
+
+// name and phone; the database rejects a phone already used by another customer
+function saveInfo () {
+  save({ name: infoDraft.value.name.trim(), phone: infoDraft.value.phone.trim() }, 'حُفظت بيانات الزبون.')
 }
 
 const newPw = ref('')
