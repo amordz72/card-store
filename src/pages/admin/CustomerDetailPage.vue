@@ -59,6 +59,7 @@
           <q-btn outline color="primary" label="تعيين" :disable="newPw.length < 8" @click="setPw" />
         </div>
         <q-btn flat color="negative" icon="devices" label="إخراجه من كل الأجهزة" @click="revoke" />
+        <q-btn flat color="warning" icon="lock_open" label="إيقاف قفل البرنامج (إن نسي رمزه)" @click="lockOff" />
       </div>
     </template>
     <q-inner-loading :showing="!c" />
@@ -194,6 +195,10 @@ async function setPw () {
   const ok = await run(() => api.setPassword(cid.value, newPw.value).then(() => true),
     { success: 'تم تعيين كلمة السر وأُخرج الزبون من كل الأجهزة.' })
   if (ok) newPw.value = ''
+}
+
+function lockOff () {
+  run(() => api.customerLockOff(cid.value), { success: (had) => (had ? 'أُوقف قفل البرنامج لهذا الزبون.' : 'لم يكن القفل مفعّلًا عنده.') })
 }
 
 function revoke () {

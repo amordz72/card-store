@@ -52,3 +52,4 @@ export const changePassword = (token, oldPassword, newPassword) =>
 export const lockStatus = (token) => rpc('store_lock_status', { p_token: token })
 export const setPin = (token, pin) => rpc('store_set_pin', { p_token: token, p_pin: pin })
 export const checkPin = (token, pin) => rpc('store_check_pin', { p_token: token, p_pin: pin })
+export const lockOff = (token) => rpc('store_lock_off', { p_token: token })

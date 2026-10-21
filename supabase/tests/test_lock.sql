@@ -36,12 +36,28 @@ select pg_temp.check('anon cannot read pins', pg_temp.err($$select * from store.
 reset role;
 
 -- owner
+create temp table store_tmp_c as select id from store.customers where phone = '0770000010';
+grant select on store_tmp_c to authenticated;
 set role authenticated;
 select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
 select pg_temp.check('owner no pin', not public.store_admin_lock_status());
 select public.store_admin_set_pin('135790');
 select pg_temp.check('owner pin ok', public.store_admin_check_pin('135790') = 'ok');
 select pg_temp.check('owner pin wrong', public.store_admin_check_pin('111111') = 'wrong');
+-- v1.9: owner turns a customer's lock off; the customer sets a PIN again; then turns it off himself
+select pg_temp.check('owner turns customer lock off', public.store_admin_customer_lock_off((select id from store_tmp_c)));
+select public.store_admin_lock_off();
+select pg_temp.check('owner own lock off', not public.store_admin_lock_status());
+reset role;
+set role anon;
+select session_token as tok2 from public.store_login('0770000010', 'secret123') \gset
+select pg_temp.check('customer lock is off', not public.store_lock_status(:'tok2') and public.store_check_pin(:'tok2', '9999') = 'no_pin');
+select public.store_set_pin(:'tok2', '1357');
+select pg_temp.check('new pin turns it on', public.store_lock_status(:'tok2') and public.store_check_pin(:'tok2', '1357') = 'ok');
+select public.store_lock_off(:'tok2');
+select pg_temp.check('customer turns his lock off', not public.store_lock_status(:'tok2'));
+reset role;
+set role authenticated;
 reset role;
 
 \set QUIET off

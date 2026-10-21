@@ -99,3 +99,6 @@ export const shopSummary = (from, to) => rpc('store_admin_shop_summary', { p_fro
 export const lockStatus = () => rpc('store_admin_lock_status')
 export const setPin = (pin) => rpc('store_admin_set_pin', { p_pin: pin })
 export const checkPin = (pin) => rpc('store_admin_check_pin', { p_pin: pin })
+export const lockOff = () => rpc('store_admin_lock_off')
+// a customer who forgot his PIN, or asked for the lock to be off
+export const customerLockOff = (customerId) => rpc('store_admin_customer_lock_off', { p_customer_id: customerId })

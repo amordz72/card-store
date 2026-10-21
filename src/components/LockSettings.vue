@@ -24,14 +24,17 @@
       <div v-else class="small muted">البصمة غير متاحة في هذا الجهاز أو المتصفح؛ يُستعمل الرمز.</div>
       <q-select :model-value="lock.idleMin" :options="IDLE_OPTIONS" emit-value map-options dense outlined
         label="يُقفل بعد مدة بلا استعمال" hint="على هذا الجهاز فقط" @update:model-value="(v) => lock.setIdle(v)" />
-      <q-btn unelevated color="grey-8" icon="lock" label="قفل الآن" class="self-start" @click="lock.lock()" />
+      <div class="row q-gutter-sm">
+        <q-btn unelevated color="grey-8" icon="lock" label="قفل الآن" @click="lock.lock()" />
+        <q-btn flat color="negative" icon="lock_open" label="إيقاف القفل" @click="turnOff" />
+      </div>
     </template>
   </div>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { Notify } from 'quasar'
+import { Dialog, Notify } from 'quasar'
 import { useLockStore, IDLE_OPTIONS } from 'stores/lock'
 import { useSessionStore } from 'stores/session'
 import { useCustomerStore } from 'stores/customer'
@@ -58,6 +61,16 @@ async function savePin () {
   lock.hasPin = true
   pin.value = ''
   pin2.value = ''
+}
+
+function turnOff () {
+  Dialog.create({ title: 'إيقاف القفل', message: 'لن يُقفل البرنامج بعد الآن على أي جهاز. تستطيع تفعيله لاحقًا بوضع رمز جديد.', cancel: 'إلغاء', ok: 'إيقاف' })
+    .onOk(async () => {
+      const ok = await run(() => (session.isAdmin ? adminApi.lockOff() : customerApi.lockOff(customer.token)).then(() => true), { success: 'أُوقف القفل.' })
+      if (!ok) return
+      lock.hasPin = false
+      lock.setBio(null)
+    })
 }
 
 async function toggleBio (on) {
