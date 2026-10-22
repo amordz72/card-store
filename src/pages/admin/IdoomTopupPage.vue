@@ -9,7 +9,10 @@
       <div v-if="lineOk" class="text-center"><q-badge :color="is4g ? 'indigo' : 'purple'">{{ is4g ? '4G LTE' : 'ADSL / FTTH' }}</q-badge></div>
       <div v-if="check" class="text-center">
         <q-badge v-if="check.status === 'looked_up'" color="primary" class="q-pa-sm text-subtitle2 ltr">idoom · {{ check.offer }}</q-badge>
-        <q-badge v-else-if="check.status === 'failed'" color="negative" class="q-pa-sm ltr">{{ check.reply || 'فشل التحقق' }}</q-badge>
+        <template v-else-if="check.status === 'failed'">
+          <q-badge color="negative" class="q-pa-sm">فشل التحقق — لم تُستعمل أي بطاقة</q-badge>
+          <div v-if="check.reply" class="small muted ltr text-left q-mt-xs wrap-any">{{ check.reply }}</div>
+        </template>
         <span v-else class="muted">جارٍ التحقق في My IDOOM…</span>
       </div>
       <q-input v-model="line" dense outlined label="رقم الخط: ثابت 9 أرقام أو 4G يبدأ بـ 213" inputmode="tel" maxlength="16"
@@ -41,7 +44,7 @@
         <q-item-section>
           <q-item-label class="text-weight-bold text-right"><span dir="ltr">{{ spaced(j.line) }}</span></q-item-label>
           <q-item-label caption>{{ j.kind === 'lookup' ? 'تحقق' : j.product_name }}<span v-if="j.offer"> · <span class="ltr">{{ j.offer }}</span></span></q-item-label>
-          <q-item-label v-if="j.reply && j.status !== 'looked_up'" caption class="ltr text-right">{{ j.reply }}</q-item-label>
+          <q-item-label v-if="j.reply && j.status !== 'looked_up'" caption class="ltr text-right wrap-any">{{ j.reply }}</q-item-label>
           <q-item-label caption>{{ when(j.created_at) }}</q-item-label>
         </q-item-section>
         <q-item-section side class="items-end">
@@ -204,4 +207,6 @@ onUnmounted(() => clearInterval(timer))
 
 <style scoped>
 .idoom-line { font-size: 2.2rem; font-weight: 700; letter-spacing: 2px; }
+/* raw My IDOOM replies can be long: wrap inside the card, never widen the page */
+.wrap-any { white-space: normal; overflow-wrap: anywhere; }
 </style>
