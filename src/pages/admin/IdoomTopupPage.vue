@@ -6,12 +6,13 @@
 
     <div class="card column q-gutter-sm">
       <div class="idoom-line text-center" dir="ltr">{{ pretty || '0XX XXX XXX' }}</div>
+      <div v-if="lineOk" class="text-center"><q-badge :color="is4g ? 'indigo' : 'purple'">{{ is4g ? '4G LTE' : 'ADSL / FTTH' }}</q-badge></div>
       <div v-if="check" class="text-center">
         <q-badge v-if="check.status === 'looked_up'" color="primary" class="q-pa-sm text-subtitle2 ltr">idoom · {{ check.offer }}</q-badge>
         <q-badge v-else-if="check.status === 'failed'" color="negative" class="q-pa-sm ltr">{{ check.reply || 'فشل التحقق' }}</q-badge>
         <span v-else class="muted">جارٍ التحقق في My IDOOM…</span>
       </div>
-      <q-input v-model="line" dense outlined label="رقم خط IDOOM (9 أرقام)" inputmode="tel" maxlength="12"
+      <q-input v-model="line" dense outlined label="رقم الخط: ثابت 9 أرقام أو 4G يبدأ بـ 213" inputmode="tel" maxlength="16"
         placeholder="0XXXXXXXX" input-class="ltr text-right" />
       <q-btn unelevated color="primary" icon="search" label="تحقق" :loading="busy" :disable="!lineOk" @click="lookup" />
     </div>
@@ -28,7 +29,7 @@
           </q-btn>
         </div>
       </div>
-      <div v-else class="muted">لا توجد بطاقات إنترنت متوفرة في المخزن</div>
+      <div v-else class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة في المخزن</div>
     </div>
 
     <div class="row items-center justify-between q-mt-md">
@@ -99,8 +100,10 @@ const token = ref('')
 let timer = null
 
 const digits = computed(() => line.value.replace(/\D/g, ''))
-const lineOk = computed(() => /^0\d{8}$/.test(digits.value))
-const spaced = (d) => (d || '').replace(/^(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3')
+const lineOk = computed(() => /^(0\d{8}|213\d{9})$/.test(digits.value))
+// 4G LTE lines are 12 digits starting with 213; fixed lines (ADSL/FTTH) are 9 digits
+const is4g = computed(() => /^213\d{9}$/.test(digits.value))
+const spaced = (d) => (d || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{3})?$/, (m, a, b, c, e) => [a, b, c, e].filter(Boolean).join(' '))
 const pretty = computed(() => spaced(digits.value))
 
 // Latest check of the typed line (a pending one, or the last finished result)
@@ -109,7 +112,7 @@ const check = computed(() => lineOk.value
   : null)
 
 const cards = computed(() => catalog.value
-  .filter((p) => p.category === 'net' && p.available)
+  .filter((p) => p.category === 'net' && p.available && /4g|lte/i.test(p.brand + ' ' + p.name) === is4g.value)
   .sort((a, b) => a.base_price - b.base_price))
 
 const phone = computed(() => {

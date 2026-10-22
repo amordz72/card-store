@@ -87,6 +87,12 @@ select pg_temp.check('used card stays sold', (select k.status = 'sold' from stor
 set role authenticated;
 select pg_temp.check('admin sees phones', exists (select 1 from public.store_admin_executors() where name = 'هاتف 1' and last_seen_at is not null));
 reset role;
+-- v1.15 4G lines: 12 digits starting with 213
+set role authenticated;
+select pg_temp.check('4G line accepted', exists (select 1 from public.store_admin_idoom_lookup('213 470 334 314', gen_random_uuid())));
+select pg_temp.check('11 digits rejected', pg_temp.err($$select * from public.store_admin_idoom_lookup('21347033431', gen_random_uuid())$$) like '%INVALID_LINE%');
+select pg_temp.check('12 digits not 213 rejected', pg_temp.err($$select * from public.store_admin_idoom_lookup('123470334314', gen_random_uuid())$$) like '%INVALID_LINE%');
+reset role;
 \set QUIET off
 select name, ok, detail from i_results where not ok;
 select count(*) filter (where ok) as passed, count(*) as total from i_results;
