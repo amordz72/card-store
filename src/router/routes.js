@@ -17,7 +17,8 @@ const routes = [
       { path: 'customers', component: () => import('pages/admin/CustomersPage.vue'), meta: { admin: true, title: 'الزبائن' } },
       { path: 'customers/:id', component: () => import('pages/admin/CustomerDetailPage.vue'), props: true, meta: { admin: true, title: 'الزبون' } },
       { path: 'stock', component: () => import('pages/admin/StockPage.vue'), meta: { admin: true, title: 'المخزن' } },
-      { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار الزبائن' } }
+      { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار الزبائن' } },
+      { path: 'idoom', component: () => import('pages/admin/IdoomTopupPage.vue'), meta: { admin: true, title: 'تعبئة إيدوم' } }
     ]
   },
 

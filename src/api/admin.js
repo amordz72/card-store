@@ -110,3 +110,15 @@ export const checkPin = (pin) => rpc('store_admin_check_pin', { p_pin: pin })
 export const lockOff = () => rpc('store_admin_lock_off')
 // a customer who forgot his PIN, or asked for the lock to be off
 export const customerLockOff = (customerId) => rpc('store_admin_customer_lock_off', { p_customer_id: customerId })
+
+// IDOOM direct top-up through the Rech-Doom phone app (v1.10)
+export async function idoomCreate (productId, line, requestId) {
+  const rows = await rpc('store_admin_idoom_create', { p_product_id: productId, p_line: line, p_request_id: requestId })
+  return rows[0]
+}
+export const idoomJobs = (limit = 30) => rpc('store_admin_idoom_jobs', { p_limit: limit })
+export const idoomCancel = (jobId) => rpc('store_admin_idoom_cancel', { p_job_id: jobId })
+export async function executorCreate (name) {
+  const rows = await rpc('store_admin_executor_create', { p_name: name })
+  return rows[0]
+}
