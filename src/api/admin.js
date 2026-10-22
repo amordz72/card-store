@@ -111,7 +111,7 @@ export const lockOff = () => rpc('store_admin_lock_off')
 // a customer who forgot his PIN, or asked for the lock to be off
 export const customerLockOff = (customerId) => rpc('store_admin_customer_lock_off', { p_customer_id: customerId })
 
-// IDOOM direct top-up through the Rech-Doom phone app (v1.10)
+// IDOOM direct top-up through the Rech-Doom phone app (v1.11)
 export async function idoomCreate (productId, line, requestId) {
   const rows = await rpc('store_admin_idoom_create', { p_product_id: productId, p_line: line, p_request_id: requestId })
   return rows[0]

@@ -1,4 +1,4 @@
--- v1.10: IDOOM direct top-up through the Android executor app Rech-Doom (amordz72/Rech-Doom).
+-- v1.11: IDOOM direct top-up through the Android executor app Rech-Doom (amordz72/Rech-Doom).
 -- The admin requests a top-up; the shop account buys one code through the normal ledger
 -- (store_buy_core), and the phone claims the job, types it in My IDOOM and reports the raw reply.
 -- The phone is transport only: the outcome mapping and every state change live here.

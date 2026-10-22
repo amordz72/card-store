@@ -1,4 +1,4 @@
--- Behavioural tests for v1.10 (IDOOM top-up jobs). Run after test_shop.sql on the same database.
+-- Behavioural tests for v1.11 (IDOOM top-up jobs). Run after test_shop.sql on the same database.
 \set ON_ERROR_STOP on
 \set QUIET on
 create temp table i_results (name text, ok boolean, detail text);
