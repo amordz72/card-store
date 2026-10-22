@@ -32,27 +32,26 @@ begin
 end;
 $$;
 
-drop function public.store_admin_idoom_jobs(int);
-drop function private.store_admin_idoom_jobs_impl(int);
-create function private.store_admin_idoom_jobs_impl(p_limit int)
-returns table (id bigint, kind text, line text, product_name text, status text, outcome text, offer text, reply text,
-               executor_name text, created_at timestamptz, finished_at timestamptz)
+-- Return types change, so the list and claim get _v2 versions next to the old ones (no drops).
+-- The old claim (Rech-Doom 0.6.0) keeps working but never hands out lookup jobs.
+create or replace function private.store_exec_claim_impl(p_token text)
+returns table (job_id bigint, line text, code text)
 language plpgsql security definer set search_path = '' as $$
+declare
+  v_exec bigint := private.store_exec_id(p_token);
+  j store.idoom_jobs;
 begin
-  perform private.store_require_admin();
-  return query
-  select j.id, j.kind, j.line, p.name, j.status, j.outcome, j.offer, j.reply, e.name, j.created_at, j.finished_at
-  from store.idoom_jobs j
-  left join store.products p on p.id = j.product_id
-  left join store.executors e on e.id = j.executor_id
-  order by j.id desc
-  limit least(greatest(coalesce(p_limit, 30), 1), 200);
+  if exists (select 1 from store.idoom_jobs x where x.executor_id = v_exec and x.status = 'claimed') then
+    return;
+  end if;
+  select * into j from store.idoom_jobs x where x.status = 'queued' and x.kind = 'charge' order by x.id limit 1 for update skip locked;
+  if not found then return; end if;
+  update store.idoom_jobs set status = 'claimed', executor_id = v_exec, claimed_at = now() where id = j.id;
+  return query select j.id, j.line, k.code from store.codes k where k.id = j.code_id;
 end;
 $$;
 
-drop function public.store_exec_claim(text);
-drop function private.store_exec_claim_impl(text);
-create function private.store_exec_claim_impl(p_token text)
+create function private.store_exec_claim_v2_impl(p_token text)
 returns table (job_id bigint, kind text, line text, code text)
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -66,6 +65,22 @@ begin
   if not found then return; end if;
   update store.idoom_jobs set status = 'claimed', executor_id = v_exec, claimed_at = now() where id = j.id;
   return query select j.id, j.kind, j.line, (select k.code from store.codes k where k.id = j.code_id);
+end;
+$$;
+
+create function private.store_admin_idoom_jobs_v2_impl(p_limit int)
+returns table (id bigint, kind text, line text, product_name text, status text, outcome text, offer text, reply text,
+               executor_name text, created_at timestamptz, finished_at timestamptz)
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.store_require_admin();
+  return query
+  select j.id, j.kind, j.line, p.name, j.status, j.outcome, j.offer, j.reply, e.name, j.created_at, j.finished_at
+  from store.idoom_jobs j
+  left join store.products p on p.id = j.product_id
+  left join store.executors e on e.id = j.executor_id
+  order by j.id desc
+  limit least(greatest(coalesce(p_limit, 30), 1), 200);
 end;
 $$;
 
@@ -97,12 +112,12 @@ $$;
 
 create function public.store_admin_idoom_lookup(p_line text, p_request_id uuid) returns table (job_id bigint, status text)
 language sql set search_path = '' as $$ select * from private.store_admin_idoom_lookup_impl(p_line, p_request_id); $$;
-create function public.store_admin_idoom_jobs(p_limit int default 30)
+create function public.store_admin_idoom_jobs_v2(p_limit int default 30)
 returns table (id bigint, kind text, line text, product_name text, status text, outcome text, offer text, reply text,
                executor_name text, created_at timestamptz, finished_at timestamptz)
-language sql set search_path = '' as $$ select * from private.store_admin_idoom_jobs_impl(p_limit); $$;
-create function public.store_exec_claim(p_token text) returns table (job_id bigint, kind text, line text, code text)
-language sql set search_path = '' as $$ select * from private.store_exec_claim_impl(p_token); $$;
+language sql set search_path = '' as $$ select * from private.store_admin_idoom_jobs_v2_impl(p_limit); $$;
+create function public.store_exec_claim_v2(p_token text) returns table (job_id bigint, kind text, line text, code text)
+language sql set search_path = '' as $$ select * from private.store_exec_claim_v2_impl(p_token); $$;
 
 -- Grants (same rule as before)
 do $$

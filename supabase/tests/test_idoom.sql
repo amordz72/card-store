@@ -61,13 +61,14 @@ select pg_temp.check('out of stock blocks create', pg_temp.err(format($$select *
 select * from public.store_admin_idoom_lookup('0296 69 458', gen_random_uuid()) \gset l_
 reset role;
 set role anon;
-select job_id, kind, coalesce(code, '') as code from public.store_exec_claim(:'e_token') \gset lc_
+select pg_temp.check('old claim skips lookup jobs', not exists (select 1 from public.store_exec_claim(:'e_token')));
+select job_id, kind, coalesce(code, '') as code from public.store_exec_claim_v2(:'e_token') \gset lc_
 select pg_temp.check('lookup claimed without code', :lc_job_id = :l_job_id and :'lc_kind' = 'lookup' and :'lc_code' = '');
 select public.store_exec_report(:'e_token', :l_job_id, 'LOOKUP_OK', '20M ADSL', 'Offre: 20M') as r3 \gset
 select pg_temp.check('lookup reported', :'r3' = 'looked_up');
 reset role;
 set role authenticated;
-select pg_temp.check('lookup listed with offer', exists (select 1 from public.store_admin_idoom_jobs(10) where kind = 'lookup' and offer = '20M ADSL'));
+select pg_temp.check('lookup listed with offer', exists (select 1 from public.store_admin_idoom_jobs_v2(10) where kind = 'lookup' and offer = '20M ADSL'));
 reset role;
 select pg_temp.check('lookup bought nothing', (select count(*) from store.orders) = (select count(*) from store.orders));
 \set QUIET off
