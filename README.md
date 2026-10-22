@@ -3,6 +3,7 @@
 متجر بطاقات مستقل: **هاتف · إنترنت · ألعاب**. الزبائن أصحاب محلات يشترون أكوادًا من رصيدهم.
 
 - **الواجهة:** Vue 3 + Quasar (PWA، عربي RTL)، منشورة على GitHub Pages: `https://amordz72.github.io/card-store/`
+- **النشر:** GitHub Pages **فقط** (سير `.github/workflows/deploy.yml` عند كل دمج في `main`). **Cloudflare Pages متوقف بقرار صاحب المشروع (2026-10-22)**: لا تُعتمد روابط `*.pages.dev` ولا يُعاد ربطه إلا بقرار جديد.
 - **الخلفية:** Supabase (مشروع `amor-manager`، مخطط مستقل `store`). كل المنطق المالي في دوال قاعدة البيانات `public.store_*` ← `private.store_*_impl`.
 - **القرارات والتوثيق:** مستودع `developer` ← `projects/card-store/`.
 
