@@ -57,7 +57,19 @@ select pg_temp.check('admin sees jobs', (select count(*) from public.store_admin
 select pg_temp.check('finished job not cancellable', pg_temp.err(format($$select public.store_admin_idoom_cancel(%s)$$, :k_job_id)) like '%NOT_CANCELLABLE%');
 select pg_temp.check('out of stock blocks create', pg_temp.err(format($$select * from public.store_admin_idoom_create(%s, '029669458', gen_random_uuid())$$, :idm)) like '%OUT_OF_STOCK%');
 
+-- v1.12 lookup jobs
+select * from public.store_admin_idoom_lookup('0296 69 458', gen_random_uuid()) \gset l_
 reset role;
+set role anon;
+select job_id, kind, coalesce(code, '') as code from public.store_exec_claim(:'e_token') \gset lc_
+select pg_temp.check('lookup claimed without code', :lc_job_id = :l_job_id and :'lc_kind' = 'lookup' and :'lc_code' = '');
+select public.store_exec_report(:'e_token', :l_job_id, 'LOOKUP_OK', '20M ADSL', 'Offre: 20M') as r3 \gset
+select pg_temp.check('lookup reported', :'r3' = 'looked_up');
+reset role;
+set role authenticated;
+select pg_temp.check('lookup listed with offer', exists (select 1 from public.store_admin_idoom_jobs(10) where kind = 'lookup' and offer = '20M ADSL'));
+reset role;
+select pg_temp.check('lookup bought nothing', (select count(*) from store.orders) = (select count(*) from store.orders));
 \set QUIET off
 select name, ok, detail from i_results where not ok;
 select count(*) filter (where ok) as passed, count(*) as total from i_results;

@@ -2,10 +2,13 @@
   <q-page class="page">
     <q-form class="card column q-gutter-sm" @submit.prevent="create">
       <div class="text-weight-bold">تعبئة إيدوم مباشرة</div>
-      <div class="small muted">يشتري المحل بطاقة واحدة من المخزن، ثم يشحنها هاتف Rech-Doom على الخط عبر My IDOOM.</div>
-      <q-select v-model="productId" dense outlined emit-value map-options label="البطاقة" :options="productOptions" />
+      <div class="small muted">1) افحص عرض الخط. 2) اختر البطاقة المناسبة واشحن: يشتري المحل بطاقة واحدة ويشحنها هاتف Rech-Doom عبر My IDOOM.</div>
       <q-input v-model="line" dense outlined label="رقم خط IDOOM" inputmode="tel" placeholder="0XXXXXXXX" input-class="ltr text-right" />
-      <q-btn type="submit" unelevated color="primary" label="شحن" :loading="busy" :disable="!productId || line.replace(/\D/g, '').length < 9" />
+      <q-btn outline color="primary" label="1) فحص العرض (بدون بطاقة)" :loading="busy" :disable="!lineOk" @click="lookup" />
+      <div v-if="lastOffer" class="text-weight-bold">العرض: <span class="ltr">{{ lastOffer }}</span></div>
+      <q-select v-model="productId" dense outlined emit-value map-options label="البطاقة" :options="productOptions"
+        :hint="productOptions.length ? '' : 'لا توجد بطاقات إنترنت متوفرة في المخزن'" />
+      <q-btn type="submit" unelevated color="primary" label="2) شحن" :loading="busy" :disable="!productId || !lineOk" />
     </q-form>
 
     <div class="row items-center justify-between q-mt-md">
@@ -16,7 +19,7 @@
       <q-item v-for="j in jobs" :key="j.id" style="border-top:1px solid #EEF0F5">
         <q-item-section>
           <q-item-label class="text-weight-bold ltr text-right">{{ j.line }}</q-item-label>
-          <q-item-label caption>{{ j.product_name }}<span v-if="j.offer"> · {{ j.offer }}</span><span v-if="j.executor_name"> · {{ j.executor_name }}</span></q-item-label>
+          <q-item-label caption>{{ j.kind === 'lookup' ? 'فحص العرض' : j.product_name }}<span v-if="j.offer"> · {{ j.offer }}</span><span v-if="j.executor_name"> · {{ j.executor_name }}</span></q-item-label>
           <q-item-label v-if="j.reply" caption class="ltr text-right">{{ j.reply }}</q-item-label>
           <q-item-label caption>{{ when(j.created_at) }}</q-item-label>
         </q-item-section>
@@ -51,7 +54,8 @@ const STATUS = {
   used_card: { label: 'بطاقة مستعملة', color: 'negative' },
   failed: { label: 'فشل قبل الإرسال', color: 'orange' },
   review: { label: 'مراجعة', color: 'deep-orange' },
-  cancelled: { label: 'أُلغي', color: 'grey' }
+  cancelled: { label: 'أُلغي', color: 'grey' },
+  looked_up: { label: 'تم الفحص', color: 'primary' }
 }
 
 const { busy, run } = useRun()
@@ -68,6 +72,11 @@ const productOptions = computed(() => catalog.value
   .filter((p) => p.category === 'net' && p.available)
   .map((p) => ({ label: `${p.brand} — ${p.name}`, value: p.product_id })))
 
+const digits = computed(() => line.value.replace(/\D/g, ''))
+const lineOk = computed(() => /^0\d{8,9}$/.test(digits.value))
+// Latest finished lookup for the line being typed
+const lastOffer = computed(() => jobs.value.find((j) => j.kind === 'lookup' && j.line === digits.value && j.offer)?.offer)
+
 const when = (t) => new Date(t).toLocaleString('ar-DZ')
 
 async function load () {
@@ -82,6 +91,10 @@ async function create () {
   if (!r) return
   line.value = ''
   load()
+}
+
+async function lookup () {
+  if (await run(() => api.idoomLookup(line.value, crypto.randomUUID()), { success: 'أُرسل الفحص إلى الهاتف.' })) load()
 }
 
 async function cancel (id) {
