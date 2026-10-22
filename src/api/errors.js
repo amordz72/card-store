@@ -30,6 +30,7 @@ const MESSAGES = {
   INVALID_PCT: 'النسبة بين 0 و 50.',
   ORDER_NOT_FOUND: 'العملية غير موجودة.',
   CODE_NOT_FOUND: 'الكود غير موجود.',
+  REASON_REQUIRED: 'اكتب سبب الإلغاء.',
   NETWORK: 'تعذّر الاتصال. تحقق من الإنترنت ثم حاول.'
 }
 
