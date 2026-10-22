@@ -1,4 +1,4 @@
--- Behavioural tests for IDOOM top-up (v1.11–v1.14). Run after test_shop.sql on the same database.
+-- Behavioural tests for IDOOM top-up (v1.11–v1.16). Run after test_shop.sql on the same database.
 \set ON_ERROR_STOP on
 \set QUIET on
 create temp table i_results (name text, ok boolean, detail text);
@@ -92,6 +92,24 @@ set role authenticated;
 select pg_temp.check('4G line accepted', exists (select 1 from public.store_admin_idoom_lookup('213 470 334 314', gen_random_uuid())));
 select pg_temp.check('11 digits rejected', pg_temp.err($$select * from public.store_admin_idoom_lookup('21347033431', gen_random_uuid())$$) like '%INVALID_LINE%');
 select pg_temp.check('12 digits not 213 rejected', pg_temp.err($$select * from public.store_admin_idoom_lookup('123470334314', gen_random_uuid())$$) like '%INVALID_LINE%');
+reset role;
+-- v1.16 the card must fit the line (4G card ↔ 213 line, fixed card ↔ 9-digit line, IDOOM only)
+set role authenticated;
+select public.store_admin_save_brand(null, 'IDOOM LTE T', 'net', 6, true) \g /dev/null
+select public.store_admin_save_product(null, (select brand_id from public.store_admin_brands() where name = 'IDOOM LTE T'), 'LTE 500', 500, 1, true) as lte \gset
+select added from public.store_admin_add_codes(:lte, null, 480, E'9999000011112222') \g /dev/null
+select public.store_admin_save_brand(null, 'Mobilis T', 'phone', 7, true) \g /dev/null
+select public.store_admin_save_product(null, (select brand_id from public.store_admin_brands() where name = 'Mobilis T'), 'Mobilis T 100', 100, 1, true) as mob \gset
+select added from public.store_admin_add_codes(:mob, null, 95, E'3333444455556666') \g /dev/null
+select pg_temp.check('4G card on fixed line refused', pg_temp.err(format($$select * from public.store_admin_idoom_create(%s, '029669458', gen_random_uuid())$$, :lte)) like '%CARD_LINE_MISMATCH%');
+select pg_temp.check('fixed card on 4G line refused', pg_temp.err(format($$select * from public.store_admin_idoom_create(%s, '213470334314', gen_random_uuid())$$, :idm)) like '%CARD_LINE_MISMATCH%');
+select pg_temp.check('non-IDOOM card refused', pg_temp.err(format($$select * from public.store_admin_idoom_create(%s, '029669458', gen_random_uuid())$$, :mob)) like '%NOT_IDOOM_CARD%');
+select * from public.store_admin_idoom_create(:lte, '213 470 334 314', gen_random_uuid()) \gset g_
+select pg_temp.check('4G card on 4G line queued', :'g_status' = 'queued');
+select pg_temp.check('retry cannot move a fixed card to a 4G line', pg_temp.err(format($$select public.store_admin_idoom_retry(%s, '213470334314')$$, :c_job_id)) like '%CARD_LINE_MISMATCH%');
+select pg_temp.check('retry on a fixed line still allowed', public.store_admin_idoom_retry(:c_job_id, '029669459') = 'queued');
+select public.store_admin_idoom_cancel(:g_job_id) \g /dev/null
+select public.store_admin_idoom_cancel(:c_job_id) \g /dev/null
 reset role;
 \set QUIET off
 select name, ok, detail from i_results where not ok;

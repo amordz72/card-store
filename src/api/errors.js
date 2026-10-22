@@ -8,6 +8,8 @@ const MESSAGES = {
   RATE_LIMIT_LINE: 'هذا الرقم فُحص 3 مرات في الساعة الأخيرة. انتظر قليلًا.',
   RATE_LIMIT_ACCOUNT: 'بلغت حد 20 فحصًا في الساعة. انتظر قليلًا.',
   NOT_CANCELLABLE: 'لا يمكن إلغاء العملية بعد أن استلمها الهاتف.',
+  CARD_LINE_MISMATCH: 'البطاقة لا تناسب الخط: خط 4G (213…) يأخذ بطاقة Idoom 4G فقط، والخط الثابت يأخذ بطاقة Idoom ADSL فقط.',
+  NOT_IDOOM_CARD: 'هذه ليست بطاقة IDOOM.',
   DEBT_LIMIT: 'المبلغ يتجاوز حد الدين المسموح.',
   SELF_TOPUP_DISABLED: 'الشحن الذاتي غير مفعّل لحسابك.',
   PRODUCT_NOT_FOUND: 'هذه البطاقة غير متاحة.',
