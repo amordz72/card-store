@@ -54,7 +54,10 @@
 
     <q-expansion-item class="card q-mt-md" icon="smartphone" label="ربط هاتف Rech-Doom" dense>
       <q-form class="column q-gutter-sm q-pt-sm" @submit.prevent="addExecutor">
-        <div class="small muted">ينشئ رمزًا يُلصق مرة واحدة في تطبيق Rech-Doom.</div>
+        <div class="small muted">ثبّت تطبيق Rech-Doom على الهاتف، ثم أنشئ رمزًا يُلصق فيه مرة واحدة.</div>
+        <q-btn unelevated color="primary" icon="download" label="تنزيل تطبيق Rech-Doom" :href="apkUrl" download="rech-doom.apk" />
+        <q-btn outline color="primary" icon="bluetooth" label="إرسال التطبيق لهاتف آخر (بلوتوث…)" :loading="sending" @click="sendApk" />
+        <div v-if="apk" class="small muted">النسخة {{ apk.version }} · {{ when(apk.built_at) }}</div>
         <q-btn outline color="primary" icon="share" label="مشاركة رابط الموقع" @click="share(siteUrl, 'متجر البطاقات')" />
         <q-input v-model="executorName" dense outlined label="اسم الهاتف" />
         <q-btn type="submit" unelevated color="primary" label="إنشاء رمز" :loading="busy" :disable="!executorName.trim()" />
@@ -124,6 +127,26 @@ const phone = computed(() => {
 })
 
 const siteUrl = window.location.origin + window.location.pathname
+// Published here by the Rech-Doom build (same key every version, so it installs over the old one)
+const apkUrl = new URL('apps/rech-doom.apk', siteUrl).href
+const apk = ref(null)
+const sending = ref(false)
+
+// The APK file itself when the system share sheet accepts it (Bluetooth…), else its link.
+async function sendApk () {
+  sending.value = true
+  try {
+    const blob = await (await fetch(apkUrl)).blob()
+    const file = new File([blob], 'rech-doom.apk', { type: 'application/vnd.android.package-archive' })
+    if (navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'Rech-Doom' }) } catch { /* closed by the user */ }
+    } else await share(apkUrl, 'تطبيق Rech-Doom')
+  } catch {
+    await share(apkUrl, 'تطبيق Rech-Doom')
+  } finally {
+    sending.value = false
+  }
+}
 
 // System share sheet (Bluetooth, messages…); falls back to copying where sharing is unavailable.
 async function share (text, title) {
@@ -171,6 +194,8 @@ async function addExecutor () {
 onMounted(async () => {
   const data = await run(() => api.shopCatalog())
   if (data) catalog.value = data
+  fetch(new URL('apps/rech-doom.json', siteUrl), { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null)).then((j) => { apk.value = j }).catch(() => {})
   load()
   timer = setInterval(load, 5000)
 })

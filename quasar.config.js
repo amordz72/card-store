@@ -46,6 +46,9 @@ export default defineConfig(() => ({
     extendGenerateSWOptions (cfg) {
       // Never cache API traffic: balances and codes must always be live
       cfg.navigateFallback = 'index.html'
+      // apps/ holds the Rech-Doom APK: always from the network, never the app shell
+      cfg.navigateFallbackDenylist = [/\/apps\//]
+      cfg.globIgnores = [...(cfg.globIgnores || []), 'apps/**']
       cfg.runtimeCaching = []
     }
   }
