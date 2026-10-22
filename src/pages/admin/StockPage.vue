@@ -68,6 +68,35 @@
       </q-markup-table>
     </div>
 
+    <div class="section-title">الدفعات</div>
+    <div class="card q-pa-none" style="overflow-x:auto">
+      <q-markup-table flat dense separator="horizontal" class="stock-table">
+        <thead>
+          <tr><th class="text-right">الدفعة</th><th>متوفر</th><th>مجمّد</th><th>مباع</th><th>ملغى</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="b in batchList" :key="b.batch_id">
+            <td class="text-right">
+              {{ b.product_name }}
+              <div class="small muted">#{{ b.batch_id }} · {{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}</div>
+            </td>
+            <td class="text-center text-weight-bold">{{ b.available }}</td>
+            <td class="text-center" :class="b.frozen > 0 ? 'text-warning text-weight-bold' : ''">{{ b.frozen }}</td>
+            <td class="text-center">{{ b.sold }}</td>
+            <td class="text-center">{{ b.voided }}</td>
+            <td class="text-center">
+              <div class="column q-gutter-xs items-center">
+                <q-btn v-if="b.available > 0" dense outline size="sm" color="warning" label="تجميد" @click="freezeBatch(b, true)" />
+                <q-btn v-if="b.frozen > 0" dense outline size="sm" color="positive" label="فك التجميد" @click="freezeBatch(b, false)" />
+                <q-btn v-if="b.available + b.frozen > 0" dense outline size="sm" color="negative" label="إلغاء غير المباع" @click="voidBatch(b)" />
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!batchList.length"><td colspan="6" class="text-center muted q-pa-md">لا توجد دفعات بعد.</td></tr>
+        </tbody>
+      </q-markup-table>
+    </div>
+
     <q-dialog v-model="productOpen">
       <q-card style="width:100%;max-width:460px">
         <q-card-section class="column q-gutter-sm">
@@ -115,7 +144,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
-import { money } from 'src/api/format'
+import { dateTime, money } from 'src/api/format'
 import CatalogFilter from 'components/CatalogFilter.vue'
 
 const { busy, run } = useRun()
@@ -285,7 +314,49 @@ async function toggleProduct (p) {
   if (id) load()
 }
 
-onMounted(() => { load(); loadAnnouncement() })
+// --- batches
+const batchList = ref([])
+async function loadBatches () {
+  const rows = await run(() => api.batches(null, 50, 0))
+  if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided) }))
+}
+async function reloadAll () { await Promise.all([load(), loadBatches()]) }
+
+// Only codes still in stock change; a code sold meanwhile is skipped by the database.
+async function stockCodeIds (b, test) {
+  const codes = await api.batchCodes(b.batch_id)
+  return codes.filter((c) => c.status === 'available' && test(c)).map((c) => c.code_id)
+}
+
+function freezeBatch (b, frozen) {
+  const count = frozen ? b.available : b.frozen
+  Dialog.create({
+    title: frozen ? 'تجميد الدفعة' : 'فك تجميد الدفعة',
+    message: frozen
+      ? `${b.product_name} #${b.batch_id}: ${count} كود لن يُباع حتى تفك التجميد. الأكواد المباعة لا تتغير.`
+      : `${b.product_name} #${b.batch_id}: ${count} كود يعود للبيع.`,
+    cancel: 'إلغاء', ok: frozen ? 'تجميد' : 'فك التجميد'
+  }).onOk(async () => {
+    const n = await run(async () => api.freezeCodes(await stockCodeIds(b, (c) => c.frozen !== frozen), frozen),
+      { success: (n) => frozen ? `جُمّد ${n} كود.` : `عاد ${n} كود للبيع.` })
+    if (n !== undefined) reloadAll()
+  })
+}
+
+function voidBatch (b) {
+  Dialog.create({
+    title: 'إلغاء الأكواد غير المباعة',
+    message: `${b.product_name} #${b.batch_id}: ${b.available + b.frozen} كود يخرج من المخزن نهائيًا ويبقى في السجل. لا رجعة فيه. اكتب السبب:`,
+    prompt: { model: '', type: 'text', isValid: (v) => v.trim().length > 0 },
+    cancel: 'رجوع', ok: { label: 'إلغاء نهائي', color: 'negative' }
+  }).onOk(async (reason) => {
+    const n = await run(async () => api.voidCodes(await stockCodeIds(b, () => true), reason.trim()),
+      { success: (n) => `أُلغي ${n} كود.` })
+    if (n !== undefined) reloadAll()
+  })
+}
+
+onMounted(() => { load(); loadBatches(); loadAnnouncement() })
 </script>
 
 <style scoped>
