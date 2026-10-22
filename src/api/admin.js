@@ -121,6 +121,7 @@ export async function idoomLookup (line, requestId) {
   return rows[0]
 }
 export const idoomJobs = (limit = 30) => rpc('store_admin_idoom_jobs_v2', { p_limit: limit })
+export const idoomRetry = (jobId, line) => rpc('store_admin_idoom_retry', { p_job_id: jobId, p_line: line || null })
 export const idoomCancel = (jobId) => rpc('store_admin_idoom_cancel', { p_job_id: jobId })
 export async function executorCreate (name) {
   const rows = await rpc('store_admin_executor_create', { p_name: name })

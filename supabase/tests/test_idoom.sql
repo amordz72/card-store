@@ -71,6 +71,16 @@ set role authenticated;
 select pg_temp.check('lookup listed with offer', exists (select 1 from public.store_admin_idoom_jobs_v2(10) where kind = 'lookup' and offer = '20M ADSL'));
 reset role;
 select pg_temp.check('lookup bought nothing', (select count(*) from store.orders) = (select count(*) from store.orders));
+-- v1.13 nine digits + retry with the same card
+set role authenticated;
+select pg_temp.check('10-digit line rejected', pg_temp.err($$select * from public.store_admin_idoom_lookup('0330971540', gen_random_uuid())$$) like '%INVALID_LINE%');
+reset role;
+update store.idoom_jobs set status = 'failed', outcome = 'PRE_SUBMIT_FAILED' where id = :j_job_id;
+set role authenticated;
+select pg_temp.check('retry with corrected line', public.store_admin_idoom_retry(:j_job_id, '030 977 530') = 'queued');
+select pg_temp.check('retry twice refused', pg_temp.err(format($$select public.store_admin_idoom_retry(%s, null)$$, :j_job_id)) like '%NOT_RETRYABLE%');
+reset role;
+select pg_temp.check('same card kept', (select line = '030977530' and reply like '[محاولة سابقة%' from store.idoom_jobs where id = :j_job_id));
 \set QUIET off
 select name, ok, detail from i_results where not ok;
 select count(*) filter (where ok) as passed, count(*) as total from i_results;

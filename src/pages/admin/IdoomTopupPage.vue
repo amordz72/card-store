@@ -26,6 +26,8 @@
         <q-item-section side class="items-end">
           <q-badge :color="STATUS[j.status]?.color || 'grey'">{{ STATUS[j.status]?.label || j.status }}</q-badge>
           <q-btn v-if="j.status === 'queued'" flat dense size="sm" color="negative" label="إلغاء" @click="cancel(j.id)" />
+          <q-btn v-if="j.status === 'failed' && j.outcome === 'PRE_SUBMIT_FAILED' && j.kind === 'charge'" flat dense size="sm"
+            color="primary" label="إعادة بنفس البطاقة" @click="retry(j)" />
         </q-item-section>
       </q-item>
       <div v-if="loaded && !jobs.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
@@ -50,6 +52,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
 import { copyText } from 'src/composables/useCopy'
+import { Dialog } from 'quasar'
 
 const STATUS = {
   queued: { label: 'في الانتظار', color: 'grey-7' },
@@ -78,7 +81,7 @@ const productOptions = computed(() => catalog.value
   .map((p) => ({ label: `${p.brand} — ${p.name}`, value: p.product_id })))
 
 const digits = computed(() => line.value.replace(/\D/g, ''))
-const lineOk = computed(() => /^0\d{8,9}$/.test(digits.value))
+const lineOk = computed(() => /^0\d{8}$/.test(digits.value))
 // Latest finished lookup for the line being typed
 const lastOffer = computed(() => jobs.value.find((j) => j.kind === 'lookup' && j.line === digits.value && j.offer)?.offer)
 
@@ -100,6 +103,19 @@ async function create () {
 
 async function lookup () {
   if (await run(() => api.idoomLookup(line.value, crypto.randomUUID()), { success: 'أُرسل الفحص إلى الهاتف.' })) load()
+}
+
+// The card was never submitted (stopped before Valider): same card, optionally corrected line.
+function retry (j) {
+  Dialog.create({
+    title: 'إعادة بنفس البطاقة',
+    message: 'البطاقة لم تُرسل. صحّح رقم الخط إن لزم (9 أرقام):',
+    prompt: { model: j.line, type: 'tel', isValid: (x) => /^0\d{8}$/.test(x.replace(/\D/g, '')) },
+    cancel: 'إلغاء',
+    ok: 'إعادة'
+  }).onOk(async (newLine) => {
+    if (await run(() => api.idoomRetry(j.id, newLine), { success: 'أُعيدت العملية إلى الهاتف.' })) load()
+  })
 }
 
 async function cancel (id) {
