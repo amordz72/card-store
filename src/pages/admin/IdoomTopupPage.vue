@@ -36,7 +36,11 @@
       <div class="small muted">ينشئ رمزًا يُلصق مرة واحدة في تطبيق Rech-Doom. يظهر الرمز هنا مرة واحدة فقط.</div>
       <q-input v-model="executorName" dense outlined label="اسم الهاتف" />
       <q-btn type="submit" unelevated color="primary" label="إنشاء رمز" :loading="busy" :disable="!executorName.trim()" />
-      <q-input v-if="token" :model-value="token" readonly dense outlined label="الرمز — انسخه الآن" input-class="ltr" />
+      <template v-if="token">
+        <q-input :model-value="token" readonly dense outlined label="الرمز — انسخه الآن" input-class="ltr" />
+        <q-btn unelevated color="positive" icon="content_copy" label="نسخ الرمز" @click="copyText(token)" />
+        <div class="small text-negative">لن يظهر الرمز مرة أخرى بعد تحديث الصفحة. إن ضاع، أنشئ رمزًا جديدًا.</div>
+      </template>
     </q-form>
   </q-page>
 </template>
@@ -45,6 +49,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
+import { copyText } from 'src/composables/useCopy'
 
 const STATUS = {
   queued: { label: 'في الانتظار', color: 'grey-7' },
