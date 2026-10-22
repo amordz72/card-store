@@ -5,7 +5,7 @@
     </div>
 
     <div class="card column q-gutter-sm">
-      <div class="idoom-line ltr text-center">{{ pretty || '0XX XXX XXX' }}</div>
+      <div class="idoom-line text-center" dir="ltr">{{ pretty || '0XX XXX XXX' }}</div>
       <div v-if="check" class="text-center">
         <q-badge v-if="check.status === 'looked_up'" color="primary" class="q-pa-sm text-subtitle2 ltr">idoom · {{ check.offer }}</q-badge>
         <q-badge v-else-if="check.status === 'failed'" color="negative" class="q-pa-sm ltr">{{ check.reply || 'فشل التحقق' }}</q-badge>
@@ -38,7 +38,7 @@
     <q-list class="card q-pa-none">
       <q-item v-for="j in jobs" :key="j.id" style="border-top:1px solid #EEF0F5">
         <q-item-section>
-          <q-item-label class="text-weight-bold ltr text-right">{{ spaced(j.line) }}</q-item-label>
+          <q-item-label class="text-weight-bold text-right"><span dir="ltr">{{ spaced(j.line) }}</span></q-item-label>
           <q-item-label caption>{{ j.kind === 'lookup' ? 'تحقق' : j.product_name }}<span v-if="j.offer"> · <span class="ltr">{{ j.offer }}</span></span></q-item-label>
           <q-item-label v-if="j.reply && j.status !== 'looked_up'" caption class="ltr text-right">{{ j.reply }}</q-item-label>
           <q-item-label caption>{{ when(j.created_at) }}</q-item-label>
