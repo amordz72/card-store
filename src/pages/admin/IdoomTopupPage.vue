@@ -39,21 +39,31 @@
       <div class="text-weight-bold">العمليات</div>
       <q-btn flat dense icon="refresh" aria-label="تحديث" @click="load" />
     </div>
-    <q-list class="card q-pa-none">
-      <q-item v-for="j in jobs" :key="j.id" style="border-top:1px solid #EEF0F5">
-        <q-item-section>
-          <q-item-label class="text-weight-bold text-right"><span dir="ltr">{{ spaced(j.line) }}</span></q-item-label>
-          <q-item-label caption>{{ j.kind === 'lookup' ? 'تحقق' : j.product_name }}<span v-if="j.offer"> · <span class="ltr">{{ j.offer }}</span></span></q-item-label>
-          <q-item-label v-if="j.reply && j.status !== 'looked_up'" caption class="ltr text-right wrap-any">{{ j.reply }}</q-item-label>
-          <q-item-label caption>{{ when(j.created_at) }}</q-item-label>
-        </q-item-section>
-        <q-item-section side class="items-end">
-          <q-badge :color="STATUS[j.status]?.color || 'grey'">{{ STATUS[j.status]?.label || j.status }}</q-badge>
+    <!-- Operations as a compact table (owner reference: Hani Rohek): number · status · type, details stacked below -->
+    <div class="card q-pa-none">
+      <div v-for="j in jobs" :key="j.id" class="op-row">
+        <div class="op-cells">
+          <div class="op-line">
+            <span dir="ltr" class="text-weight-bold">{{ spaced(j.line) }}</span>
+            <q-btn flat dense round size="sm" icon="content_copy" aria-label="نسخ الرقم" @click="copyText(j.line)" />
+          </div>
+          <q-badge class="op-status" :color="STATUS[j.status]?.color || 'grey'">{{ STATUS[j.status]?.label || j.status }}</q-badge>
+          <div class="op-type">
+            <span class="op-chip" :class="j.kind === 'lookup' ? 'chip-check' : (isLte(j.line) ? 'chip-4g' : 'chip-adsl')">
+              {{ j.kind === 'lookup' ? 'تحقق' : (isLte(j.line) ? '4G' : 'ADSL') }}
+            </span>
+            <span v-if="j.kind !== 'lookup' && amount(j.product_name)" class="op-amount">{{ amount(j.product_name) }}</span>
+          </div>
+        </div>
+        <div class="op-details small muted">
+          <span>{{ when(j.created_at) }}</span>
+          <span v-if="j.offer"> · <span class="ltr">{{ j.offer }}</span></span>
+          <div v-if="j.reply && j.status !== 'looked_up'" class="ltr text-left wrap-any">{{ j.reply }}</div>
           <q-btn v-if="j.status === 'queued'" flat dense size="sm" color="negative" label="إلغاء" @click="cancel(j.id)" />
-        </q-item-section>
-      </q-item>
+        </div>
+      </div>
       <div v-if="loaded && !jobs.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
-    </q-list>
+    </div>
 
     <q-expansion-item class="card q-mt-md" icon="smartphone" label="ربط هاتف Rech-Doom" dense>
       <q-form class="column q-gutter-sm q-pt-sm" @submit.prevent="addExecutor">
@@ -111,6 +121,10 @@ const lineOk = computed(() => /^(0\d{8}|213\d{9})$/.test(digits.value))
 const is4g = computed(() => /^213\d{9}$/.test(digits.value))
 const spaced = (d) => (d || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{3})?$/, (m, a, b, c, e) => [a, b, c, e].filter(Boolean).join(' '))
 const pretty = computed(() => spaced(digits.value))
+const isLte = (line) => /^213\d{9}$/.test(line || '')
+// Card value from the product name, e.g. "Idoom 4G 1000 · 40GO / شهر" → 1000
+const amount = (name) => (name || '').match(/\b(\d{3,5})\b/)?.[1] || ''
+
 
 // Latest check of the typed line (a pending one, or the last finished result)
 const check = computed(() => lineOk.value
@@ -209,4 +223,16 @@ onUnmounted(() => clearInterval(timer))
 .idoom-line { font-size: 2.2rem; font-weight: 700; letter-spacing: 2px; }
 /* raw My IDOOM replies can be long: wrap inside the card, never widen the page */
 .wrap-any { white-space: normal; overflow-wrap: anywhere; }
+.op-row { padding: 10px 12px; border-top: 1px solid #EEF0F5; }
+.op-row:first-child { border-top: 0; }
+.op-cells { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.op-line { display: flex; align-items: center; gap: 2px; white-space: nowrap; font-size: 1.05rem; }
+.op-status { justify-self: center; white-space: normal; text-align: center; line-height: 1.3; }
+.op-type { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.op-chip { font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; color: #fff; }
+.chip-adsl { background: #76509B; }
+.chip-4g { background: #2452A4; }
+.chip-check { background: #9CA3AF; }
+.op-amount { background: #1F2937; color: #fff; font-weight: 700; padding: 2px 10px; border-radius: 8px; }
+.op-details { margin-top: 4px; }
 </style>
