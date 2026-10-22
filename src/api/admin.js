@@ -116,7 +116,12 @@ export async function idoomCreate (productId, line, requestId) {
   const rows = await rpc('store_admin_idoom_create', { p_product_id: productId, p_line: line, p_request_id: requestId })
   return rows[0]
 }
-export const idoomJobs = (limit = 30) => rpc('store_admin_idoom_jobs', { p_limit: limit })
+export async function idoomLookup (line, requestId) {
+  const rows = await rpc('store_admin_idoom_lookup', { p_line: line, p_request_id: requestId })
+  return rows[0]
+}
+export const idoomJobs = (limit = 30) => rpc('store_admin_idoom_jobs_v2', { p_limit: limit })
+export const executors = () => rpc('store_admin_executors')
 export const idoomCancel = (jobId) => rpc('store_admin_idoom_cancel', { p_job_id: jobId })
 export async function executorCreate (name) {
   const rows = await rpc('store_admin_executor_create', { p_name: name })
