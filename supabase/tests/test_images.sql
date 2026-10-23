@@ -43,6 +43,16 @@ select pg_temp.check('brand image changed', (select image from public.store_admi
 select public.store_admin_set_image('product', :pid, null);
 select pg_temp.check('product image removed', (select image from public.store_admin_stock_v2() where product_id = :pid) is null);
 
+-- v1.21: frozen codes are not available (same as the old reads and the sale itself)
+select public.store_admin_codes_freeze(array(select code_id from public.store_admin_batch_codes(
+  (select batch_id from public.store_admin_batches(:pid, 100, 0) limit 1)) where status = 'available'), true) \g /dev/null
+select pg_temp.check('v2 stock skips frozen', (select a.available = s.available from public.store_admin_stock_v2() a
+  join public.store_admin_stock() s using (product_id) where a.product_id = :pid));
+select pg_temp.check('v2 catalog matches old catalog', (select bool_and(v.available = o.available) from public.store_admin_shop_catalog_v2() v
+  join public.store_admin_shop_catalog() o using (product_id)));
+select public.store_admin_codes_freeze(array(select code_id from public.store_admin_batch_codes(
+  (select batch_id from public.store_admin_batches(:pid, 100, 0) limit 1)) where status = 'available'), false) \g /dev/null
+
 reset role;
 set role anon;
 select pg_temp.check('customer catalog v2 reachable (token checked)', pg_temp.err($$select * from public.store_catalog_v2('bad')$$) like '%INVALID_SESSION%');

@@ -73,31 +73,25 @@
       <q-btn dense unelevated color="primary" icon="add" label="بطاقة جديدة" @click="openProduct(null)" />
     </div>
     <CatalogFilter v-model:cat="cat" v-model:brand="brand" :brands="brandList" />
-    <div class="card q-pa-none" style="overflow-x:auto">
-      <q-markup-table flat dense separator="horizontal" class="stock-table">
-        <thead>
-          <tr><th class="text-right">البطاقة</th><th>السعر</th><th>متوفر</th><th>مباع</th><th></th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="p in shownStock" :key="p.product_id">
-            <td class="text-right">
-              <a href="#" class="text-primary" :style="p.active ? '' : 'text-decoration:line-through;color:#6B7280'" @click.prevent="openProduct(p)">{{ p.name }}</a>
-              <div class="small muted">{{ p.brand }}<span v-if="p.voided > 0"> · ملغى {{ p.voided }}</span></div>
-            </td>
-            <td class="text-center">{{ money(p.base_price) }}</td>
-            <td class="text-center text-weight-bold" :class="p.available > 0 ? 'amount-pos' : 'amount-neg'">{{ p.available }}</td>
-            <td class="text-center">{{ p.sold }}</td>
-            <td class="text-center">
-              <div class="column q-gutter-xs items-center">
-                <q-btn v-if="p.active" dense unelevated size="sm" color="primary" label="+ أكواد" @click="addCodesFor(p)" />
-                <q-btn dense outline size="sm" :color="p.active ? 'warning' : 'positive'" :label="p.active ? 'إيقاف' : 'تفعيل'" @click="toggleProduct(p)" />
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!shownStock.length"><td colspan="5" class="text-center muted q-pa-md">{{ stock.length ? 'لا توجد بطاقات في هذا التصنيف' : 'لا توجد بطاقات بعد. أضف أول بطاقة.' }}</td></tr>
-        </tbody>
-      </q-markup-table>
+    <!-- One small card per product (fits a phone screen); tap the name to edit -->
+    <div v-for="p in shownStock" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !p.active }">
+      <div class="row items-center justify-between no-wrap q-gutter-x-sm">
+        <a href="#" class="text-primary text-weight-medium" :style="p.active ? '' : 'text-decoration:line-through;color:#6B7280'" @click.prevent="openProduct(p)">{{ p.name }}</a>
+        <span class="text-weight-bold no-wrap">{{ money(p.base_price) }}</span>
+      </div>
+      <div class="row q-gutter-md small">
+        <span class="muted">{{ p.brand }}</span>
+        <span>متوفر <b :class="p.available > 0 ? 'amount-pos' : 'amount-neg'">{{ p.available }}</b></span>
+        <span>مباع {{ p.sold }}</span>
+        <span v-if="p.voided > 0">ملغى {{ p.voided }}</span>
+        <span v-if="!p.active" class="text-warning text-weight-bold">موقوفة</span>
+      </div>
+      <div class="row q-gutter-xs">
+        <q-btn v-if="p.active" dense unelevated size="sm" color="primary" label="+ أكواد" @click="addCodesFor(p)" />
+        <q-btn dense outline size="sm" :color="p.active ? 'warning' : 'positive'" :label="p.active ? 'إيقاف' : 'تفعيل'" @click="toggleProduct(p)" />
+      </div>
     </div>
+    <div v-if="!shownStock.length" class="text-center muted q-pa-md">{{ stock.length ? 'لا توجد بطاقات في هذا التصنيف' : 'لا توجد بطاقات بعد. أضف أول بطاقة.' }}</div>
 
     <div class="section-title">شعارات العلامات</div>
     <div class="card grid-2">
@@ -492,7 +486,6 @@ onMounted(() => { load(); loadBatches(); loadAnnouncement() })
 <style scoped>
 .warn-loss { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
 .preview-ok { background: #F0F9FF; color: #075985; border: 1px solid #BAE6FD; }
-.stock-table :deep(th), .stock-table :deep(td) { padding: 6px 4px; }
 .brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
 .brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
