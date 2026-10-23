@@ -42,7 +42,7 @@
         <EntryRow v-for="e in entries" :key="e.entry_id" :e="e" admin @reverse="openReverse(e)" />
         <div v-if="!entries.length" class="text-center muted q-pa-lg">لا توجد حركات</div>
       </div>
-      <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="entries.length" />
+      <LoadMoreBar :total="total" :shown="entries.length" :size="size" :loading="loadingMore" @more="more" />
 
       <div class="section-title">إدارة الحساب</div>
       <q-form class="card column q-gutter-sm" @submit.prevent="saveInfo">
@@ -85,11 +85,12 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRun } from 'src/composables/useRun'
+import { useLoadMore } from 'src/composables/useLoadMore'
 import * as api from 'src/api/admin'
 import { newRequestId } from 'src/api/rpc'
 import { money, debtView, KINDS } from 'src/api/format'
 import EntryRow from 'components/EntryRow.vue'
-import PagerBar from 'components/PagerBar.vue'
+import LoadMoreBar from 'components/LoadMoreBar.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
 const cid = computed(() => Number(props.id))
@@ -109,18 +110,8 @@ async function loadCustomer () {
   }
 }
 
-const entries = ref([])
-const total = ref(0)
-const page = ref(1)
-const size = ref(10)
-async function loadEntries () {
-  const data = await run(() => api.entries({ customerId: cid.value, limit: size.value, offset: (page.value - 1) * size.value }))
-  if (!data) return
-  entries.value = data
-  total.value = data.length ? Number(data[0].total_count) : 0
-}
-watch(page, loadEntries)
-watch(size, () => { page.value === 1 ? loadEntries() : (page.value = 1) })
+const { rows: entries, total, loadingMore, reset: loadEntries, refresh: refreshEntries, more, size } =
+  useLoadMore((limit, offset) => run(() => api.entries({ customerId: cid.value, limit, offset })), { key: 'entry_id' })
 
 async function reloadAll () {
   await loadCustomer()
@@ -156,7 +147,6 @@ async function doTransfer () {
   amount.value = null
   note.value = ''
   transferRequest = null
-  page.value = 1
   await reloadAll()
 }
 
@@ -178,7 +168,8 @@ async function doReverse () {
   const res = await run(() => api.reverse(revEntry.value.entry_id, revNote.value, reverseRequest), { success: 'تم الاسترداد.' })
   if (!res) return
   revOpen.value = false
-  await reloadAll()
+  await loadCustomer()
+  await refreshEntries()
 }
 
 // --- settings
