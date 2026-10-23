@@ -143,7 +143,9 @@
         <span class="small muted">#{{ b.batch_id }}</span>
       </div>
       <div class="small muted">{{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}</div>
+      <!-- Each card has exactly one state, so the parts always add up to the total -->
       <div class="row q-gutter-md small">
+        <span class="text-weight-bold">المجموع {{ b.available + b.frozen + b.suspect + b.sold + b.voided }}</span>
         <span>متوفر <b class="amount-pos">{{ b.available }}</b></span>
         <span :class="b.frozen > 0 ? 'text-warning text-weight-bold' : ''">مجمّد {{ b.frozen }}</span>
         <span>مباع {{ b.sold }}</span>
