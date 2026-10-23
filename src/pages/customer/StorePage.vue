@@ -5,16 +5,24 @@
     <q-btn rounded no-caps class="self-start" :unelevated="availOnly" :outline="!availOnly" color="positive"
       :label="availOnly ? '✓ المتوفر فقط' : 'المتوفر فقط'" :aria-pressed="availOnly" @click="availOnly = !availOnly" />
 
-    <div class="grid-2">
-      <div v-for="p in shownProducts" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !p.available }">
-        <CardImage :item="p" />
-        <div class="text-weight-medium">{{ p.name }}</div>
-        <div class="text-weight-bold" style="font-size:17px">{{ money(p.base_price) }}</div>
-        <div class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
-        <q-btn unelevated :color="p.available ? 'primary' : 'grey-4'" :text-color="p.available ? 'white' : 'grey-8'"
-          :label="p.available ? 'شراء' : 'نفد'" :disable="!p.available" @click="openBuy(p)" />
-      </div>
-    </div>
+    <!-- One section per category (titled when showing «الكل»), each brand on its own rows -->
+    <template v-for="g in groups" :key="g.id">
+      <div v-if="cat === 'all'" class="cat-title">{{ g.label }}</div>
+      <template v-for="b in g.brands" :key="b.name">
+        <div class="brand-title">{{ b.name }}</div>
+        <div class="grid-2">
+          <div v-for="p in b.items" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !p.available }">
+            <CardImage :item="p" />
+            <span class="price-badge self-start">{{ money(p.base_price) }}</span>
+            <q-separator />
+            <div class="text-weight-medium">{{ p.name }}</div>
+            <div class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
+            <q-btn unelevated :color="p.available ? 'primary' : 'grey-4'" :text-color="p.available ? 'white' : 'grey-8'"
+              :label="p.available ? 'شراء' : 'نفد'" :disable="!p.available" @click="openBuy(p)" />
+          </div>
+        </div>
+      </template>
+    </template>
     <div v-if="loaded && !shownProducts.length" class="text-center muted q-pa-lg">لا توجد بطاقات مطابقة</div>
     <q-inner-loading :showing="!loaded" />
 
@@ -53,7 +61,7 @@ import { useRun } from 'src/composables/useRun'
 import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
 import { newRequestId } from 'src/api/rpc'
-import { money } from 'src/api/format'
+import { money, CATEGORIES } from 'src/api/format'
 import CodesDialog from 'components/CodesDialog.vue'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import CardImage from 'components/CardImage.vue'
@@ -76,9 +84,20 @@ const shownProducts = computed(() => {
     .filter((p) => inCat(p) && (brand.value === 'all' || p.brand === brand.value))
     .filter((p) => !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q))
     .filter((p) => !availOnly.value || p.available)
-    // out-of-stock cards stay visible, at the end
-    .sort((a, b) => Number(b.available) - Number(a.available))
 })
+
+// Rows arrive ordered by category, brand, card. Keep that order; inside a brand
+// out-of-stock cards stay visible, at the end.
+const groups = computed(() => CATEGORIES.map((c) => {
+  const brands = []
+  for (const p of shownProducts.value.filter((x) => x.category === c.id)) {
+    let b = brands.find((x) => x.name === p.brand)
+    if (!b) brands.push(b = { name: p.brand, items: [] })
+    b.items.push(p)
+  }
+  for (const b of brands) b.items.sort((x, y) => Number(y.available) - Number(x.available))
+  return { ...c, brands }
+}).filter((g) => g.brands.length))
 
 async function load () {
   const rows = await run(() => buyer.catalog())
@@ -119,3 +138,9 @@ async function confirmBuy () {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.cat-title { font-size: 17px; font-weight: 700; margin-top: 8px; }
+.brand-title { font-size: 13px; font-weight: 600; color: #5B6170; margin-top: 2px; }
+.price-badge { background: #111827; color: #fff; font-size: 15px; font-weight: 700; padding: 2px 12px; border-radius: 999px; }
+</style>
