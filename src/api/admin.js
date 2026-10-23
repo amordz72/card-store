@@ -84,7 +84,7 @@ export const addSupplier = (name) => rpc('store_admin_add_supplier', { p_name: n
 export const priceList = (category) => rpc('store_admin_price_list', { p_category: category || null })
 export const setDefaultCost = (productId, cost) => rpc('store_admin_set_default_cost', { p_product_id: productId, p_cost: cost ?? null })
 export const productCosts = () => rpc('store_admin_product_costs')
-// mode: 'fixed' | 'amount' | 'pct' | 'inherit' (customer only); customerId null = default row
+// mode: 'fixed' | 'amount' | 'pct' | 'share' | 'inherit' (customer only); customerId null = default row
 export const setPrice = (customerId, productId, mode, value) =>
   rpc('store_admin_set_price', { p_customer_id: customerId, p_product_id: productId, p_mode: mode, p_value: value ?? null })
 export const getAnnouncement = () => rpc('store_admin_get_announcement')

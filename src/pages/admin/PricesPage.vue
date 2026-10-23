@@ -1,7 +1,7 @@
 <template>
   <q-page class="page">
     <div class="small muted">
-      اكتب في أي خانة وتُحسب الأخريان. <b>آخر خانة تكتب فيها هي القاعدة</b>: السعر يبقى ثابتًا، أو الربح بالدينار يُضاف على سعر الشراء، أو النسبة تُحسب <b>من سعر البيع</b> (مثال: بطاقة 1000 وشراء 910 وربحي 1% ← 10 دج، فيدفع الزبون 920).
+      اكتب في أي خانة وتُحسب الأخريان. <b>آخر خانة تكتب فيها هي القاعدة</b>: السعر يبقى ثابتًا، أو الربح بالدينار يُضاف على سعر الشراء، أو النسبة تُحسب <b>من سعر البيع</b> (مثال: بطاقة 1000 وشراء 910 وربحي 1% ← 10 دج، فيدفع الزبون 920)، أو <b>حصتي من الربح</b> (سعر البيع − الشراء) تتقاسمانه بالنسبة (مثال: 50% وشراء 960 ← 980، وشراء 970 ← 985).
     </div>
     <q-select v-model="who" :options="whoOptions" emit-value map-options dense outlined label="أسعار مَن؟" />
     <div class="q-pa-sm rounded-borders text-weight-medium" :class="who === DEFAULT ? 'banner-default' : 'banner-own'">
@@ -38,7 +38,7 @@
         <q-btn v-if="r.own && !r.dirty" flat dense no-caps color="primary" label="إرجاع للافتراضي" @click="inherit(r)" />
       </div>
 
-      <div class="grid-3">
+      <div class="grid-2">
         <q-input v-for="f in FIELDS" :key="f.key" :model-value="r[f.key]" dense outlined type="number" inputmode="decimal"
           stack-label :label="f.label" :suffix="f.suffix" :disable="f.key !== 'price' && r.cost == null"
           :class="{ 'rule-field': r.mode === f.mode }" input-class="text-center"
@@ -90,12 +90,14 @@ const DEFAULT = 'default'
 const FIELDS = [
   { key: 'price', mode: 'fixed', label: 'يدفع الزبون', suffix: 'دج' },
   { key: 'dzd', mode: 'amount', label: 'ربحي', suffix: 'دج' },
-  { key: 'pct', mode: 'pct', label: 'ربحي', suffix: '%' }
+  { key: 'pct', mode: 'pct', label: 'ربحي من سعر البيع', suffix: '%' },
+  { key: 'share', mode: 'share', label: 'حصتي من الربح', suffix: '%' }
 ]
 const RULE_TEXT = {
   fixed: (r) => `سعر ثابت ${money(r.price)} مهما تغيّر سعر الشراء`,
   amount: (r) => `سعر الشراء + ${money(r.dzd)} (يتغيّر مع كل دفعة)`,
-  pct: (r) => `ربح ${r.pct}% من سعر البيع = ${money(Math.round(r.base_price * r.pct / 100))} فوق سعر الشراء (يتغيّر مع كل دفعة)`
+  pct: (r) => `ربح ${r.pct}% من سعر البيع = ${money(Math.round(r.base_price * r.pct / 100))} فوق سعر الشراء (يتغيّر مع كل دفعة)`,
+  share: (r) => `لي ${r.share}% من الربح (سعر البيع − الشراء) والباقي للزبون: إن غلا الشراء نقص ربحنا معًا`
 }
 
 const { busy, run } = useRun()
@@ -110,6 +112,9 @@ const round2 = (n) => Math.round(n * 100) / 100
 // profit % is a share of the SELLING price (owner decision): 10 DZD on a 1000 card = 1%
 const pctB = (r, amount) => round2(amount / r.base_price * 100)
 const pctOf = (r, price) => (price != null && r.cost != null && r.base_price > 0 ? round2((price - r.cost) / r.base_price * 100) : null)
+// share of the whole margin (selling − cost); same formula as store_unit_charge 'share'
+const shareOf = (r, price) => (price != null && r.cost != null && r.base_price > r.cost ? round2((price - r.cost) / (r.base_price - r.cost) * 100) : null)
+const shareCharge = (r) => r.cost + Math.round(Math.max(r.base_price - r.cost, 0) * r.share / 100)
 
 const whoOptions = computed(() => {
   const seen = new Map()
@@ -128,12 +133,19 @@ function derive (r) {
   if (r.mode === 'fixed') {
     r.dzd = r.price != null && c != null ? r.price - c : null
     r.pct = pctOf(r, r.price)
+    r.share = shareOf(r, r.price)
   } else if (r.mode === 'amount') {
     r.price = r.dzd != null && c != null ? c + r.dzd : null
     r.pct = pctOf(r, r.price)
-  } else {
+    r.share = shareOf(r, r.price)
+  } else if (r.mode === 'pct') {
     r.price = r.pct != null && c != null ? c + Math.round(r.base_price * r.pct / 100) : null
     r.dzd = r.price != null ? r.price - c : null
+    r.share = shareOf(r, r.price)
+  } else {
+    r.price = r.share != null && c != null ? shareCharge(r) : null
+    r.dzd = r.price != null ? r.price - c : null
+    r.pct = pctOf(r, r.price)
   }
 }
 
@@ -148,10 +160,10 @@ function buildCards () {
         product_id: x.product_id, product_name: x.product_name, brand: x.brand, category: x.category, active: x.active,
         base_price: Number(x.base_price), cost: x.current_cost == null ? null : Number(x.current_cost),
         costSource: x.cost_source, usual, usualDraft: usual,
-        own: x.source === 'customer', mode: x.mode, dirty: false, price: null, dzd: null, pct: null
+        own: x.source === 'customer', mode: x.mode, dirty: false, price: null, dzd: null, pct: null, share: null
       }
       // the stored rule is shown exactly as typed
-      r[{ fixed: 'price', amount: 'dzd', pct: 'pct' }[x.mode]] = Number(x.value)
+      r[{ fixed: 'price', amount: 'dzd', pct: 'pct', share: 'share' }[x.mode]] = Number(x.value)
       derive(r)
       return r
     })
@@ -172,7 +184,7 @@ async function load () {
 // Typing in one field recomputes the other two; that field becomes the rule
 function edit (r, key, raw) {
   r.dirty = true
-  r.mode = { price: 'fixed', dzd: 'amount', pct: 'pct' }[key]
+  r.mode = { price: 'fixed', dzd: 'amount', pct: 'pct', share: 'share' }[key]
   r[key] = raw === '' || raw == null ? null : Number(raw)
   derive(r)
 }
@@ -180,10 +192,11 @@ function edit (r, key, raw) {
 function valid (r) {
   if (r.mode === 'fixed') return r.price > 0
   if (r.mode === 'amount') return r.dzd != null && r.dzd >= 0
-  return r.pct != null && r.pct >= 0 && r.pct < 100
+  if (r.mode === 'pct') return r.pct != null && r.pct >= 0 && r.pct < 100
+  return r.share != null && r.share >= 0 && r.share <= 100
 }
 
-const ruleValue = (r) => (r.mode === 'fixed' ? r.price : r.mode === 'amount' ? r.dzd : r.pct)
+const ruleValue = (r) => ({ fixed: r.price, amount: r.dzd, pct: r.pct, share: r.share }[r.mode])
 const customerId = () => (who.value === DEFAULT ? null : Number(who.value))
 
 async function save (r) {
