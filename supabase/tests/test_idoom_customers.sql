@@ -72,7 +72,7 @@ select pg_temp.check('other customer: request id conflict', pg_temp.err(format($
 reset role;
 select order_id as o1, code_id as k1 from store.idoom_jobs where id = :j1_job_id \gset
 select pg_temp.check('card held by the job, charged once', :k1 is not null
-  and (select count(*) from store.orders where request_id = :'rq') = 1
+  and (select count(*) from store.orders o join store.idoom_jobs j on j.order_id = o.id where j.request_id = :'rq') = 1
   and (select balance from store.customers where id = :cu) = 3500 - (select charged_amount from store.orders where id = :o1));
 select charged_amount as price from store.orders where id = :o1 \gset
 select pg_temp.check('order marked for the line', (select idoom_line from store.orders where id = :o1) = '029669458');
