@@ -63,7 +63,7 @@ export async function addCodes (productId, supplierId, cost, lines) {
   return rows[0]
 }
 
-export const stock = () => rpc('store_admin_stock')
+export const stock = () => rpc('store_admin_stock_v2')
 
 // Batches: freeze stops a code from being sold (reversible); void removes it
 // from stock for good, keeping it in history. Sold codes are never touched.
@@ -72,7 +72,7 @@ export const batches = (productId, limit, offset) =>
 export const batchCodes = (batchId) => rpc('store_admin_batch_codes', { p_batch_id: batchId })
 export const freezeCodes = (codeIds, frozen) => rpc('store_admin_codes_freeze', { p_code_ids: codeIds, p_frozen: frozen })
 export const voidCodes = (codeIds, reason) => rpc('store_admin_codes_void', { p_code_ids: codeIds, p_reason: reason })
-export const brands = () => rpc('store_admin_brands')
+export const brands = () => rpc('store_admin_brands_v2')
 export const saveBrand = (b) => rpc('store_admin_save_brand', {
   p_brand_id: b.id ?? null, p_name: b.name ?? null, p_category: b.category ?? null, p_sort: b.sort ?? null, p_active: b.active ?? null
 })
@@ -114,7 +114,7 @@ export const setAnnouncement = (text) => rpc('store_admin_set_announcement', { p
 export const reconcile = () => rpc('store_admin_reconcile')
 
 // Shop account («حساب المحل»): the owner's own wallet
-export const shopCatalog = () => rpc('store_admin_shop_catalog')
+export const shopCatalog = () => rpc('store_admin_shop_catalog_v2')
 export async function shopBuy (productId, qty, requestId) {
   const rows = await rpc('store_admin_shop_buy', { p_product_id: productId, p_qty: qty, p_request_id: requestId })
   return rows[0]
