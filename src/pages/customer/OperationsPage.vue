@@ -7,7 +7,8 @@
     </div>
     <LoadMoreBar :total="total" :shown="rows.length" :size="size" :loading="loadingMore" @more="more" />
     <q-inner-loading :showing="busy && !loadingMore" />
-    <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" />
+    <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" :order-id="lastOrderId"
+      :mark-copied="buyer.markCopied" />
     <ReportDialog v-model="reportOpen" :card="reportCard" @sent="openCodes(lastOp)" />
   </q-page>
 </template>
@@ -35,6 +36,7 @@ const { rows, total, loadingMore, reset, more, size } =
 watch(f, () => reset(), { deep: true })
 onMounted(() => reset())
 
+const lastOrderId = ref(null)
 const codesOpen = ref(false)
 const codes = ref([])
 const codesTitle = ref('')
@@ -47,13 +49,21 @@ let lastOp = null
 
 async function openCodes (op) {
   lastOp = op
-  const data = await run(() => buyer.orderCodes(op.order_id))
+  lastOrderId.value = op.order_id
+  // copy hints are optional: without them the cards still open (device hints only)
+  const [data, copies] = await Promise.all([
+    run(() => buyer.orderCodes(op.order_id)),
+    buyer.orderCopies(op.order_id).catch(() => [])
+  ])
   if (!data) return
+  const copiedAt = new Map(copies.map((x) => [x.code_id, x.copied_at]))
   const refunded = op.status !== 'done'
   codesTitle.value = refunded ? 'عملية مسترجعة' : 'أكواد العملية'
   codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id}` + (refunded ? ' — هذه الأكواد أُلغيت ولا تُستعمل' : '')
   codes.value = data.map((c) => ({
+    id: c.code_id,
     ...c,
+    copiedAt: copiedAt.get(c.code_id) || null,
     actionLabel: 'نسخ',
     action: refunded ? null : () => copyText(c.code),
     help: !buyer.isShop.value && c.can_report ? () => { reportCard.value = c; reportOpen.value = true } : null,
