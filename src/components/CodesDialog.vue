@@ -20,8 +20,8 @@
           <div class="row items-center no-wrap q-gutter-xs">
             <q-btn v-if="c.action" unelevated color="primary" :label="c.actionLabel" :loading="!!pending[c._key]"
               @click="handleAction(c)" />
-            <q-btn v-if="c.actionLabel === 'نسخ'" flat round dense
-              :icon="revealed[c._key] || !c._copied ? 'visibility' : 'visibility_off'"
+            <q-btn v-if="c.actionLabel === 'نسخ' && c.status !== 'void'" flat round dense
+              :icon="revealed[c._key] || !c._copied ? 'visibility_off' : 'visibility'"
               :aria-label="revealed[c._key] || !c._copied ? 'إخفاء الكود' : 'إظهار الكود'"
               @click="toggleReveal(c)" />
             <q-btn v-if="c.help" flat dense no-caps color="negative" icon="help_outline" label="مساعدة" @click="c.help()" />
@@ -45,7 +45,7 @@ const open = defineModel({ type: Boolean, default: false })
 const copied = reactive({})
 const revealed = reactive({})
 const pending = reactive({})
-const keyFor = (c, i) => c.id != null ? 'code:' + c.id : (props.orderId != null ? 'order:' + props.orderId + ':item:' + i : null)
+const keyFor = (c, i) => props.orderId != null ? 'order:' + props.orderId + (c.id != null ? ':code:' + c.id : ':item:' + i) : null
 function readCopied (key) {
   if (!key) return false
   try { return LocalStorage.getItem('cs_copied_v1:' + key) === true } catch { return false }
