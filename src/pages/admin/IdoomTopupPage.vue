@@ -87,13 +87,26 @@
         </div>
         <div v-if="apk" class="small muted">النسخة <bdi dir="ltr">{{ apk.version }}</bdi> · <bdi>{{ when(apk.built_at) }}</bdi></div>
         <q-btn outline color="primary" icon="share" label="مشاركة رابط الموقع" @click="share(OFFICIAL_SITE, 'متجر البطاقات')" />
+        <template v-if="phones.length">
+          <div class="text-weight-bold q-mt-sm">الهواتف المربوطة</div>
+          <div class="small muted">المهمة يأخذها أول هاتف مفعّل يستقبل. عطّل الهاتف الذي لا تريده أن ينفذ.</div>
+          <div v-for="p in phones" :key="p.id" class="row items-center no-wrap q-gutter-sm">
+            <div class="col">
+              <div :class="{ muted: !p.active }">{{ p.name }}</div>
+              <div class="small muted">{{ p.last_seen_at ? 'آخر اتصال ' + ago(p.last_seen_at) : 'لم يتصل بعد' }}</div>
+            </div>
+            <q-btn flat dense size="sm" color="primary" icon="key" label="رمز جديد" :disable="busy" @click="newToken(p)" />
+            <q-toggle :model-value="p.active" :label="p.active ? 'مفعّل' : 'معطّل'" color="positive" :disable="busy"
+              @update:model-value="(v) => setActive(p, v)" />
+          </div>
+        </template>
         <q-input v-model="executorName" dense outlined label="اسم الهاتف" />
         <q-btn type="submit" unelevated color="primary" label="إنشاء رمز" :loading="busy" :disable="!executorName.trim()" />
         <template v-if="token">
-          <q-input :model-value="token" readonly dense outlined label="الرمز — انسخه الآن" input-class="ltr" />
+          <q-input :model-value="token" readonly dense outlined :label="`رمز ${tokenFor} — انسخه الآن`" input-class="ltr" />
           <q-btn unelevated color="positive" icon="content_copy" label="نسخ الرمز" @click="copyText(token)" />
-          <q-btn outline color="positive" icon="share" label="مشاركة الرمز (بلوتوث، رسالة…)" @click="share(token, 'رمز هاتف Rech-Doom')" />
-          <div class="small text-negative">لن يظهر الرمز مرة أخرى بعد تحديث الصفحة. إن ضاع، أنشئ رمزًا جديدًا.</div>
+          <q-btn outline color="positive" icon="share" label="مشاركة الرمز (بلوتوث، رسالة…)" @click="shareToken" />
+          <div class="small text-negative">لن يظهر الرمز مرة أخرى بعد تحديث الصفحة. إن ضاع، اضغط «رمز جديد» بجانب الهاتف.</div>
         </template>
       </q-form>
     </q-expansion-item>
@@ -131,6 +144,7 @@ const loaded = ref(false)
 const line = ref('')
 const executorName = ref('')
 const token = ref('')
+const tokenFor = ref('')
 let timer = null
 
 const digits = computed(() => line.value.replace(/\D/g, ''))
@@ -243,7 +257,33 @@ async function cancel (id) {
 
 async function addExecutor () {
   const r = await run(() => api.executorCreate(executorName.value))
-  if (r) { token.value = r.token; executorName.value = '' }
+  if (r) { token.value = r.token; tokenFor.value = executorName.value; executorName.value = ''; load() }
+}
+
+// Shown once, so a lost token is replaced: the phone's old token stops working at once
+function newToken (p) {
+  Dialog.create({
+    title: `رمز جديد لـ${p.name}`,
+    message: 'الرمز القديم لهذا الهاتف يتوقف فورًا، والصق الجديد في تطبيق Rech-Doom.',
+    cancel: 'رجوع',
+    ok: 'إنشاء رمز جديد'
+  }).onOk(async () => {
+    const t = await run(() => api.executorNewToken(p.id))
+    if (t) { token.value = t; tokenFor.value = p.name }
+  })
+}
+
+// Bluetooth turns shared text into an .html page with no copy button: send a plain .txt file instead
+async function shareToken () {
+  const file = new File([token.value], 'rech-doom-token.txt', { type: 'text/plain' })
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'رمز هاتف Rech-Doom' }) } catch { /* closed by the user */ }
+  } else share(token.value, 'رمز هاتف Rech-Doom')
+}
+
+async function setActive (p, active) {
+  if (await run(() => api.executorSetActive(p.id, active).then(() => true),
+    { success: active ? `فُعّل ${p.name}.` : `عُطّل ${p.name}. أوقف الاستقبال فيه أيضًا.` })) load()
 }
 
 onMounted(async () => {

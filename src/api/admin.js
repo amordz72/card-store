@@ -182,6 +182,9 @@ export async function idoomLineInfo (line) {
   return rows[0] || null
 }
 export const executors = () => rpc('store_admin_executors')
+// v1.30: a disabled phone gets no job (refused while it has one in progress)
+export const executorNewToken = (id) => rpc('store_admin_executor_new_token', { p_executor_id: id })
+export const executorSetActive = (id, active) => rpc('store_admin_executor_set_active', { p_executor_id: id, p_active: active })
 export const idoomCancel = (jobId) => rpc('store_admin_idoom_cancel', { p_job_id: jobId })
 export async function executorCreate (name) {
   const rows = await rpc('store_admin_executor_create', { p_name: name })
