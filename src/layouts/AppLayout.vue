@@ -11,6 +11,10 @@
           <span class="small">{{ session.isAdmin ? 'رصيد المحل' : 'رصيدك' }}</span>
           <span class="text-weight-bold">{{ buyer.hide.value ? '••••••' : money(buyer.balance.value || 0) }}</span>
         </div>
+        <!-- Bell (owner): open card reports; later other alerts (pattern 18) -->
+        <q-btn v-if="session.isAdmin" flat round icon="notifications" class="q-ml-xs" :aria-label="`البلاغات المفتوحة: ${openReports}`" to="/reports">
+          <q-badge v-if="openReports" color="negative" floating rounded :label="openReports" />
+        </q-btn>
         <q-btn round unelevated color="grey-7" class="q-ml-sm" :icon="buyer.hide.value ? 'visibility_off' : 'visibility'"
           :aria-label="buyer.hide.value ? 'إظهار المبالغ' : 'إخفاء المبالغ'" @click="buyer.toggleHide()" />
       </q-toolbar>
@@ -63,6 +67,7 @@ import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
 import QuickBar from 'components/QuickBar.vue'
+import { useBell } from 'src/composables/useBell'
 import { useMyProfits } from 'src/composables/useMyProfits'
 import LockScreen from 'components/LockScreen.vue'
 import { useLockStore, markActive } from 'stores/lock'
@@ -98,6 +103,8 @@ const MENU = [
     label: 'العمليات',
     items: [
       { to: '/operations', label: 'كل العمليات', icon: 'receipt_long' },
+      { to: '/reports', label: 'البلاغات', icon: 'support', admin: true },
+      { to: '/reports', label: 'بلاغاتي', icon: 'support', customer: true },
       // kept discreet at the end (owner decision): visible only when the customer earns on some card
       { to: '/profits', label: 'أرباحي في البطاقات', icon: 'savings', customer: true, needsProfit: true }
     ]
@@ -130,6 +137,13 @@ const nav = computed(() => [
 
 // on phones the menu closes after choosing a page; on wide screens it stays open
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
+
+// Bell count: refreshed on every page change and every minute (owner only)
+const { openReports, refreshBell } = useBell()
+const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
+watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
+const bellTimer = setInterval(refreshBellIfAdmin, 60000)
+onBeforeUnmount(() => clearInterval(bellTimer))
 const lock = useLockStore()
 
 // Lock after a period WITHOUT USE: any touch, click or key counts as use

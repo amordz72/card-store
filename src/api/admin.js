@@ -54,6 +54,12 @@ export const orders = (f) => rpc('store_admin_orders', {
 })
 
 export const orderCodes = (orderId) => rpc('store_admin_order_codes', { p_order_id: orderId })
+
+// Card reports from customers (v1.20). status: null (all) | 'open' | 'accepted' | 'rejected'
+export const reports = (status) => rpc('store_admin_reports', { p_status: status || null })
+export const resolveReport = (reportId, status, note) =>
+  rpc('store_admin_resolve_report', { p_report_id: reportId, p_status: status, p_note: note || null })
+export const openReportsCount = () => rpc('store_admin_open_reports_count')
 export const revealCode = (codeId) => rpc('store_admin_reveal_code', { p_code_id: codeId })
 
 export async function addCodes (productId, supplierId, cost, lines) {

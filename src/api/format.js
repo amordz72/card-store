@@ -35,6 +35,19 @@ export function brandColor (brand) {
   return BRAND_COLORS[brand] || '#374151'
 }
 
+// Card reports (v1.20)
+export const REPORT_REASONS = {
+  used: 'مستعملة',
+  not_found: 'غير موجودة / رقم خطأ',
+  rejected: 'لا تُقبل',
+  other: 'أخرى'
+}
+export const REPORT_STATUS = {
+  open: { label: 'بانتظار التحقق', color: 'warning' },
+  accepted: { label: 'مقبول', color: 'positive' },
+  rejected: { label: 'مرفوض', color: 'negative' }
+}
+
 // Wallet entry kinds: label + badge colour (effects are computed in the database)
 export const KINDS = {
   debt: { label: 'دَين', color: '#DC2626', help: 'يزيد الرصيد ويزيد الدين. حد الدين لا يمنعك (تنبيه فقط).' },
