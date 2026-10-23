@@ -29,6 +29,12 @@ export function useBuyer () {
     // shop codes come back in full for the admin; customer codes are the customer's own
     orderCodes: (orderId) => (isShop.value
       ? adminApi.orderCodes(orderId).then((rows) => rows.map((c) => ({ code_id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status })))
-      : customerApi.orderCodes(customer.token, orderId))
+      : customerApi.orderCodes(customer.token, orderId)),
+    markCopied: (codeId) => (isShop.value
+      ? adminApi.markCopied(codeId)
+      : customerApi.markCopied(customer.token, codeId)),
+    orderCopies: (orderId) => (isShop.value
+      ? adminApi.orderCopies(orderId)
+      : customerApi.orderCopies(customer.token, orderId))
   }
 }

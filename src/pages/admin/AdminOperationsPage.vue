@@ -11,7 +11,8 @@
     </div>
     <LoadMoreBar :total="total" :shown="rows.length" :size="size" :loading="loadingMore" @more="more" />
     <q-inner-loading :showing="busy && !loadingMore" />
-    <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" :order-id="lastOrderId" />
+    <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" :order-id="lastOrderId"
+      :mark-copied="markCopied" />
   </q-page>
 </template>
 
@@ -46,9 +47,12 @@ const codesOpen = ref(false)
 const codes = ref([])
 const codesTitle = ref('')
 const codesSub = ref('')
+// The owner saves copies of the shop's own cards only; a customer's copy is shown, never set, here
+const markCopied = ref(null)
 
-function codeItem (c) {
+function codeItem (c, copiedAt) {
   return {
+    badge: copiedAt ? { label: 'نسخها الزبون', color: 'grey-7' } : null,
     code: c.masked_code,
     serial: c.serial,
     status: c.status,
@@ -65,13 +69,20 @@ function codeItem (c) {
 
 async function openCodes (op) {
   lastOrderId.value = op.order_id
-  const data = await run(() => api.orderCodes(op.order_id))
+  const [data, copies] = await Promise.all([
+    run(() => api.orderCodes(op.order_id)),
+    api.orderCopies(op.order_id).catch(() => [])
+  ])
   if (!data) return
+  const copiedAt = new Map(copies.map((x) => [x.code_id, x.copied_at]))
+  markCopied.value = op.is_shop ? api.markCopied : null
   const refunded = op.status !== 'done'
   codesTitle.value = refunded ? 'عملية مسترجعة' : 'أكواد العملية'
   codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id}` + (op.is_shop ? ' — من حساب المحل' : ' — الأكواد مخفية؛ «كشف» يُسجَّل')
   // the shop's own codes come back in full; customers' codes are masked with a logged reveal
-  codes.value = op.is_shop ? data.map((c) => ({ id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status, actionLabel: 'نسخ', action: refunded ? null : () => copyText(c.masked_code) })) : data.map(codeItem)
+  codes.value = op.is_shop
+    ? data.map((c) => ({ id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status, copiedAt: copiedAt.get(c.code_id) || null, actionLabel: 'نسخ', action: refunded ? null : () => copyText(c.masked_code) }))
+    : data.map((c) => codeItem(c, copiedAt.get(c.code_id)))
   codesOpen.value = true
 }
 </script>

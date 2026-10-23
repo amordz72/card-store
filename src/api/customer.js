@@ -39,6 +39,9 @@ export const orderCodes = (token, orderId) => rpc('store_order_codes_v2', { p_to
 // «مساعدة»: report a card that did not work. reason: 'used' | 'not_found' | 'rejected' | 'other'
 export const reportCode = (token, codeId, reason, note) =>
   rpc('store_report_code', { p_token: token, p_code_id: codeId, p_reason: reason, p_note: note || null })
+// «تم نسخها» on the server (v1.27): a display hint only, never a redemption or sale status
+export const markCopied = (token, codeId) => rpc('store_mark_copied', { p_token: token, p_code_id: codeId })
+export const orderCopies = (token, orderId) => rpc('store_order_copies', { p_token: token, p_order_id: orderId })
 export const myReports = (token) => rpc('store_my_reports', { p_token: token })
 export const entries = (token, limit, offset) => rpc('store_entries', { p_token: token, p_limit: limit, p_offset: offset })
 // «التحويلات»: wallet movements that are not purchases. kind: null | 'debt' | 'cash' | 'pay' | 'self' (with its refunds)

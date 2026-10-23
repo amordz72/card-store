@@ -51,7 +51,8 @@
       </q-card>
     </q-dialog>
 
-    <CodesDialog v-model="codesOpen" title="تم الشراء بنجاح" :subtitle="bought.subtitle" :codes="bought.codes" :order-id="bought.orderId" />
+    <CodesDialog v-model="codesOpen" title="تم الشراء بنجاح" :subtitle="bought.subtitle" :codes="bought.codes" :order-id="bought.orderId"
+      :mark-copied="buyer.markCopied" />
   </q-page>
 </template>
 
@@ -144,10 +145,14 @@ async function confirmBuy () {
     return
   }
   buyOpen.value = false
+  // The purchase answer has no card ids; take them from the order so a copy can be saved on the server.
+  // Without them the copy is still remembered on this device.
+  const rows = await buyer.orderCodes(res.order_id).catch(() => [])
+  const idOf = new Map(rows.map((r) => [r.code, r.code_id]))
   bought.value = {
     subtitle: `${res.product_name} × ${res.qty} — احتفظ بالكود أو انسخه`,
     orderId: res.order_id,
-    codes: res.codes.map((c) => ({ ...c, actionLabel: 'نسخ', action: () => copyText(c.code) }))
+    codes: res.codes.map((c) => ({ ...c, id: idOf.get(c.code) ?? null, actionLabel: 'نسخ', action: () => copyText(c.code) }))
   }
   codesOpen.value = true
   run(() => buyer.refresh())

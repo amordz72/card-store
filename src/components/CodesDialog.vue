@@ -39,8 +39,16 @@
 import { computed, reactive, watch } from 'vue'
 import { LocalStorage } from 'quasar'
 
-// Copy tracking is display-only and per-device. Never changes stock, sales or redemption status.
-const props = defineProps({ title: String, subtitle: String, codes: { type: Array, default: () => [] }, orderId: { type: [String, Number], default: null } })
+// Copy tracking is display-only. Never changes stock, sales or redemption status.
+// codes may carry copiedAt (saved on the server, v1.27); markCopied(codeId) saves a new copy there.
+// The device copy stays as a fallback when the server is unreachable.
+const props = defineProps({
+  title: String,
+  subtitle: String,
+  codes: { type: Array, default: () => [] },
+  orderId: { type: [String, Number], default: null },
+  markCopied: { type: Function, default: null }
+})
 const open = defineModel({ type: Boolean, default: false })
 const copied = reactive({})
 const revealed = reactive({})
@@ -53,7 +61,7 @@ function readCopied (key) {
 watch(() => [props.codes, props.orderId], () => {
   for (const k of Object.keys(copied)) delete copied[k]
   for (const k of Object.keys(revealed)) delete revealed[k]
-  props.codes.forEach((c, i) => { const key = keyFor(c, i); if (key) copied[key] = readCopied(key) })
+  props.codes.forEach((c, i) => { const key = keyFor(c, i); if (key) copied[key] = !!c.copiedAt || readCopied(key) })
 }, { immediate: true })
 const sortedCodes = computed(() => props.codes.map((c, i) => {
   const key = keyFor(c, i) || 'temporary:' + i
@@ -73,6 +81,8 @@ async function handleAction (c) {
     if (!c._key.startsWith('temporary:')) {
       try { LocalStorage.set('cs_copied_v1:' + c._key, true) } catch { /* no persistence available */ }
     }
+    // A failed save only loses the hint on other devices; the copy itself already succeeded.
+    if (props.markCopied && c.id != null) props.markCopied(c.id).catch(() => {})
   } finally { pending[c._key] = false }
 }
 </script>
