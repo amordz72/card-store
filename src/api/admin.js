@@ -184,3 +184,7 @@ export const saveBanner = (b) => rpc('store_admin_save_banner', {
 export const setBannerActive = (id, active) => rpc('store_admin_set_banner_active', { p_id: id, p_active: active })
 export const moveBanner = (id, dir) => rpc('store_admin_move_banner', { p_id: id, p_dir: dir })
 export const removeBanner = (id) => rpc('store_admin_remove_banner', { p_id: id })
+
+// Shop province (v1.24): any account, the owner's shop included
+export const customerWilayas = () => rpc('store_admin_customer_wilayas')
+export const setCustomerWilaya = (customerId, code) => rpc('store_admin_set_customer_wilaya', { p_customer_id: customerId, p_code: code })

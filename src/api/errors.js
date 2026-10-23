@@ -57,6 +57,7 @@ const MESSAGES = {
   NOT_RETRYABLE: 'لا يمكن إعادة هذه العملية.',
   NOT_IN_REVIEW: 'هذه العملية ليست قيد المراجعة.',
   CUSTOMER_NOT_FOUND: 'الزبون غير موجود.',
+  WILAYA_NOT_FOUND: 'الولاية غير موجودة.',
   NETWORK: 'تعذّر الاتصال. تحقق من الإنترنت ثم حاول.'
 }
 

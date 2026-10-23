@@ -75,3 +75,7 @@ export async function idoomLineInfo (token, line) {
   const rows = await rpc('store_idoom_line_info', { p_token: token, p_line: line })
   return rows?.[0] || null
 }
+
+// Shop province (v1.24)
+export const myWilaya = (token) => rpc('store_my_wilaya', { p_token: token })
+export const setMyWilaya = (token, code) => rpc('store_set_my_wilaya', { p_token: token, p_code: code })

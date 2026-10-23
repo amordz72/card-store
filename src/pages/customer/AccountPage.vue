@@ -6,6 +6,10 @@
       <div class="text-weight-bold ltr text-right">{{ admin.email }}</div>
       <div class="small muted">كلمة سر المدير وحمايته الثنائية تُدار من Supabase.</div>
     </div>
+    <div class="card column q-gutter-xs">
+      <div class="text-weight-bold">ولاية {{ session.isAdmin ? 'محلي' : 'المحل' }}</div>
+      <WilayaSelect :model-value="wilaya" @update:model-value="setWilaya" />
+    </div>
 
     <template v-if="!session.isAdmin">
     <div v-if="p" class="card grid-3">
@@ -42,6 +46,8 @@ import { money, debtView } from 'src/api/format'
 import { useSessionStore } from 'stores/session'
 import { useAdminStore } from 'stores/admin'
 import LockSettings from 'components/LockSettings.vue'
+import WilayaSelect from 'components/WilayaSelect.vue'
+import * as adminApi from 'src/api/admin'
 import { useLockStore } from 'stores/lock'
 
 const router = useRouter()
@@ -54,7 +60,27 @@ const shown = (n) => (customer.hideAmounts ? '••••••' : money(n))
 const session = useSessionStore()
 const admin = useAdminStore()
 
+// Province of this shop (the owner's own shop account, or the signed-in customer)
+const wilaya = ref(null)
+let shopId = null
+async function loadWilaya () {
+  if (session.isAdmin) {
+    const ws = await run(() => adminApi.customerWilayas())
+    const shop = ws?.find((w) => w.is_shop)
+    shopId = shop?.customer_id ?? null
+    wilaya.value = shop?.wilaya_code ?? null
+  } else {
+    wilaya.value = (await run(() => api.myWilaya(customer.token))) ?? null
+  }
+}
+async function setWilaya (code) {
+  const ok = await run(() => (session.isAdmin ? adminApi.setCustomerWilaya(shopId, code) : api.setMyWilaya(customer.token, code))
+    .then(() => true), { success: 'حُفظت الولاية.' })
+  if (ok) wilaya.value = code
+}
+
 onMounted(async () => {
+  loadWilaya()
   if (session.isAdmin) return
   await run(() => customer.refresh())
 })

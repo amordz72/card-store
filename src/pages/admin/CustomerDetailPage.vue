@@ -56,6 +56,7 @@
       <div class="card column q-gutter-sm">
         <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
           @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
+        <WilayaSelect :model-value="wilaya" @update:model-value="setWilaya" />
         <q-toggle :model-value="idoomOn" label="تعبئة إيدوم (يعبّئ خطوط إيدوم من رصيده)" color="positive" :disable="busy" @update:model-value="setIdoom" />
         <div class="row q-gutter-sm items-start">
           <q-input v-model="newPw" class="col" dense outlined label="كلمة سر جديدة (8 أحرف على الأقل)" input-class="ltr text-right" />
@@ -87,6 +88,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRun } from 'src/composables/useRun'
 import { useLoadMore } from 'src/composables/useLoadMore'
+import WilayaSelect from 'components/WilayaSelect.vue'
 import * as api from 'src/api/admin'
 import { newRequestId } from 'src/api/rpc'
 import { money, debtView, KINDS } from 'src/api/format'
@@ -116,9 +118,15 @@ const { rows: entries, total, loadingMore, reset: loadEntries, refresh: refreshE
 
 // «تعبئة إيدوم» for this customer: off by default, the owner turns it on for customers he trusts
 const idoomOn = ref(false)
+const wilaya = ref(null)
 async function loadIdoom () {
   const ids = await run(() => api.idoomTopupCustomers())
   if (ids) idoomOn.value = ids.map(Number).includes(cid.value)
+  const ws = await run(() => api.customerWilayas())
+  if (ws) wilaya.value = ws.find((w) => Number(w.customer_id) === cid.value)?.wilaya_code ?? null
+}
+async function setWilaya (code) {
+  if (await run(() => api.setCustomerWilaya(cid.value, code).then(() => true), { success: 'حُفظت الولاية.' })) wilaya.value = code
 }
 async function setIdoom (v) {
   const ok = await run(() => api.setIdoomTopup(cid.value, v).then(() => true),
