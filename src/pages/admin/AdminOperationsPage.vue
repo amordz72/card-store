@@ -67,10 +67,11 @@ async function openCodes (op) {
   lastOrderId.value = op.order_id
   const data = await run(() => api.orderCodes(op.order_id))
   if (!data) return
-  codesTitle.value = op.status === 'done' ? 'أكواد العملية' : 'عملية مسترجعة'
+  const refunded = op.status !== 'done'
+  codesTitle.value = refunded ? 'عملية مسترجعة' : 'أكواد العملية'
   codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id}` + (op.is_shop ? ' — من حساب المحل' : ' — الأكواد مخفية؛ «كشف» يُسجَّل')
   // the shop's own codes come back in full; customers' codes are masked with a logged reveal
-  codes.value = op.is_shop ? data.map((c) => ({ id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status, actionLabel: 'نسخ', action: () => copyText(c.masked_code) })) : data.map(codeItem)
+  codes.value = op.is_shop ? data.map((c) => ({ id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status, actionLabel: 'نسخ', action: refunded ? null : () => copyText(c.masked_code) })) : data.map(codeItem)
   codesOpen.value = true
 }
 </script>
