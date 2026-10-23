@@ -22,14 +22,14 @@
             <tr class="line" :class="{ open: openId === r.product_id }" tabindex="0" @click="toggle(r)" @keydown.enter="toggle(r)">
               <td class="name">
                 <div class="text-weight-bold">{{ r.product_name }}</div>
-                <div class="small muted">بيع {{ money(r.base_price) }}
+                <div class="small muted">بيع {{ money(r.base_price) }}<template v-if="r.cost != null"> · ربح كلي {{ pctOfSell(r, r.base_price - r.cost) }}%</template>
                   <span v-if="who !== DEFAULT" class="own-dot" :class="{ on: r.own }">{{ r.own ? 'خاص' : 'افتراضي' }}</span>
                 </div>
               </td>
               <td>{{ r.cost == null ? '—' : money(r.cost) }}</td>
               <td class="text-weight-bold">{{ r.price == null ? '—' : money(r.price) }}</td>
-              <td :class="custProfit(r) < 0 ? 'neg' : 'cust'">{{ fmtProfit(custProfit(r)) }}<div v-if="r.share != null" class="small">{{ r.share }}%</div></td>
-              <td :class="myProfit(r) < 0 ? 'neg' : 'me'">{{ fmtProfit(myProfit(r)) }}<div v-if="r.share != null" class="small">{{ round2(100 - r.share) }}%</div></td>
+              <td :class="custProfit(r) < 0 ? 'neg' : 'cust'">{{ fmtProfit(custProfit(r)) }}<div v-if="custProfit(r) != null" class="small">{{ pctOfSell(r, custProfit(r)) }}%</div></td>
+              <td :class="myProfit(r) < 0 ? 'neg' : 'me'">{{ fmtProfit(myProfit(r)) }}<div v-if="myProfit(r) != null" class="small">{{ pctOfSell(r, myProfit(r)) }}%</div></td>
             </tr>
             <tr v-if="openId === r.product_id" class="edit-row">
               <td colspan="5">
@@ -57,11 +57,11 @@
                   <div v-if="r.price != null && r.cost != null" class="column q-gutter-xs">
                     <div class="sum-line cust">
                       <span>ربح الزبون</span><b>{{ fmtProfit(custProfit(r)) }}</b>
-                      <span class="small">{{ r.share != null ? r.share + '% من الربح · ' : '' }}{{ pctOfSell(r, custProfit(r)) }}% من سعر البيع</span>
+                      <span class="small">{{ pctOfSell(r, custProfit(r)) }}% من سعر البيع{{ r.share != null ? ' · ' + r.share + '% من الربح' : '' }}</span>
                     </div>
                     <div class="sum-line me">
                       <span>ربحي المتبقي</span><b>{{ fmtProfit(myProfit(r)) }}</b>
-                      <span class="small">{{ r.share != null ? round2(100 - r.share) + '% من الربح · ' : '' }}{{ pctOfSell(r, myProfit(r)) }}% من سعر البيع</span>
+                      <span class="small">{{ pctOfSell(r, myProfit(r)) }}% من سعر البيع{{ r.share != null ? ' · ' + round2(100 - r.share) + '% من الربح' : '' }}</span>
                     </div>
                   </div>
                   <div class="small" style="color:#4338CA">القاعدة: {{ RULE_TEXT[r.mode](r) }}</div>
