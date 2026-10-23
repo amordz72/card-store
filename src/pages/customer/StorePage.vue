@@ -51,7 +51,7 @@
       </q-card>
     </q-dialog>
 
-    <CodesDialog v-model="codesOpen" title="تم الشراء بنجاح" :subtitle="bought.subtitle" :codes="bought.codes" />
+    <CodesDialog v-model="codesOpen" title="تم الشراء بنجاح" :subtitle="bought.subtitle" :codes="bought.codes" :order-id="bought.orderId" />
   </q-page>
 </template>
 
@@ -135,7 +135,7 @@ function openBuy (p) {
 }
 
 const codesOpen = ref(false)
-const bought = ref({ subtitle: '', codes: [] })
+const bought = ref({ subtitle: '', codes: [], orderId: null })
 
 async function confirmBuy () {
   const res = await run(() => buyer.buy(sel.value.product_id, qty.value, requestId))
@@ -146,6 +146,7 @@ async function confirmBuy () {
   buyOpen.value = false
   bought.value = {
     subtitle: `${res.product_name} × ${res.qty} — احتفظ بالكود أو انسخه`,
+    orderId: res.order_id,
     codes: res.codes.map((c) => ({ ...c, actionLabel: 'نسخ', action: () => copyText(c.code) }))
   }
   codesOpen.value = true
