@@ -20,7 +20,7 @@
           <div class="row items-center no-wrap q-gutter-xs">
             <q-btn v-if="c.action" unelevated color="primary" :label="c.actionLabel" :loading="!!pending[c._key]"
               @click="handleAction(c)" />
-            <q-btn v-if="c.actionLabel === 'نسخ' && c.status !== 'void'" flat round dense
+            <q-btn v-if="c._copied && c.actionLabel === 'نسخ' && c.status !== 'void'" flat round dense
               :icon="revealed[c._key] || !c._copied ? 'visibility_off' : 'visibility'"
               :aria-label="revealed[c._key] || !c._copied ? 'إخفاء الكود' : 'إظهار الكود'"
               @click="toggleReveal(c)" />
@@ -67,7 +67,7 @@ async function handleAction (c) {
     const success = await c.action()
     if (c.actionLabel !== 'نسخ' || success !== true) return
     // Do not mark void/refunded cards, or save an unscoped purchase in device storage.
-    if (c.status === 'void') return
+    if (c.status === 'void' || !c.action) return
     copied[c._key] = true
     revealed[c._key] = false
     if (!c._key.startsWith('temporary:')) {
