@@ -90,10 +90,11 @@ export const saveProduct = (p) => rpc('store_admin_save_product', {
 export const setImage = (kind, id, image) => rpc('store_admin_set_image', { p_kind: kind, p_id: id, p_image: image ?? null })
 
 // Shrinks the picture on the phone (max 600px, webp) then uploads it to the public bucket; returns its URL
-export async function uploadImage (file, kind, id) {
+// maxSide: 600 for logos and cards, 1200 for home banners
+export async function uploadImage (file, kind, id, maxSide = 600) {
   if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new StoreError('INVALID_IMAGE')
   const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, 600 / Math.max(bitmap.width, bitmap.height))
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(bitmap.width * scale)
   canvas.height = Math.round(bitmap.height * scale)
@@ -160,3 +161,19 @@ export async function executorCreate (name) {
   const rows = await rpc('store_admin_executor_create', { p_name: name })
   return rows[0]
 }
+
+// Home image banners (v1.22). liveBanners = what the home page shows now (same rule as customers)
+export const liveBanners = () => rpc('store_banners', { p_token: null })
+export const banners = () => rpc('store_admin_banners')
+export const saveBanner = (b) => rpc('store_admin_save_banner', {
+  p_id: b.id || null,
+  p_image: b.image,
+  p_title: b.title || '',
+  p_link_kind: b.linkKind,
+  p_link: b.linkKind === 'none' ? null : b.link,
+  p_starts_at: b.startsAt || null,
+  p_ends_at: b.endsAt || null
+})
+export const setBannerActive = (id, active) => rpc('store_admin_set_banner_active', { p_id: id, p_active: active })
+export const moveBanner = (id, dir) => rpc('store_admin_move_banner', { p_id: id, p_dir: dir })
+export const removeBanner = (id) => rpc('store_admin_remove_banner', { p_id: id })

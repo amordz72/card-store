@@ -57,6 +57,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { LocalStorage } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { useBuyer } from 'src/composables/useBuyer'
@@ -108,7 +109,18 @@ async function load () {
   const rows = await run(() => buyer.catalog())
   if (rows) products.value = rows
   loaded.value = true
+  openBrand()
 }
+
+// «/store?brand=PUBG» (a home banner link) opens on that brand
+const route = useRoute()
+function openBrand () {
+  const p = products.value.find((x) => x.brand === route.query.brand)
+  if (!p) return
+  cat.value = p.category
+  brand.value = p.brand
+}
+watch(() => route.query.brand, openBrand)
 
 const buyOpen = ref(false)
 const sel = ref(null)

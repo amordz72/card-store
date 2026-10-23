@@ -16,6 +16,7 @@ export async function me (token) {
 }
 
 export const catalog = (token) => rpc('store_catalog_v2', { p_token: token })
+export const banners = (token) => rpc('store_banners', { p_token: token })
 export const myPrices = (token) => rpc('store_my_prices', { p_token: token })
 
 export async function buy (token, productId, qty, requestId) {
