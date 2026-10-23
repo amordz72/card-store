@@ -1,0 +1,256 @@
+<template>
+  <q-page class="page">
+    <!-- The one switch: the service is open while at least one operator is «متاح» -->
+    <div class="card column q-gutter-sm">
+      <div class="row items-center no-wrap q-gutter-sm">
+        <div class="col">
+          <div class="text-weight-bold">{{ board?.is_open ? '🟢 الشحن بالمعرّف مفتوح للزبائن' : '🔴 الشحن بالمعرّف مغلق' }}</div>
+          <div class="small muted">
+            {{ board?.available_names?.length ? 'متاح الآن: ' + board.available_names.join('، ') : 'لا أحد متاح الآن' }}
+          </div>
+        </div>
+        <q-btn unelevated size="lg" :color="board?.me_available ? 'positive' : 'grey-7'" :loading="busy && switching"
+          :label="board?.me_available ? 'متاح' : 'غير متاح'" :icon="board?.me_available ? 'toggle_on' : 'toggle_off'" @click="toggle" />
+      </div>
+      <div class="small muted">اضغط «غير متاح» عند التوقف. يُغلق تلقائيًا بعد 30 دقيقة إذا أُغلقت هذه الصفحة.</div>
+      <q-btn v-if="board?.url" outline color="primary" icon="open_in_new" label="فتح موقع الشحن" :href="board.url" target="_blank" />
+    </div>
+
+    <!-- Owner settings: which cards are topped up by player id, the site link -->
+    <q-expansion-item v-if="session.isAdmin" class="card q-pa-none" icon="settings" label="إعدادات الشحن بالمعرّف" @show="loadSettings">
+      <div class="column q-gutter-sm q-pa-md">
+        <div class="text-weight-bold">البطاقات التي تُشحن بالمعرّف</div>
+        <div class="small muted">تبقى في المتجر لمن يريد شراء الكود، وتظهر أيضًا في صفحة الشحن عند فتح الخدمة.</div>
+        <q-toggle v-for="p in gameProducts" :key="p.product_id" :model-value="marked.includes(Number(p.product_id))"
+          :label="`${p.brand} · ${p.name} (متوفر ${p.available})`" @update:model-value="(v) => mark(p, v)" />
+        <div v-if="!gameProducts.length" class="muted">لا توجد بطاقات ألعاب في المخزن بعد.</div>
+        <q-separator />
+        <q-input v-model="url" dense outlined label="رابط موقع الشحن (https://…)" input-class="ltr text-left" />
+        <q-btn unelevated color="primary" label="حفظ الرابط" :disable="busy" @click="saveUrl" />
+        <div class="small muted">عامل الشحن: حساب زبون تفعّل له «عامل شحن الألعاب» من صفحة الزبون.</div>
+      </div>
+    </q-expansion-item>
+
+    <q-tabs v-model="tab" dense align="justify" class="text-primary">
+      <q-tab name="open" :label="`في الانتظار (${openRows.length})`" />
+      <q-tab name="done" label="المنتهية" />
+    </q-tabs>
+
+    <template v-if="tab === 'open'">
+      <div v-for="g in openRows" :key="g.game_id" class="card column q-gutter-xs" :class="{ mine: g.mine }">
+        <div class="row items-center no-wrap q-gutter-sm">
+          <div class="col">
+            <div class="text-weight-bold">{{ g.product_name }}</div>
+            <div class="small muted">{{ g.customer_name }} · {{ ago(g.created_at) }}<span v-if="g.cards_used"> · بطاقات مستعملة: {{ g.cards_used }}</span></div>
+          </div>
+          <q-badge :color="g.status === 'queued' ? 'grey-7' : 'info'">{{ g.status === 'queued' ? 'في الانتظار' : 'يشحنه: ' + (g.taken_by || '') }}</q-badge>
+        </div>
+        <div class="row items-center no-wrap q-gutter-sm">
+          <span class="col player-id ltr text-left">{{ g.player_id }}</span>
+          <q-btn flat dense icon="content_copy" aria-label="نسخ المعرّف" @click="copyText(g.player_id)" />
+        </div>
+
+        <q-btn v-if="g.status === 'queued'" unelevated color="primary" label="أبدأ" :disable="busy" @click="claim(g, true)" />
+
+        <template v-else-if="g.mine">
+          <div class="row items-center no-wrap q-pa-sm code-box">
+            <div class="col ltr text-left">
+              <div class="text-weight-bold">{{ g.code }}</div>
+              <div v-if="g.serial" class="small muted">{{ g.serial }}</div>
+            </div>
+            <q-btn unelevated color="primary" label="نسخ الكود" @click="copyText(g.code)" />
+          </div>
+          <div class="grid-2">
+            <q-btn unelevated color="positive" label="تمّ الشحن" :disable="busy" @click="done(g)" />
+            <q-btn outline color="warning" label="البطاقة مستعملة" :disable="busy" @click="usedCard(g)" />
+            <q-btn outline color="negative" label="لم يتم" :disable="busy" @click="failed(g)" />
+            <q-btn flat color="grey-8" label="تراجع" :disable="busy" @click="claim(g, false)" />
+          </div>
+        </template>
+
+        <q-btn v-else-if="session.isAdmin" flat dense color="grey-8" label="إرجاعه إلى الانتظار" class="self-start" :disable="busy" @click="claim(g, false)" />
+      </div>
+      <div v-if="!busy && !openRows.length" class="card text-center muted q-pa-lg">لا توجد طلبات في الانتظار</div>
+    </template>
+
+    <template v-else>
+      <div class="card q-pa-none">
+        <div v-for="g in doneRows" :key="g.game_id" class="op-row">
+          <div class="row items-center no-wrap q-gutter-sm">
+            <span class="col"><b>{{ g.product_name }}</b> · <bdi dir="ltr">{{ g.player_id }}</bdi></span>
+            <q-badge :color="FINISHED[g.status]?.color || 'grey'">{{ FINISHED[g.status]?.label || g.status }}</q-badge>
+          </div>
+          <div class="small muted">
+            {{ g.customer_name }} · {{ money(g.charged_amount) }} · {{ when(g.finished_at || g.created_at) }}<span v-if="g.taken_by"> · {{ g.taken_by }}</span>
+          </div>
+          <div v-if="g.txn_ref" class="small">رقم العملية: <bdi dir="ltr">{{ g.txn_ref }}</bdi></div>
+          <div v-if="g.reason" class="small text-negative">{{ g.reason }}</div>
+        </div>
+        <div v-if="!busy && !doneRows.length" class="text-center muted q-pa-lg">لا توجد طلبات منتهية</div>
+      </div>
+      <LoadMoreBar :total="doneTotal" :shown="doneRows.length" :size="size" :loading="loadingMore" @more="more" />
+    </template>
+  </q-page>
+</template>
+
+<script setup>
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { Dialog, Notify } from 'quasar'
+import { useSessionStore } from 'stores/session'
+import { useRun } from 'src/composables/useRun'
+import { useLoadMore } from 'src/composables/useLoadMore'
+import { useGameAccess } from 'src/composables/useGameAccess'
+import { useBell } from 'src/composables/useBell'
+import { copyText } from 'src/composables/useCopy'
+import * as api from 'src/api/customer'
+import * as adminApi from 'src/api/admin'
+import { money } from 'src/api/format'
+import LoadMoreBar from 'components/LoadMoreBar.vue'
+
+const session = useSessionStore()
+const game = useGameAccess()
+const { refreshBell } = useBell()
+const { busy, run } = useRun()
+const tok = () => game.opToken()
+
+const FINISHED = {
+  done: { label: 'تم الشحن', color: 'positive' },
+  failed: { label: 'لم يتم — أُعيد المبلغ', color: 'orange-8' },
+  cancelled: { label: 'ألغاه الزبون', color: 'grey' }
+}
+const when = (t) => new Date(t).toLocaleString('ar-DZ')
+function ago (t) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(t).getTime()) / 60000))
+  return m < 1 ? 'الآن' : m < 60 ? `منذ ${m} د` : `منذ ${Math.round(m / 60)} سا`
+}
+
+const tab = ref('open')
+const board = ref(null)
+const openRows = ref([])
+const switching = ref(false)
+
+async function loadBoard () {
+  const b = await run(() => api.gameBoard(tok()))
+  if (b) board.value = b
+}
+async function loadOpen () {
+  const data = await run(() => api.gameQueue(tok(), true, 100, 0))
+  if (!data) return
+  // a new waiting order arrived while the page is open
+  const known = new Set(openRows.value.map((g) => g.game_id))
+  if (openRows.value.length && data.some((g) => g.status === 'queued' && !known.has(g.game_id))) {
+    Notify.create({ type: 'info', message: 'طلب شحن جديد', icon: 'sports_esports' })
+  }
+  openRows.value = data
+  if (session.isAdmin) refreshBell()
+}
+const { rows: doneRows, total: doneTotal, loadingMore, reset: resetDone, more, size } =
+  useLoadMore((limit, offset) => run(() => api.gameQueue(tok(), false, limit, offset)), { key: 'game_id' })
+watch(tab, (t) => { if (t === 'done') resetDone() })
+
+async function toggle () {
+  switching.value = true
+  const on = !board.value?.me_available
+  const r = await run(() => api.gamePresence(tok(), on))
+  switching.value = false
+  if (r !== undefined) await loadBoard()
+}
+
+async function claim (g, take) {
+  await run(() => api.gameClaim(tok(), g.game_id, take))
+  await loadOpen()
+}
+
+function done (g) {
+  Dialog.create({
+    title: 'تمّ الشحن',
+    message: `${g.product_name} للمعرّف ${g.player_id}. رقم العملية من موقع الشحن (اختياري، يراه الزبون):`,
+    prompt: { model: '', type: 'text', inputmode: 'numeric' },
+    cancel: 'رجوع',
+    ok: 'تمّ'
+  }).onOk(async (txn) => {
+    if (await run(() => api.gameFinish(tok(), g.game_id, 'done', { txnRef: txn }), { success: 'سُجّل الشحن.' })) loadOpen()
+  })
+}
+
+function usedCard (g) {
+  Dialog.create({
+    title: 'البطاقة مستعملة',
+    message: 'تُلغى هذه البطاقة (خسارة على المحل) وتظهر بطاقة أخرى من المخزن لنفس الطلب. إن لم توجد بطاقة أخرى يُعاد المبلغ للزبون.',
+    cancel: 'رجوع',
+    ok: 'بطاقة أخرى'
+  }).onOk(async () => {
+    const r = await run(() => api.gameFinish(tok(), g.game_id, 'used_card'))
+    if (r === 'failed') Notify.create({ type: 'warning', message: 'لا توجد بطاقة أخرى: أُعيد المبلغ للزبون.' })
+    loadOpen()
+  })
+}
+
+function failed (g) {
+  // step 1: the reason (owner/worker only, the customer never sees it); step 2: was the card used?
+  Dialog.create({
+    title: 'لم يتم الشحن',
+    message: 'يُعاد المبلغ كاملًا للزبون. السبب (لا يراه الزبون):',
+    prompt: { model: '', type: 'text' },
+    cancel: 'رجوع',
+    ok: 'التالي'
+  }).onOk((reason) => {
+    Dialog.create({
+      title: 'البطاقة',
+      message: 'هل أدخلت كود البطاقة في موقع الشحن؟',
+      options: {
+        type: 'radio',
+        model: 'back',
+        items: [
+          { label: 'لا، لم أستعملها — تعود إلى المخزن', value: 'back' },
+          { label: 'نعم أو لا أعرف — تبقى خارج المخزن', value: 'keep' }
+        ]
+      },
+      cancel: 'رجوع',
+      ok: 'لم يتم'
+    }).onOk(async (card) => {
+      if (await run(() => api.gameFinish(tok(), g.game_id, 'failed', { reason, cardBack: card === 'back' }), { success: 'أُعيد المبلغ للزبون.' })) loadOpen()
+    })
+  })
+}
+
+// Owner settings
+const gameProducts = ref([])
+const marked = ref([])
+const url = ref('')
+async function loadSettings () {
+  const [stock, ids] = await Promise.all([run(() => adminApi.stock()), run(() => adminApi.playerTopupProducts())])
+  if (stock) gameProducts.value = stock.filter((p) => p.category === 'game' && p.active && p.brand_active)
+  if (ids) marked.value = ids.map(Number)
+  url.value = board.value?.url || ''
+}
+async function mark (p, v) {
+  if (await run(() => adminApi.setPlayerTopup(p.product_id, v).then(() => true))) loadSettings()
+}
+async function saveUrl () {
+  if (await run(() => adminApi.setGameUrl(url.value.trim()).then(() => true), { success: 'حُفظ الرابط.' })) loadBoard()
+}
+
+// Refresh the queue every 15 s; tell the server «I am still here» every minute while the page is open
+let timer = null
+let tick = 0
+onMounted(async () => {
+  await loadBoard()
+  await loadOpen()
+  timer = setInterval(async () => {
+    tick++
+    if (tick % 4 === 0 && board.value?.me_available) api.gamePresence(tok(), null).catch(() => {})
+    await loadOpen()
+    if (tick % 2 === 0) loadBoard()
+  }, 15000)
+})
+onUnmounted(() => clearInterval(timer))
+</script>
+
+<style scoped>
+.player-id { font-size: 1.6rem; font-weight: 700; letter-spacing: 1px; }
+.mine { border-color: #6366F1; }
+.code-box { border: 1px dashed #A5A9F0; background: #F5F6FF; border-radius: 12px; }
+.op-row { padding: 10px 14px; border-bottom: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
+.op-row:last-child { border-bottom: 0; }
+</style>

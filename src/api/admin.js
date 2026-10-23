@@ -184,3 +184,10 @@ export const saveBanner = (b) => rpc('store_admin_save_banner', {
 export const setBannerActive = (id, active) => rpc('store_admin_set_banner_active', { p_id: id, p_active: active })
 export const moveBanner = (id, dir) => rpc('store_admin_move_banner', { p_id: id, p_dir: dir })
 export const removeBanner = (id) => rpc('store_admin_remove_banner', { p_id: id })
+
+// Game top-up (v1.25): workers, cards topped up by player id, the top-up site link
+export const setGameOperator = (customerId, enabled) => rpc('store_admin_set_game_operator', { p_customer_id: customerId, p_enabled: enabled })
+export const gameOperators = () => rpc('store_admin_game_operators')
+export const setPlayerTopup = (productId, enabled) => rpc('store_admin_set_player_topup', { p_product_id: productId, p_enabled: enabled })
+export const playerTopupProducts = () => rpc('store_admin_player_topup_products')
+export const setGameUrl = (url) => rpc('store_admin_set_game_url', { p_url: url || null })

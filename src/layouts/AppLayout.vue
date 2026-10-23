@@ -26,6 +26,11 @@
                 <q-item-section>تعبئة إيدوم تحتاج مراجعة</q-item-section>
                 <q-item-section side><q-badge :color="idoomReview ? 'negative' : 'grey-5'" :label="idoomReview" /></q-item-section>
               </q-item>
+              <q-item v-close-popup clickable to="/game">
+                <q-item-section avatar><q-icon name="sports_esports" /></q-item-section>
+                <q-item-section>شحن ألعاب في الانتظار</q-item-section>
+                <q-item-section side><q-badge :color="gameWaiting ? 'negative' : 'grey-5'" :label="gameWaiting" /></q-item-section>
+              </q-item>
             </q-list>
           </q-menu>
         </q-btn>
@@ -92,6 +97,7 @@ import { useLockStore, markActive } from 'stores/lock'
 import * as adminApi from 'src/api/admin'
 import * as customerApi from 'src/api/customer'
 import { useIdoomAccess } from 'src/composables/useIdoomAccess'
+import { useGameAccess } from 'src/composables/useGameAccess'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,7 +121,8 @@ const MENU = [
       { to: '/store', label: 'المتجر', icon: 'storefront' },
       { to: '/stock', label: 'المخزن', icon: 'inventory_2', admin: true },
       { to: '/prices', label: 'أسعار ونسب الزبائن', icon: 'sell', admin: true },
-      { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi', idoom: true }
+      { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi', idoom: true },
+      { to: '/game', label: 'شحن الألعاب بالمعرّف', icon: 'sports_esports', game: true }
     ]
   },
   {
@@ -144,7 +151,9 @@ const { rows: profitRows } = useMyProfits()
 // «تعبئة إيدوم»: the owner, and customers the owner enabled
 const idoom = useIdoomAccess()
 const hasIdoom = computed(() => session.isAdmin || idoom.enabled.value)
-const allowed = (x) => (x.idoom ? hasIdoom.value
+// «شحن الألعاب»: everyone except the shop account sees it (customers order, the owner and workers work the queue)
+const game = useGameAccess()
+const allowed = (x) => (x.game ? true : x.idoom ? hasIdoom.value
   : x.admin ? session.isAdmin
     : x.customer ? !session.isAdmin && (!x.needsProfit || profitRows.value.length > 0) : true)
 const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.items.filter(allowed) })))
@@ -153,7 +162,9 @@ const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.it
 // Whoever has «تعبئة إيدوم» (the owner, enabled customers) gets it in place of «حسابي», still in the side menu
 const nav = computed(() => [
   { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
-  hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' } : { to: '/account', label: 'حسابي', icon: 'person' },
+  hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }
+    : game.isOperator.value ? { to: '/game', label: 'شحن الألعاب', icon: 'sports_esports' }
+      : { to: '/account', label: 'حسابي', icon: 'person' },
   { to: '/', label: 'الرئيسية', icon: 'home', exact: true, home: true },
   { to: '/store', label: 'البطاقات', icon: 'style' },
   { to: '/operations', label: 'العمليات', icon: 'receipt_long' }
@@ -163,7 +174,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { openReports, idoomReview, bellTotal, refreshBell } = useBell()
+const { openReports, idoomReview, gameWaiting, bellTotal, refreshBell } = useBell()
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
@@ -184,7 +195,7 @@ let timer = null
 onMounted(async () => {
   await run(() => buyer.refresh())
   const hasPin = await run(() => (session.isAdmin ? adminApi.lockStatus() : customerApi.lockStatus(customer.token)))
-  if (!session.isAdmin) { run(() => useMyProfits().load()); idoom.refresh() }
+  if (!session.isAdmin) { run(() => useMyProfits().load()); idoom.refresh(); game.refresh() }
   lock.init(session.isAdmin ? 'a:' + (admin.email || '') : 'c:' + (customer.profile?.phone || ''), hasPin)
   EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
   document.addEventListener('visibilitychange', onVisible)
