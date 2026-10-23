@@ -22,14 +22,14 @@
             <tr class="line" :class="{ open: openId === r.product_id }" tabindex="0" @click="toggle(r)" @keydown.enter="toggle(r)">
               <td class="name">
                 <div class="text-weight-bold">{{ r.product_name }}</div>
-                <div class="small muted">بيع {{ money(r.base_price) }}
+                <div class="small muted">بيع {{ money(r.base_price) }}<template v-if="r.cost != null"> · ربح كلي {{ pctOfSell(r, r.base_price - r.cost) }}%</template>
                   <span v-if="who !== DEFAULT" class="own-dot" :class="{ on: r.own }">{{ r.own ? 'خاص' : 'افتراضي' }}</span>
                 </div>
               </td>
               <td>{{ r.cost == null ? '—' : money(r.cost) }}</td>
               <td class="text-weight-bold">{{ r.price == null ? '—' : money(r.price) }}</td>
-              <td :class="custProfit(r) < 0 ? 'neg' : 'cust'">{{ fmtProfit(custProfit(r)) }}<div v-if="r.share != null" class="small">{{ r.share }}%</div></td>
-              <td :class="myProfit(r) < 0 ? 'neg' : 'me'">{{ fmtProfit(myProfit(r)) }}<div v-if="r.share != null" class="small">{{ round2(100 - r.share) }}%</div></td>
+              <td :class="custProfit(r) < 0 ? 'neg' : 'cust'">{{ fmtProfit(custProfit(r)) }}<div v-if="custProfit(r) != null" class="small">{{ pctOfSell(r, custProfit(r)) }}%</div></td>
+              <td :class="myProfit(r) < 0 ? 'neg' : 'me'">{{ fmtProfit(myProfit(r)) }}<div v-if="myProfit(r) != null" class="small">{{ pctOfSell(r, myProfit(r)) }}%</div></td>
             </tr>
             <tr v-if="openId === r.product_id" class="edit-row">
               <td colspan="5">
@@ -45,26 +45,36 @@
                     <span v-if="r.cost != null" class="small">{{ pctOfSell(r, r.base_price - r.cost) }}% من سعر البيع</span>
                   </div>
 
+                  <!-- The three customer-profit fields all save the same rule (his share of the margin); type in any one -->
                   <div class="grid-2">
+                    <q-input :model-value="r.custDzd" dense outlined type="number" inputmode="numeric" stack-label label="ربح الزبون"
+                      suffix="دج" input-class="text-center" :disable="noMargin(r)" :class="{ 'rule-field': r.typed === 'custDzd' }"
+                      @update:model-value="(v) => edit(r, 'custDzd', v)" />
+                    <q-input :model-value="r.custPct" dense outlined type="number" inputmode="decimal" stack-label label="ربح الزبون من سعر البيع"
+                      suffix="%" input-class="text-center" :disable="noMargin(r)" :class="{ 'rule-field': r.typed === 'custPct' }"
+                      @update:model-value="(v) => edit(r, 'custPct', v)" />
                     <q-input :model-value="r.share" dense outlined type="number" inputmode="decimal" stack-label label="ربح الزبون من الربح"
-                      suffix="%" input-class="text-center" :disable="r.cost == null || r.base_price <= r.cost" :class="{ 'rule-field': r.mode === 'share' }"
+                      suffix="%" input-class="text-center" :disable="noMargin(r)" :class="{ 'rule-field': r.typed === 'share' }"
                       @update:model-value="(v) => edit(r, 'share', v)" />
                     <q-input :model-value="r.price" dense outlined type="number" inputmode="numeric" stack-label label="أو سعر ثابت يدفعه"
-                      suffix="دج" input-class="text-center" :class="{ 'rule-field': r.mode === 'fixed' }"
+                      suffix="دج" input-class="text-center" :class="{ 'rule-field': r.typed === 'price' }"
                       @update:model-value="(v) => edit(r, 'price', v)" />
                   </div>
 
                   <div v-if="r.price != null && r.cost != null" class="column q-gutter-xs">
                     <div class="sum-line cust">
                       <span>ربح الزبون</span><b>{{ fmtProfit(custProfit(r)) }}</b>
-                      <span class="small">{{ r.share != null ? r.share + '% من الربح · ' : '' }}{{ pctOfSell(r, custProfit(r)) }}% من سعر البيع</span>
+                      <span class="small">{{ pctOfSell(r, custProfit(r)) }}% من سعر البيع{{ r.share != null ? ' · ' + r.share + '% من الربح' : '' }}</span>
                     </div>
                     <div class="sum-line me">
                       <span>ربحي المتبقي</span><b>{{ fmtProfit(myProfit(r)) }}</b>
-                      <span class="small">{{ r.share != null ? round2(100 - r.share) + '% من الربح · ' : '' }}{{ pctOfSell(r, myProfit(r)) }}% من سعر البيع</span>
+                      <span class="small">{{ pctOfSell(r, myProfit(r)) }}% من سعر البيع{{ r.share != null ? ' · ' + round2(100 - r.share) + '% من الربح' : '' }}</span>
                     </div>
                   </div>
                   <div class="small" style="color:#4338CA">القاعدة: {{ RULE_TEXT[r.mode](r) }}</div>
+                  <div v-if="r.mode === 'share' && r.value > 100" class="small q-pa-sm rounded-borders warn-loss">
+                    ربح الزبون أكبر من الربح الكلي ({{ money(r.base_price - r.cost) }}).
+                  </div>
                   <div v-if="r.cost == null" class="small text-warning">لا يوجد سعر شراء بعد: أدخل دفعة في «المخزن» ليُحسب الربح، أو اكتب سعرًا ثابتًا.</div>
                   <div v-if="r.cost != null && r.price != null && r.price < r.cost" class="small q-pa-sm rounded-borders warn-loss">
                     تنبيه: أقل من سعر الشراء — خسارة {{ money(r.cost - r.price) }} في كل بطاقة (مسموح لك).
@@ -161,9 +171,13 @@ function priceOf (r) {
 // Customer's share of the margin that a given price means (null when there is no margin)
 const shareOf = (r) => (r.price != null && r.cost != null && r.base_price > r.cost ? round2((r.base_price - r.price) / (r.base_price - r.cost) * 100) : null)
 
+const noMargin = (r) => r.cost == null || r.base_price <= r.cost
+
 function derive (r) {
   r.price = priceOf(r)
   r.share = r.mode === 'share' ? r.value : shareOf(r)
+  r.custDzd = r.price == null ? null : r.base_price - r.price
+  r.custPct = r.price == null ? null : pctOfSell(r, r.base_price - r.price)
 }
 
 const cards = ref([])
@@ -175,7 +189,8 @@ function buildCards () {
         product_id: x.product_id, product_name: x.product_name, brand: x.brand, category: x.category, active: x.active,
         base_price: Number(x.base_price), cost: x.current_cost == null ? null : Number(x.current_cost),
         costSource: x.cost_source,
-        own: x.source === 'customer', mode: x.mode, value: Number(x.value), dirty: false, price: null, share: null
+        own: x.source === 'customer', mode: x.mode, value: Number(x.value), dirty: false, price: null, share: null, custDzd: null, custPct: null,
+        typed: x.mode === 'fixed' ? 'price' : 'share'
       }
       derive(r)
       return r
@@ -196,13 +211,23 @@ async function load () {
   buildCards()
 }
 
-// Typing the customer's share makes a 'share' rule; typing a price makes a 'fixed' rule
+// Customer profit typed as DZD, % of the selling price or % of the margin → one 'share' rule
+// (his share of the margin, so it follows every batch); typing a price makes a 'fixed' rule
 function edit (r, key, raw) {
   const v = raw === '' || raw == null ? null : Number(raw)
   r.dirty = true
-  r.mode = key === 'share' ? 'share' : 'fixed'
-  r.value = v
+  r.typed = key
+  if (key === 'price') {
+    r.mode = 'fixed'
+    r.value = v
+    return derive(r)
+  }
+  const margin = r.base_price - r.cost
+  const dzd = key === 'custDzd' ? v : key === 'custPct' && v != null ? r.base_price * v / 100 : null
+  r.mode = 'share'
+  r.value = v == null ? null : key === 'share' ? v : round2(dzd / margin * 100)
   derive(r)
+  r[key] = v   // keep exactly what was typed in the field being edited
 }
 
 function valid (r) {
