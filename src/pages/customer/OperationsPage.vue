@@ -7,7 +7,7 @@
     </div>
     <LoadMoreBar :total="total" :shown="rows.length" :size="size" :loading="loadingMore" @more="more" />
     <q-inner-loading :showing="busy && !loadingMore" />
-    <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" />
+    <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" :order-id="lastOrderId" />
     <ReportDialog v-model="reportOpen" :card="reportCard" @sent="openCodes(lastOp)" />
   </q-page>
 </template>
@@ -35,6 +35,7 @@ const { rows, total, loadingMore, reset, more, size } =
 watch(f, () => reset(), { deep: true })
 onMounted(() => reset())
 
+const lastOrderId = ref(null)
 const codesOpen = ref(false)
 const codes = ref([])
 const codesTitle = ref('')
@@ -47,12 +48,14 @@ let lastOp = null
 
 async function openCodes (op) {
   lastOp = op
+  lastOrderId.value = op.order_id
   const data = await run(() => buyer.orderCodes(op.order_id))
   if (!data) return
   const refunded = op.status !== 'done'
   codesTitle.value = refunded ? 'عملية مسترجعة' : 'أكواد العملية'
   codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id}` + (refunded ? ' — هذه الأكواد أُلغيت ولا تُستعمل' : '')
   codes.value = data.map((c) => ({
+    id: c.code_id,
     ...c,
     actionLabel: 'نسخ',
     action: refunded ? null : () => copyText(c.code),
