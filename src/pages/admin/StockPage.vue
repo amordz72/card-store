@@ -148,11 +148,18 @@
         <span :class="b.frozen > 0 ? 'text-warning text-weight-bold' : ''">مجمّد {{ b.frozen }}</span>
         <span>مباع {{ b.sold }}</span>
         <span>ملغى {{ b.voided }}</span>
+        <span v-if="b.suspect > 0" class="text-deep-orange text-weight-bold">مشكوك فيها {{ b.suspect }}</span>
       </div>
-      <div v-if="b.available + b.frozen > 0" class="row q-gutter-xs">
+      <div v-if="b.available + b.frozen + b.suspect > 0" class="row q-gutter-xs">
         <q-btn v-if="b.available > 0" dense outline size="sm" color="warning" label="تجميد" @click="freezeBatch(b, true)" />
         <q-btn v-if="b.frozen > 0" dense outline size="sm" color="positive" label="فك التجميد" @click="freezeBatch(b, false)" />
         <q-btn dense outline size="sm" color="negative" label="إلغاء غير المباع" @click="voidBatch(b)" />
+      </div>
+      <!-- «مشكوك فيها»: the owner's only; never sold to customers, used one card at a time -->
+      <div v-if="b.voided + b.suspect > 0" class="row q-gutter-xs">
+        <q-btn v-if="b.voided > 0" dense outline size="sm" color="deep-orange" icon="restore" label="استرجاع ملغاة" @click="restoreBatch(b)" />
+        <q-btn v-if="b.suspect > 0" dense unelevated size="sm" color="deep-orange" label="استعمل بطاقة مشكوكة" :loading="busy" @click="useSuspect(b)" />
+        <q-btn v-if="b.suspect > 0" dense flat size="sm" color="grey-8" label="اعتبرها عادية" @click="suspectToNormal(b)" />
       </div>
     </div>
     <div v-if="!shownBatches.length" class="text-center muted q-pa-md">
@@ -202,6 +209,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    <CodesDialog v-model="usedOpen" title="بطاقة مشكوك فيها" :subtitle="usedSub" :codes="usedCodes" :order-id="usedOrderId" />
   </q-page>
 </template>
 
@@ -209,11 +217,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Dialog, LocalStorage, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
+import { copyText } from 'src/composables/useCopy'
+import { newRequestId } from 'src/api/rpc'
 import * as api from 'src/api/admin'
 import { dateTime, money } from 'src/api/format'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import ImageField from 'components/ImageField.vue'
 import BannersAdmin from 'components/BannersAdmin.vue'
+import CodesDialog from 'components/CodesDialog.vue'
 
 const { busy, run } = useRun()
 
@@ -460,7 +471,7 @@ async function loadBatches () {
     }
     return all
   })
-  if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided) }))
+  if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided), suspect: Number(b.suspect) }))
 }
 async function reloadAll () { await Promise.all([load(), loadBatches()]) }
 
@@ -477,7 +488,7 @@ const shownBatches = computed(() => batchList.value.filter((b) =>
   (!bf.value.brand || b.brand === bf.value.brand) &&
   (!bf.value.product || b.product_id === bf.value.product) &&
   (bf.value.supplier === 'all' || b.supplier === bf.value.supplier) &&
-  (!bf.value.availOnly || b.available + b.frozen > 0)))
+  (!bf.value.availOnly || b.available + b.frozen + b.suspect > 0)))
 
 // Only codes still in stock change; a code sold meanwhile is skipped by the database.
 async function stockCodeIds (b, test) {
@@ -494,7 +505,7 @@ function freezeBatch (b, frozen) {
       : `${b.product_name} #${b.batch_id}: ${count} كود يعود للبيع.`,
     cancel: 'إلغاء', ok: frozen ? 'تجميد' : 'فك التجميد'
   }).onOk(async () => {
-    const n = await run(async () => api.freezeCodes(await stockCodeIds(b, (c) => c.frozen !== frozen), frozen),
+    const n = await run(async () => api.freezeCodes(await stockCodeIds(b, (c) => !c.suspect && c.frozen !== frozen), frozen),
       { success: (n) => frozen ? `جُمّد ${n} كود.` : `عاد ${n} كود للبيع.` })
     if (n !== undefined) reloadAll()
   })
@@ -503,12 +514,72 @@ function freezeBatch (b, frozen) {
 function voidBatch (b) {
   Dialog.create({
     title: 'إلغاء الأكواد غير المباعة',
-    message: `${b.product_name} #${b.batch_id}: ${b.available + b.frozen} كود يخرج من المخزن نهائيًا ويبقى في السجل. لا رجعة فيه. اكتب السبب:`,
+    message: `${b.product_name} #${b.batch_id}: ${b.available + b.frozen + b.suspect} كود يخرج من المخزن ويبقى في السجل. ما لم يصل لأي مشترٍ يمكن استرجاعه لاحقًا كـ«مشكوك فيها». اكتب السبب:`,
     prompt: { model: '', type: 'text', isValid: (v) => v.trim().length > 0 },
-    cancel: 'رجوع', ok: { label: 'إلغاء نهائي', color: 'negative' }
+    cancel: 'رجوع', ok: { label: 'إلغاء', color: 'negative' }
   }).onOk(async (reason) => {
     const n = await run(async () => api.voidCodes(await stockCodeIds(b, () => true), reason.trim()),
       { success: (n) => `أُلغي ${n} كود.` })
+    if (n !== undefined) reloadAll()
+  })
+}
+
+// --- «مشكوك فيها» (v1.28): restore wrongly voided cards, use them one by one
+function restoreBatch (b) {
+  Dialog.create({
+    title: 'استرجاع بطاقات ملغاة',
+    message: `${b.product_name} #${b.batch_id}: الصق الأكواد الصحيحة، كودًا في كل سطر. تعود «مشكوك فيها»: لا تُباع لأي زبون، وتستعملها أنت واحدة بواحدة. بطاقة وصلت لمشترٍ لا تُسترجع.`,
+    prompt: { model: '', type: 'textarea', isValid: (v) => v.trim().length > 0 },
+    cancel: 'رجوع', ok: 'التالي'
+  }).onOk((lines) => {
+    Dialog.create({
+      title: 'سبب الاسترجاع',
+      prompt: { model: 'صحيحة؛ أُلغيت خطأ', type: 'text', isValid: (v) => v.trim().length > 0 },
+      cancel: 'رجوع', ok: 'استرجاع'
+    }).onOk(async (reason) => {
+      const r = await run(() => api.restoreBatch(b.batch_id, lines, reason.trim()))
+      if (!r) return
+      Dialog.create({
+        title: 'نتيجة الاسترجاع',
+        message: `استُرجعت ${r.restored} كمشكوك فيها.` +
+          (r.not_void ? ` · ${r.not_void} ليست ملغاة أو وصلت لمشترٍ (لم تتغير).` : '') +
+          (r.not_found ? ` · ${r.not_found} غير موجودة في هذه الدفعة.` : ''),
+        ok: 'حسنًا'
+      })
+      reloadAll()
+    })
+  })
+}
+
+const usedOpen = ref(false)
+const usedSub = ref('')
+const usedCodes = ref([])
+const usedOrderId = ref(null)
+function useSuspect (b) {
+  const requestId = newRequestId()   // one id per confirmed use; a retry gives the same card
+  Dialog.create({
+    title: 'استعمال بطاقة مشكوك فيها',
+    message: `${b.product_name}: تُؤخذ بطاقة واحدة من حساب المحل بسعر شرائها وتظهر في «مشترياتي».`,
+    cancel: 'رجوع', ok: 'خذ بطاقة'
+  }).onOk(async () => {
+    const res = await run(() => api.useSuspect(b.product_id, requestId))
+    if (!res) return
+    usedOrderId.value = res.order_id
+    usedSub.value = `${res.product_name} · رقم ${res.order_id} — جرّبها؛ تبقى في «مشترياتي»`
+    usedCodes.value = res.codes.map((c) => ({ id: c.code_id, code: c.code, serial: c.serial, status: 'sold', actionLabel: 'نسخ', action: () => copyText(c.code) }))
+    usedOpen.value = true
+    reloadAll()
+  })
+}
+
+function suspectToNormal (b) {
+  Dialog.create({
+    title: 'اعتبارها عادية',
+    message: `${b.product_name} #${b.batch_id}: ${b.suspect} بطاقة مشكوك فيها تعود للبيع العادي للزبائن. افعل هذا فقط إن تأكدت أنها صحيحة.`,
+    cancel: 'رجوع', ok: { label: 'تعود للبيع', color: 'positive' }
+  }).onOk(async () => {
+    const n = await run(async () => api.setSuspect(await stockCodeIds(b, (c) => c.suspect), false),
+      { success: (n) => `عادت ${n} بطاقة للبيع العادي.` })
     if (n !== undefined) reloadAll()
   })
 }
