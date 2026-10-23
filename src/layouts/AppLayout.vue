@@ -90,7 +90,7 @@ const MENU = [
     items: [
       { to: '/store', label: 'المتجر', icon: 'storefront' },
       { to: '/stock', label: 'المخزن', icon: 'inventory_2', admin: true },
-      { to: '/prices', label: 'الأسعار', icon: 'sell', admin: true },
+      { to: '/prices', label: 'أسعار ونسب الزبائن', icon: 'sell', admin: true },
       { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi', admin: true }
     ]
   },

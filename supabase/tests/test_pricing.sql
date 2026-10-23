@@ -99,8 +99,39 @@ select public.store_admin_save_product(:o5, null, null, null, null, false) \g /d
 select pg_temp.check('stopped card listed as inactive', (select not active from public.store_admin_price_list('phone') where customer_id is null and product_id = :o5));
 select pg_temp.check('old price list hides stopped', not exists (select 1 from public.store_admin_prices('phone') where product_id = :o5));
 select public.store_admin_set_default_cost(:o5, null);
+-- v1.18 profit share: the customer gets p% of (selling − cost), I keep the rest; a dearer batch lowers both profits
+select public.store_admin_save_product(null, (select brand_id from public.store_admin_brands() where name = 'Ooredoo'), 'Ooredoo 1000 share', 1000, 3, true) as sh \gset
+select added from public.store_admin_add_codes(:sh, null, 960, 'SH-1') \g /dev/null
+select added from public.store_admin_add_codes(:sh, null, 970, 'SH-2') \g /dev/null
+select public.store_admin_create_customer('شريك', '0770000020', 'secret123') as c3 \gset
+select public.store_admin_set_price(null, :sh, 'share', 50);
+select pg_temp.check('customer 50%: 960 → 980', (select charge_now from public.store_admin_price_list('phone') where customer_id is null and product_id = :sh) = 980);
+select public.store_admin_set_price(:c3, :sh, 'share', 70);
+select pg_temp.check('customer gets 70%: 960 → 972', (select source = 'customer' and charge_now = 972 from public.store_admin_price_list('phone') where customer_id = :c3 and product_id = :sh));
+select pg_temp.check('customer 100% allowed', pg_temp.err(format($$select public.store_admin_set_price(null, %s, 'share', 100)$$, :sh)) = 'NO_ERROR');
+select pg_temp.check('bad share rejected', pg_temp.err(format($$select public.store_admin_set_price(null, %s, 'share', 101)$$, :sh)) like '%INVALID_PRICE_RULE%');
+select public.store_admin_set_price(null, :sh, 'share', 50);
+select * from public.store_admin_transfer(:c3, 'cash', 5000, null, gen_random_uuid()) \g /dev/null
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
+select session_token as tok3 from public.store_login('0770000020', 'secret123') \gset
+select pg_temp.check('my prices: share pay now 972', (select pay_now from public.store_my_prices(:'tok3') where product_id = :sh) = 972);
+select * from public.store_me(:'tok3') \gset s0_
+select * from public.store_buy(:'tok3', :sh, 2, gen_random_uuid()) \g /dev/null
+select * from public.store_me(:'tok3') \gset s1_
+-- I keep 30%: 960 + 12 = 972, then 970 + 9 = 979
+select pg_temp.check('share priced per batch: 972 + 979', :s0_balance - :s1_balance = 1951, (:s0_balance - :s1_balance)::text);
+reset role;
+select pg_temp.check('order keeps the share rule', (select count(*) = 1 from store.orders where product_id = :sh and price_mode = 'share' and price_value = 70));
+set role authenticated;
+select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
+select added from public.store_admin_add_codes(:sh, null, 1010, 'SH-3') \g /dev/null
+select pg_temp.check('no margin → customer pays the cost', (select charge_now from public.store_admin_price_list('phone') where customer_id is null and product_id = :sh) = 1010);
 select pg_temp.check('reconcile clean', (select count(*) from public.store_admin_reconcile()) = 0);
 reset role;
+-- rounding: margin 35, customer 50% → customer 18 (rounded first), I keep 17 → pays 965 + 17 = 982
+select pg_temp.check('customer profit first, I keep the rest', private.store_unit_charge('share', 50, 965, 1000) = 982);
 
 \set QUIET off
 select ok, count(*) from p_results group by ok;

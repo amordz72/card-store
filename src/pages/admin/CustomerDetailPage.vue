@@ -10,6 +10,8 @@
           </div>
           <q-badge v-if="!c.active" color="grey" label="موقوف" />
         </div>
+        <q-btn outline dense no-caps color="primary" icon="sell" label="أسعار ونسب هذا الزبون" class="self-start"
+          :to="{ path: '/prices', query: { who: id } }" />
         <div class="grid-2">
           <div class="q-pa-sm rounded-borders column" style="background:#ECFDF3"><span class="small" style="color:#166534">الرصيد</span><b class="amount-pos" style="font-size:17px">{{ money(c.balance) }}</b></div>
           <div class="q-pa-sm rounded-borders column" style="background:#F7F8FB"><span class="small">{{ debt.label }} (الحد {{ money(c.debt_limit) }})</span><b :class="debt.cls" style="font-size:17px">{{ debt.text }}</b></div>

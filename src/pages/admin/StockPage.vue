@@ -31,7 +31,7 @@
       <div v-if="preview" class="small q-pa-sm rounded-borders column q-gutter-xs" :class="preview.loss ? 'warn-loss' : 'preview-ok'">
         <div>سعر البيع: <b>{{ money(preview.base) }}</b> · سعر الشراء: <b>{{ money(preview.cost) }}</b> ·
           الربح الكلي: <b>{{ money(preview.margin) }}</b> ({{ preview.marginPct }}%)</div>
-        <div v-if="preview.pay != null">يدفع الزبون (السعر الافتراضي): <b>{{ money(preview.pay) }}</b> · ربحك: <b>{{ money(preview.mine) }}</b></div>
+        <div v-if="preview.pay != null">يدفع الزبون (السعر الافتراضي): <b>{{ money(preview.pay) }}</b> · ربح الزبون: <b>{{ money(preview.base - preview.pay) }}</b> · ربحك: <b>{{ money(preview.mine) }}</b></div>
         <div v-if="preview.cost >= preview.base" class="text-weight-bold">تنبيه: سعر الشراء يساوي سعر البيع أو أكبر منه.</div>
         <div v-else-if="preview.mine < 0" class="text-weight-bold">تنبيه: الزبون يدفع أقل من سعر الشراء — خسارة {{ money(-preview.mine) }} في كل بطاقة.</div>
         <q-btn flat dense no-caps color="primary" icon="edit" label="تعديل سعر البيع" class="self-start" @click="openBase" />
@@ -162,7 +162,8 @@ const preview = computed(() => {
   if (!p || !(cost > 0)) return null
   const base = Number(p.base_price)
   const r = defaultRule.value[p.product_id] || { mode: 'fixed', value: base }
-  const pay = r.mode === 'fixed' ? Math.round(r.value) : r.mode === 'amount' ? cost + Math.round(r.value) : cost + Math.round(base * r.value / 100)
+  const pay = r.mode === 'fixed' ? Math.round(r.value) : r.mode === 'amount' ? cost + Math.round(r.value)
+    : r.mode === 'share' ? cost + Math.max(base - cost, 0) - Math.round(Math.max(base - cost, 0) * r.value / 100) : cost + Math.round(base * r.value / 100)
   return { base, cost, margin: base - cost, marginPct: Math.round((base - cost) / base * 10000) / 100, pay, mine: pay - cost, loss: cost >= base || pay < cost }
 })
 
