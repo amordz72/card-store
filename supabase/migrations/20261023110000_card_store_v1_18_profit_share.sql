@@ -142,22 +142,6 @@ begin
 end;
 $$;
 
--- Grants (same rule as before)
-do $$
-declare f record;
-begin
-  for f in
-    select p.oid::regprocedure as sig, n.nspname as sch, p.proname as name
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where (n.nspname in ('private', 'public') and p.proname like 'store\_%')
-  loop
-    execute format('revoke all on function %s from public, anon, authenticated', f.sig);
-    if f.name like 'store\_admin\_%' then
-      if f.sch = 'public' or f.name like '%\_impl' then
-        execute format('grant execute on function %s to authenticated', f.sig);
-      end if;
-    elsif f.name like '%\_impl' or f.sch = 'public' then
-      execute format('grant execute on function %s to anon, authenticated', f.sig);
-    end if;
-  end loop;
-end $$;
+-- Grants: create or replace keeps every existing grant; only the new internal helper needs locking down
+-- (it is called from security-definer functions, never by clients)
+revoke all on function private.store_charge_now(text, numeric, bigint, bigint) from public, anon, authenticated;
