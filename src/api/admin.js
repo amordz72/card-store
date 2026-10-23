@@ -121,6 +121,11 @@ export async function idoomLookup (line, requestId) {
   return rows[0]
 }
 export const idoomJobs = (limit = 30) => rpc('store_admin_idoom_jobs_v2', { p_limit: limit })
+// last known offer of a line, display only (v1.17)
+export async function idoomLineInfo (line) {
+  const rows = await rpc('store_admin_idoom_line_info', { p_line: line })
+  return rows[0] || null
+}
 export const executors = () => rpc('store_admin_executors')
 export const idoomCancel = (jobId) => rpc('store_admin_idoom_cancel', { p_job_id: jobId })
 export async function executorCreate (name) {
