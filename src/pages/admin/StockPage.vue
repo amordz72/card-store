@@ -5,9 +5,31 @@
       <q-btn outline color="primary" label="حفظ الإعلان" class="self-start" @click="saveAnnouncement" />
     </div>
 
-    <q-form class="card column q-gutter-sm" @submit.prevent="addCodes">
+    <q-form ref="codesFormEl" class="card column q-gutter-sm" @submit.prevent="addCodes">
       <div class="text-weight-bold">إضافة أكواد للمخزن</div>
-      <q-select v-model="codeForm.productId" :options="productOptions" emit-value map-options dense outlined label="البطاقة" />
+      <!-- Two taps instead of one long list: brand, then the card of that brand -->
+      <div class="small muted">1. العلامة</div>
+      <div class="row q-gutter-xs">
+        <button v-for="b in pickBrands" :key="b.name" type="button" class="brand-pick" :class="{ on: pickBrand === b.name }"
+          :aria-pressed="pickBrand === b.name" @click="pickBrand = b.name; codeForm.productId = null">
+          <img v-if="b.image" :src="b.image" :alt="b.name">
+          <span v-else>{{ b.name }}</span>
+        </button>
+      </div>
+      <template v-if="pickBrand">
+        <div class="small muted">2. البطاقة ({{ pickBrand }})</div>
+        <div class="row q-gutter-xs">
+          <q-btn v-for="p in pickProducts" :key="p.product_id" no-caps dense class="q-px-sm" :ripple="false"
+            :unelevated="codeForm.productId === p.product_id" :outline="codeForm.productId !== p.product_id"
+            :color="codeForm.productId === p.product_id ? 'primary' : 'grey-8'" @click="codeForm.productId = p.product_id">
+            <div class="column items-center" style="line-height:1.25">
+              <span class="text-weight-medium">{{ shortName(p) }}</span>
+              <span style="font-size:11px">متوفر {{ p.available }}</span>
+            </div>
+          </q-btn>
+        </div>
+      </template>
+      <div v-if="pickedProduct" class="small text-weight-medium" style="color:#4338CA">البطاقة المختارة: {{ pickedProduct.name }}</div>
       <q-file v-model="file" dense outlined accept=".txt,.csv,text/plain,text/csv" label="رفع ملف أكواد (txt أو csv) — أو الصق في الخانة التالية" clearable>
         <template #prepend><q-icon name="upload_file" /></template>
       </q-file>
@@ -60,7 +82,10 @@
             <td class="text-center text-weight-bold" :class="p.available > 0 ? 'amount-pos' : 'amount-neg'">{{ p.available }}</td>
             <td class="text-center">{{ p.sold }}</td>
             <td class="text-center">
-              <q-btn dense outline size="sm" :color="p.active ? 'warning' : 'positive'" :label="p.active ? 'إيقاف' : 'تفعيل'" @click="toggleProduct(p)" />
+              <div class="column q-gutter-xs items-center">
+                <q-btn v-if="p.active" dense unelevated size="sm" color="primary" label="+ أكواد" @click="addCodesFor(p)" />
+                <q-btn dense outline size="sm" :color="p.active ? 'warning' : 'positive'" :label="p.active ? 'إيقاف' : 'تفعيل'" @click="toggleProduct(p)" />
+              </div>
             </td>
           </tr>
           <tr v-if="!shownStock.length"><td colspan="5" class="text-center muted q-pa-md">{{ stock.length ? 'لا توجد بطاقات في هذا التصنيف' : 'لا توجد بطاقات بعد. أضف أول بطاقة.' }}</td></tr>
@@ -197,7 +222,28 @@ const inCat = (p) => cat.value === 'all' || p.category === cat.value
 const brandList = computed(() => [...new Set(stock.value.filter(inCat).map((p) => p.brand))])
 const shownStock = computed(() => stock.value.filter((p) => inCat(p) && (brand.value === 'all' || p.brand === brand.value)))
 
-const productOptions = computed(() => stock.value.filter((p) => p.active).map((p) => ({ value: p.product_id, label: `${p.name} (متوفر ${p.available})` })))
+// Card picker for adding codes: brand first, then that brand's active cards
+const pickBrand = ref(null)
+const activeStock = computed(() => stock.value.filter((p) => p.active))
+const pickBrands = computed(() => {
+  const seen = new Map()
+  for (const p of activeStock.value) if (!seen.has(p.brand)) seen.set(p.brand, { name: p.brand, image: p.brand_image })
+  return [...seen.values()]
+})
+const pickProducts = computed(() => activeStock.value.filter((p) => p.brand === pickBrand.value))
+const pickedProduct = computed(() => stock.value.find((p) => p.product_id === codeForm.value.productId) || null)
+// «Idoom 4G 1500 · 150GO / شهر» → «1500 · 150GO / شهر» (the brand is already chosen)
+function shortName (p) {
+  const n = p.name.trim()
+  return n.toLowerCase().startsWith(p.brand.toLowerCase()) && n.length > p.brand.length ? n.slice(p.brand.length).trim() : n
+}
+// «+ أكواد» in the cards table: same form, card already chosen
+const codesFormEl = ref(null)
+function addCodesFor (p) {
+  pickBrand.value = p.brand
+  codeForm.value.productId = p.product_id
+  codesFormEl.value?.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 const supplierOptions = computed(() => suppliers.value.map((s) => ({ value: s.supplier_id, label: s.name })))
 const brandOptions = computed(() => brands.value.map((b) => ({ value: b.brand_id, label: b.name })))
 
@@ -373,4 +419,8 @@ onMounted(() => { load(); loadBatches(); loadAnnouncement() })
 .warn-loss { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
 .preview-ok { background: #F0F9FF; color: #075985; border: 1px solid #BAE6FD; }
 .stock-table :deep(th), .stock-table :deep(td) { padding: 6px 4px; }
+.brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
+.brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.brand-pick.on { border-color: #4338CA; box-shadow: 0 0 0 2px #C7CAF5; }
 </style>
