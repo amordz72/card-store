@@ -1,4 +1,6 @@
+import { supabase } from 'boot/supabase'
 import { rpc } from './rpc'
+import { StoreError } from './errors'
 
 // Admin API: requires a Supabase Auth session; the database also checks store.admins.
 
@@ -61,7 +63,7 @@ export async function addCodes (productId, supplierId, cost, lines) {
   return rows[0]
 }
 
-export const stock = () => rpc('store_admin_stock')
+export const stock = () => rpc('store_admin_stock_v2')
 
 // Batches: freeze stops a code from being sold (reversible); void removes it
 // from stock for good, keeping it in history. Sold codes are never touched.
@@ -70,7 +72,7 @@ export const batches = (productId, limit, offset) =>
 export const batchCodes = (batchId) => rpc('store_admin_batch_codes', { p_batch_id: batchId })
 export const freezeCodes = (codeIds, frozen) => rpc('store_admin_codes_freeze', { p_code_ids: codeIds, p_frozen: frozen })
 export const voidCodes = (codeIds, reason) => rpc('store_admin_codes_void', { p_code_ids: codeIds, p_reason: reason })
-export const brands = () => rpc('store_admin_brands')
+export const brands = () => rpc('store_admin_brands_v2')
 export const saveBrand = (b) => rpc('store_admin_save_brand', {
   p_brand_id: b.id ?? null, p_name: b.name ?? null, p_category: b.category ?? null, p_sort: b.sort ?? null, p_active: b.active ?? null
 })
@@ -78,6 +80,26 @@ export const saveProduct = (p) => rpc('store_admin_save_product', {
   p_product_id: p.id ?? null, p_brand_id: p.brandId ?? null, p_name: p.name ?? null,
   p_base_price: p.basePrice ?? null, p_sort: p.sort ?? null, p_active: p.active ?? null
 })
+// Images (v1.19): kind 'brand' | 'product'; image null removes it
+export const setImage = (kind, id, image) => rpc('store_admin_set_image', { p_kind: kind, p_id: id, p_image: image ?? null })
+
+// Shrinks the picture on the phone (max 600px, webp) then uploads it to the public bucket; returns its URL
+export async function uploadImage (file, kind, id) {
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new StoreError('INVALID_IMAGE')
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, 600 / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85))
+  if (!blob || blob.size > 1048576) throw new StoreError('IMAGE_TOO_BIG')
+  const path = `${kind}/${id}-${Date.now()}.webp`
+  const { error } = await supabase.storage.from('store-images').upload(path, blob, { contentType: 'image/webp' })
+  if (error) throw new StoreError(/row-level security|Unauthorized/i.test(error.message) ? 'NOT_ADMIN' : 'NETWORK', error)
+  return supabase.storage.from('store-images').getPublicUrl(path).data.publicUrl
+}
+
 export const suppliers = () => rpc('store_admin_suppliers')
 export const addSupplier = (name) => rpc('store_admin_add_supplier', { p_name: name })
 // Includes stopped cards (active = false) and the usual purchase cost
@@ -92,7 +114,7 @@ export const setAnnouncement = (text) => rpc('store_admin_set_announcement', { p
 export const reconcile = () => rpc('store_admin_reconcile')
 
 // Shop account («حساب المحل»): the owner's own wallet
-export const shopCatalog = () => rpc('store_admin_shop_catalog')
+export const shopCatalog = () => rpc('store_admin_shop_catalog_v2')
 export async function shopBuy (productId, qty, requestId) {
   const rows = await rpc('store_admin_shop_buy', { p_product_id: productId, p_qty: qty, p_request_id: requestId })
   return rows[0]

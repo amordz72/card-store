@@ -7,7 +7,7 @@
 
     <div class="grid-2">
       <div v-for="p in shownProducts" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !p.available }">
-        <div class="brand-tile" style="height:56px" :style="{ background: brandColor(p.brand) }">{{ p.brand }}</div>
+        <CardImage :item="p" />
         <div class="text-weight-medium">{{ p.name }}</div>
         <div class="text-weight-bold" style="font-size:17px">{{ money(p.base_price) }}</div>
         <div class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
@@ -53,9 +53,10 @@ import { useRun } from 'src/composables/useRun'
 import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
 import { newRequestId } from 'src/api/rpc'
-import { money, brandColor } from 'src/api/format'
+import { money } from 'src/api/format'
 import CodesDialog from 'components/CodesDialog.vue'
 import CatalogFilter from 'components/CatalogFilter.vue'
+import CardImage from 'components/CardImage.vue'
 
 const buyer = useBuyer()
 const { busy, run } = useRun()

@@ -37,6 +37,9 @@ const MESSAGES = {
   ORDER_NOT_FOUND: 'العملية غير موجودة.',
   CODE_NOT_FOUND: 'الكود غير موجود.',
   REASON_REQUIRED: 'اكتب سبب الإلغاء.',
+  BRAND_NOT_FOUND: 'العلامة غير موجودة.',
+  INVALID_IMAGE: 'الصورة غير مقبولة (PNG أو JPG أو WEBP فقط).',
+  IMAGE_TOO_BIG: 'الصورة كبيرة جدًا.',
   NETWORK: 'تعذّر الاتصال. تحقق من الإنترنت ثم حاول.'
 }
 

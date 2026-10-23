@@ -68,6 +68,11 @@
       </q-markup-table>
     </div>
 
+    <div class="section-title">شعارات العلامات</div>
+    <div class="card grid-2">
+      <ImageField v-for="b in brands" :key="b.brand_id" :src="b.image" kind="brand" :id="b.brand_id" :label="b.name" @saved="load" />
+    </div>
+
     <div class="section-title">الدفعات</div>
     <div class="card q-pa-none" style="overflow-x:auto">
       <q-markup-table flat dense separator="horizontal" class="stock-table">
@@ -118,6 +123,9 @@
           </div>
           <div class="small muted">سعر الشراء اختياري: يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح قبل وصولها.</div>
           <q-input v-model.number="productForm.sort" dense outlined type="number" label="الترتيب (اختياري)" />
+          <ImageField v-if="productForm.id" :src="productForm.image" kind="product" :id="productForm.id" label="صورة البطاقة (اختيارية)"
+            @saved="(url) => { productForm.image = url; load() }" />
+          <div class="small muted">{{ productForm.id ? 'بدون صورة يظهر شعار العلامة وعليه السعر.' : 'احفظ البطاقة أولًا ثم أضف صورتها.' }}</div>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="إلغاء" v-close-popup />
@@ -146,6 +154,7 @@ import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
 import { dateTime, money } from 'src/api/format'
 import CatalogFilter from 'components/CatalogFilter.vue'
+import ImageField from 'components/ImageField.vue'
 
 const { busy, run } = useRun()
 const stock = ref([])
@@ -292,7 +301,7 @@ function editPrice (key, v) {
 }
 function openProduct (p) {
   productForm.value = p
-    ? { id: p.product_id, brandId: p.brand_id, name: p.name, basePrice: Number(p.base_price), sort: p.sort, usualCost: usualCost.value[p.product_id] ?? null, margin: null }
+    ? { id: p.product_id, brandId: p.brand_id, name: p.name, basePrice: Number(p.base_price), sort: p.sort, image: p.image, usualCost: usualCost.value[p.product_id] ?? null, margin: null }
     : { id: null, brandId: null, name: '', basePrice: null, sort: 0, usualCost: null, margin: null }
   priceOrder = ['basePrice', 'usualCost', 'margin']
   recompute()
