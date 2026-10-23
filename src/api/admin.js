@@ -1,4 +1,6 @@
+import { supabase } from 'boot/supabase'
 import { rpc } from './rpc'
+import { StoreError } from './errors'
 
 // Admin API: requires a Supabase Auth session; the database also checks store.admins.
 
@@ -78,6 +80,26 @@ export const saveProduct = (p) => rpc('store_admin_save_product', {
   p_product_id: p.id ?? null, p_brand_id: p.brandId ?? null, p_name: p.name ?? null,
   p_base_price: p.basePrice ?? null, p_sort: p.sort ?? null, p_active: p.active ?? null
 })
+// Images (v1.19): kind 'brand' | 'product'; image null removes it
+export const setImage = (kind, id, image) => rpc('store_admin_set_image', { p_kind: kind, p_id: id, p_image: image ?? null })
+
+// Shrinks the picture on the phone (max 600px, webp) then uploads it to the public bucket; returns its URL
+export async function uploadImage (file, kind, id) {
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new StoreError('INVALID_IMAGE')
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, 600 / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85))
+  if (!blob || blob.size > 1048576) throw new StoreError('IMAGE_TOO_BIG')
+  const path = `${kind}/${id}-${Date.now()}.webp`
+  const { error } = await supabase.storage.from('store-images').upload(path, blob, { contentType: 'image/webp' })
+  if (error) throw new StoreError(/row-level security|Unauthorized/i.test(error.message) ? 'NOT_ADMIN' : 'NETWORK', error)
+  return supabase.storage.from('store-images').getPublicUrl(path).data.publicUrl
+}
+
 export const suppliers = () => rpc('store_admin_suppliers')
 export const addSupplier = (name) => rpc('store_admin_add_supplier', { p_name: name })
 // Includes stopped cards (active = false) and the usual purchase cost
