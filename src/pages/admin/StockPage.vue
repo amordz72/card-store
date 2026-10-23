@@ -1,10 +1,24 @@
 <template>
   <q-page class="page">
+    <!-- Tabs instead of one long page; stays visible under the header while scrolling; last tab remembered -->
+    <div class="stock-tabs row no-wrap q-gutter-xs" :style="{ top: headerHeight + 'px' }">
+      <q-btn v-for="t in TABS" :key="t.id" class="col" rounded no-caps dense :ripple="false" :unelevated="tab === t.id" :outline="tab !== t.id"
+        :color="tab === t.id ? 'primary' : 'grey-8'" :label="t.label" :aria-pressed="tab === t.id" @click="tab = t.id" />
+    </div>
+
+    <div v-show="tab === 'settings'" class="tab-pane">
     <div class="card column q-gutter-sm">
       <q-input v-model="announcement" type="textarea" autogrow dense outlined label="إعلان الصفحة الرئيسية للزبائن (اتركه فارغًا لإخفائه)" />
       <q-btn outline color="primary" label="حفظ الإعلان" class="self-start" @click="saveAnnouncement" />
     </div>
 
+    <div class="section-title">شعارات العلامات</div>
+    <div class="card grid-2">
+      <ImageField v-for="b in brands" :key="b.brand_id" :src="b.image" kind="brand" :id="b.brand_id" :label="b.name" @saved="load" />
+    </div>
+    </div>
+
+    <div v-show="tab === 'codes'" class="tab-pane">
     <q-form ref="codesFormEl" class="card column q-gutter-sm" @submit.prevent="addCodes">
       <div class="text-weight-bold">إضافة أكواد للمخزن</div>
       <!-- Two taps instead of one long list: brand, then the card of that brand -->
@@ -67,7 +81,9 @@
       <q-btn type="submit" unelevated no-caps color="primary" size="lg" :label="addLabel" :loading="busy"
         :disable="!codeForm.productId || !codeForm.lines.trim() || !(codeForm.cost > 0)" />
     </q-form>
+    </div>
 
+    <div v-show="tab === 'cards'" class="tab-pane">
     <div class="row justify-between items-center">
       <div class="section-title">البطاقات والمخزون</div>
       <q-btn dense unelevated color="primary" icon="add" label="بطاقة جديدة" @click="openProduct(null)" />
@@ -93,12 +109,9 @@
     </div>
     <div v-if="!shownStock.length" class="text-center muted q-pa-md">{{ stock.length ? 'لا توجد بطاقات في هذا التصنيف' : 'لا توجد بطاقات بعد. أضف أول بطاقة.' }}</div>
 
-    <div class="section-title">شعارات العلامات</div>
-    <div class="card grid-2">
-      <ImageField v-for="b in brands" :key="b.brand_id" :src="b.image" kind="brand" :id="b.brand_id" :label="b.name" @saved="load" />
     </div>
 
-    <div class="section-title">الدفعات</div>
+    <div v-show="tab === 'batches'" class="tab-pane">
     <!-- Filters: brand → card, supplier, «فيها متوفر» (on by default) -->
     <div class="card column q-gutter-xs">
       <div class="row q-gutter-xs">
@@ -142,6 +155,7 @@
     </div>
     <div v-if="!shownBatches.length" class="text-center muted q-pa-md">
       {{ batchList.length ? 'لا توجد دفعات مطابقة' + (bf.availOnly ? ' فيها متوفر — اضغط «فيها متوفر فقط» لعرض الكل' : '') : 'لا توجد دفعات بعد.' }}
+    </div>
     </div>
 
     <q-dialog v-model="productOpen">
@@ -190,8 +204,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { Dialog, Notify } from 'quasar'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Dialog, LocalStorage, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
 import { dateTime, money } from 'src/api/format'
@@ -199,6 +213,21 @@ import CatalogFilter from 'components/CatalogFilter.vue'
 import ImageField from 'components/ImageField.vue'
 
 const { busy, run } = useRun()
+
+// --- tabs (remembered on this device)
+const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'batches', label: 'الدفعات' }, { id: 'settings', label: 'إعدادات' }]
+const TAB_KEY = 'cs_stock_tab'
+const readTab = () => { try { const t = LocalStorage.getItem(TAB_KEY); return TABS.some((x) => x.id === t) ? t : 'codes' } catch { return 'codes' } }
+const tab = ref(readTab())
+watch(tab, (t) => {
+  try { LocalStorage.set(TAB_KEY, t) } catch { /* storage blocked: first tab next time */ }
+  window.scrollTo({ top: 0 })
+})
+// The tabs stick right under the fixed header, whatever its height
+const headerHeight = ref(0)
+const measureHeader = () => { headerHeight.value = document.querySelector('.q-header')?.offsetHeight || 0 }
+onMounted(() => { measureHeader(); window.addEventListener('resize', measureHeader) })
+onBeforeUnmount(() => window.removeEventListener('resize', measureHeader))
 const stock = ref([])
 const brands = ref([])
 const suppliers = ref([])
@@ -272,6 +301,7 @@ function choose (brandName, productId) {
 // «+ أكواد» in the cards table: same form, card already chosen
 const codesFormEl = ref(null)
 function addCodesFor (p) {
+  tab.value = 'codes'
   choose(p.brand, p.product_id)
   codesFormEl.value?.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
@@ -486,6 +516,9 @@ onMounted(() => { load(); loadBatches(); loadAnnouncement() })
 <style scoped>
 .warn-loss { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
 .preview-ok { background: #F0F9FF; color: #075985; border: 1px solid #BAE6FD; }
+/* sticky: stays visible under the header while the tab scrolls */
+.stock-tabs { position: sticky; z-index: 5; background: #F4F5F8; margin: -14px -16px 0; padding: 10px 16px; }
+.tab-pane { display: flex; flex-direction: column; gap: 12px; }
 .brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
 .brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
