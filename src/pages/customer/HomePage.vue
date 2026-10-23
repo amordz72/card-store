@@ -72,6 +72,7 @@
     <div class="grid-2">
       <q-btn color="primary" unelevated size="lg" label="شراء بطاقة" to="/store" />
       <q-btn outline color="primary" size="lg" label="التحويلات" to="/transfers" />
+      <q-btn outline color="primary" size="lg" icon="sports_esports" label="شحن الألعاب بالمعرّف" to="/game" />
     </div>
     <q-inner-loading :showing="session.isAdmin ? !row : !p" />
     <TopupDialog v-model="topupOpen" @done="reload" />
