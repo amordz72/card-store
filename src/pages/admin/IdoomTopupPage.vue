@@ -87,6 +87,18 @@
         </div>
         <div v-if="apk" class="small muted">النسخة <bdi dir="ltr">{{ apk.version }}</bdi> · <bdi>{{ when(apk.built_at) }}</bdi></div>
         <q-btn outline color="primary" icon="share" label="مشاركة رابط الموقع" @click="share(OFFICIAL_SITE, 'متجر البطاقات')" />
+        <template v-if="phones.length">
+          <div class="text-weight-bold q-mt-sm">الهواتف المربوطة</div>
+          <div class="small muted">المهمة يأخذها أول هاتف مفعّل يستقبل. عطّل الهاتف الذي لا تريده أن ينفذ.</div>
+          <div v-for="p in phones" :key="p.id" class="row items-center no-wrap q-gutter-sm">
+            <div class="col">
+              <div :class="{ muted: !p.active }">{{ p.name }}</div>
+              <div class="small muted">{{ p.last_seen_at ? 'آخر اتصال ' + ago(p.last_seen_at) : 'لم يتصل بعد' }}</div>
+            </div>
+            <q-toggle :model-value="p.active" :label="p.active ? 'مفعّل' : 'معطّل'" color="positive" :disable="busy"
+              @update:model-value="(v) => setActive(p, v)" />
+          </div>
+        </template>
         <q-input v-model="executorName" dense outlined label="اسم الهاتف" />
         <q-btn type="submit" unelevated color="primary" label="إنشاء رمز" :loading="busy" :disable="!executorName.trim()" />
         <template v-if="token">
@@ -243,7 +255,12 @@ async function cancel (id) {
 
 async function addExecutor () {
   const r = await run(() => api.executorCreate(executorName.value))
-  if (r) { token.value = r.token; executorName.value = '' }
+  if (r) { token.value = r.token; executorName.value = ''; load() }
+}
+
+async function setActive (p, active) {
+  if (await run(() => api.executorSetActive(p.id, active).then(() => true),
+    { success: active ? `فُعّل ${p.name}.` : `عُطّل ${p.name}. أوقف الاستقبال فيه أيضًا.` })) load()
 }
 
 onMounted(async () => {
