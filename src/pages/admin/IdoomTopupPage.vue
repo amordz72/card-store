@@ -62,9 +62,14 @@
         </div>
         <div class="op-details small muted">
           <span>{{ when(j.created_at) }}</span>
+          <span v-if="j.customer_name"> · <b>{{ j.customer_name }}</b><span v-if="j.attempt > 1"> (محاولة {{ j.attempt }})</span></span>
           <span v-if="j.offer"> · <span class="ltr">{{ j.offer }}</span></span>
           <div v-if="j.reply && j.status !== 'looked_up'" class="ltr text-left wrap-any">{{ j.reply }}</div>
           <q-btn v-if="j.status === 'queued'" flat dense size="sm" color="negative" label="إلغاء" @click="cancel(j.id)" />
+          <div v-if="j.status === 'review' && j.customer_name" class="row q-gutter-sm q-mt-xs">
+            <q-btn unelevated dense size="sm" color="positive" label="تمت" @click="resolve(j, true)" />
+            <q-btn outline dense size="sm" color="negative" label="لم تتم — استرداد للزبون" @click="resolve(j, false)" />
+          </div>
         </div>
       </div>
       <div v-if="loaded && !jobs.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
@@ -102,6 +107,7 @@ import { useRun } from 'src/composables/useRun'
 import { copyText } from 'src/composables/useCopy'
 import * as api from 'src/api/admin'
 import QRCode from 'qrcode'
+import { useBell } from 'src/composables/useBell'
 
 const STATUS = {
   queued: { label: 'في الانتظار', color: 'grey-7' },
@@ -117,6 +123,7 @@ const STATUS = {
 const ONLINE_SECONDS = 60
 
 const { busy, run } = useRun()
+const { refreshBell } = useBell()
 const catalog = ref([])
 const jobs = ref([])
 const phones = ref([])
@@ -215,6 +222,18 @@ function confirmCharge (c) {
     const r = await run(() => api.idoomCreate(c.product_id, digits.value, crypto.randomUUID()),
       { success: 'أُرسل الشحن إلى الهاتف. تُسحب البطاقة بعد أن يتحقق الهاتف من الخط.' })
     if (r) load()
+  })
+}
+
+// A customer's top-up in review: the owner decides; «لم تتم» refunds the customer in full
+function resolve (j, done) {
+  Dialog.create({
+    title: done ? 'تأكيد: تمت التعبئة' : 'تأكيد: لم تتم التعبئة',
+    message: done ? `تُسجّل تعبئة ${j.line} لـ${j.customer_name} ناجحة.` : `يُعاد المبلغ كاملًا إلى ${j.customer_name}. البطاقة لا تعود إلى المخزن.`,
+    cancel: 'رجوع',
+    ok: 'تأكيد'
+  }).onOk(async () => {
+    if (await run(() => api.idoomResolve(j.id, done).then(() => true), { success: 'سُجّل القرار.' })) { load(); refreshBell() }
   })
 }
 

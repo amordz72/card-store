@@ -56,6 +56,7 @@
       <div class="card column q-gutter-sm">
         <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
           @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
+        <q-toggle :model-value="idoomOn" label="تعبئة إيدوم (يعبّئ خطوط إيدوم من رصيده)" color="positive" :disable="busy" @update:model-value="setIdoom" />
         <div class="row q-gutter-sm items-start">
           <q-input v-model="newPw" class="col" dense outlined label="كلمة سر جديدة (8 أحرف على الأقل)" input-class="ltr text-right" />
           <q-btn outline color="primary" label="تعيين" :disable="newPw.length < 8" @click="setPw" />
@@ -113,7 +114,20 @@ async function loadCustomer () {
 const { rows: entries, total, loadingMore, reset: loadEntries, refresh: refreshEntries, more, size } =
   useLoadMore((limit, offset) => run(() => api.entries({ customerId: cid.value, limit, offset })), { key: 'entry_id' })
 
+// «تعبئة إيدوم» for this customer: off by default, the owner turns it on for customers he trusts
+const idoomOn = ref(false)
+async function loadIdoom () {
+  const ids = await run(() => api.idoomTopupCustomers())
+  if (ids) idoomOn.value = ids.map(Number).includes(cid.value)
+}
+async function setIdoom (v) {
+  const ok = await run(() => api.setIdoomTopup(cid.value, v).then(() => true),
+    { success: v ? 'فُعّلت تعبئة إيدوم لهذا الزبون.' : 'أُوقفت تعبئة إيدوم لهذا الزبون.' })
+  if (ok) idoomOn.value = v
+}
+
 async function reloadAll () {
+  loadIdoom()
   await loadCustomer()
   await loadEntries()
 }

@@ -149,7 +149,14 @@ export async function idoomLookup (line, requestId) {
   const rows = await rpc('store_admin_idoom_lookup', { p_line: line, p_request_id: requestId })
   return rows[0]
 }
-export const idoomJobs = (limit = 30) => rpc('store_admin_idoom_jobs_v2', { p_limit: limit })
+// v3 adds the customer who asked (null = the owner)
+export const idoomJobs = (limit = 30) => rpc('store_admin_idoom_jobs_v3', { p_limit: limit })
+// IDOOM top-up for customers (v1.23): per-customer switch, and customer jobs waiting for review (bell)
+export const setIdoomTopup = (customerId, enabled) => rpc('store_admin_set_idoom_topup', { p_customer_id: customerId, p_enabled: enabled })
+export const idoomTopupCustomers = () => rpc('store_admin_idoom_topup_customers')
+export const idoomReviewCount = () => rpc('store_admin_idoom_review_count')
+// A customer's job in review: done, or not done → full refund to the customer
+export const idoomResolve = (jobId, done) => rpc('store_admin_idoom_resolve', { p_job_id: jobId, p_done: done })
 // last known offer of a line, display only (v1.17)
 export async function idoomLineInfo (line) {
   const rows = await rpc('store_admin_idoom_line_info', { p_line: line })
