@@ -105,32 +105,49 @@
     </div>
 
     <div class="section-title">الدفعات</div>
-    <div class="card q-pa-none" style="overflow-x:auto">
-      <q-markup-table flat dense separator="horizontal" class="stock-table">
-        <thead>
-          <tr><th class="text-right">الدفعة</th><th>متوفر</th><th>مجمّد</th><th>مباع</th><th>ملغى</th><th></th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="b in batchList" :key="b.batch_id">
-            <td class="text-right">
-              {{ b.product_name }}
-              <div class="small muted">#{{ b.batch_id }} · {{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}</div>
-            </td>
-            <td class="text-center text-weight-bold">{{ b.available }}</td>
-            <td class="text-center" :class="b.frozen > 0 ? 'text-warning text-weight-bold' : ''">{{ b.frozen }}</td>
-            <td class="text-center">{{ b.sold }}</td>
-            <td class="text-center">{{ b.voided }}</td>
-            <td class="text-center">
-              <div class="column q-gutter-xs items-center">
-                <q-btn v-if="b.available > 0" dense outline size="sm" color="warning" label="تجميد" @click="freezeBatch(b, true)" />
-                <q-btn v-if="b.frozen > 0" dense outline size="sm" color="positive" label="فك التجميد" @click="freezeBatch(b, false)" />
-                <q-btn v-if="b.available + b.frozen > 0" dense outline size="sm" color="negative" label="إلغاء غير المباع" @click="voidBatch(b)" />
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!batchList.length"><td colspan="6" class="text-center muted q-pa-md">لا توجد دفعات بعد.</td></tr>
-        </tbody>
-      </q-markup-table>
+    <!-- Filters: brand → card, supplier, «فيها متوفر» (on by default) -->
+    <div class="card column q-gutter-xs">
+      <div class="row q-gutter-xs">
+        <button v-for="b in batchBrands" :key="b.name" type="button" class="brand-pick" :class="{ on: bf.brand === b.name }"
+          :aria-pressed="bf.brand === b.name" @click="bf.brand = bf.brand === b.name ? null : b.name; bf.product = null">
+          <img v-if="b.image" :src="b.image" :alt="b.name">
+          <span v-else>{{ b.name }}</span>
+        </button>
+      </div>
+      <div v-if="bf.brand && batchProducts.length > 1" class="row q-gutter-xs">
+        <q-btn v-for="p in batchProducts" :key="p.id" dense rounded no-caps size="13px" class="q-px-sm" :ripple="false"
+          :unelevated="bf.product === p.id" :outline="bf.product !== p.id" :color="bf.product === p.id ? 'indigo-7' : 'grey-7'"
+          :label="p.label" @click="bf.product = bf.product === p.id ? null : p.id" />
+      </div>
+      <div v-if="batchSuppliers.length > 1" class="row q-gutter-xs">
+        <q-btn v-for="sp in ['all', ...batchSuppliers]" :key="sp" dense rounded no-caps size="13px" class="q-px-sm" :ripple="false"
+          :unelevated="bf.supplier === sp" :outline="bf.supplier !== sp" :color="bf.supplier === sp ? 'indigo-7' : 'grey-7'"
+          :label="sp === 'all' ? 'كل المصادر' : sp" @click="bf.supplier = sp" />
+      </div>
+      <q-btn rounded no-caps dense class="self-start q-px-sm" :unelevated="bf.availOnly" :outline="!bf.availOnly" color="positive"
+        :label="bf.availOnly ? '✓ فيها متوفر فقط' : 'فيها متوفر فقط'" :aria-pressed="bf.availOnly" @click="bf.availOnly = !bf.availOnly" />
+    </div>
+    <!-- One small card per batch (fits a phone screen) -->
+    <div v-for="b in shownBatches" :key="b.batch_id" class="card column q-gutter-xs">
+      <div class="row items-center justify-between no-wrap">
+        <span class="text-weight-bold">{{ b.product_name }}</span>
+        <span class="small muted">#{{ b.batch_id }}</span>
+      </div>
+      <div class="small muted">{{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}</div>
+      <div class="row q-gutter-md small">
+        <span>متوفر <b class="amount-pos">{{ b.available }}</b></span>
+        <span :class="b.frozen > 0 ? 'text-warning text-weight-bold' : ''">مجمّد {{ b.frozen }}</span>
+        <span>مباع {{ b.sold }}</span>
+        <span>ملغى {{ b.voided }}</span>
+      </div>
+      <div v-if="b.available + b.frozen > 0" class="row q-gutter-xs">
+        <q-btn v-if="b.available > 0" dense outline size="sm" color="warning" label="تجميد" @click="freezeBatch(b, true)" />
+        <q-btn v-if="b.frozen > 0" dense outline size="sm" color="positive" label="فك التجميد" @click="freezeBatch(b, false)" />
+        <q-btn dense outline size="sm" color="negative" label="إلغاء غير المباع" @click="voidBatch(b)" />
+      </div>
+    </div>
+    <div v-if="!shownBatches.length" class="text-center muted q-pa-md">
+      {{ batchList.length ? 'لا توجد دفعات مطابقة' + (bf.availOnly ? ' فيها متوفر — اضغط «فيها متوفر فقط» لعرض الكل' : '') : 'لا توجد دفعات بعد.' }}
     </div>
 
     <q-dialog v-model="productOpen">
@@ -405,11 +422,35 @@ async function toggleProduct (p) {
 
 // --- batches
 const batchList = ref([])
+// All batches (the server returns at most 100 per call), filtered on the phone
 async function loadBatches () {
-  const rows = await run(() => api.batches(null, 50, 0))
+  const rows = await run(async () => {
+    const all = []
+    for (let offset = 0; offset < 1000; offset += 100) {
+      const page = await api.batches(null, 100, offset)
+      all.push(...page)
+      if (page.length < 100) break
+    }
+    return all
+  })
   if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided) }))
 }
 async function reloadAll () { await Promise.all([load(), loadBatches()]) }
+
+const bf = ref({ brand: null, product: null, supplier: 'all', availOnly: true })
+const brandImage = computed(() => Object.fromEntries(stock.value.map((p) => [p.brand, p.brand_image])))
+const batchBrands = computed(() => [...new Set(batchList.value.map((b) => b.brand))].map((name) => ({ name, image: brandImage.value[name] })))
+const batchProducts = computed(() => {
+  const seen = new Map()
+  for (const b of batchList.value) if (b.brand === bf.value.brand && !seen.has(b.product_id)) seen.set(b.product_id, { id: b.product_id, label: shortName({ name: b.product_name, brand: b.brand }) })
+  return [...seen.values()]
+})
+const batchSuppliers = computed(() => [...new Set(batchList.value.map((b) => b.supplier))])
+const shownBatches = computed(() => batchList.value.filter((b) =>
+  (!bf.value.brand || b.brand === bf.value.brand) &&
+  (!bf.value.product || b.product_id === bf.value.product) &&
+  (bf.value.supplier === 'all' || b.supplier === bf.value.supplier) &&
+  (!bf.value.availOnly || b.available + b.frozen > 0)))
 
 // Only codes still in stock change; a code sold meanwhile is skipped by the database.
 async function stockCodeIds (b, test) {
