@@ -27,3 +27,25 @@ revoke all on function private.store_admin_executor_set_active_impl(bigint, bool
 grant execute on function private.store_admin_executor_set_active_impl(bigint, boolean) to authenticated;
 revoke all on function public.store_admin_executor_set_active(bigint, boolean) from public, anon, authenticated;
 grant execute on function public.store_admin_executor_set_active(bigint, boolean) to authenticated;
+
+-- A token is shown once and only its hash is kept, so a lost one cannot be shown again:
+-- the owner issues a new token for the same phone (the old one stops working at once).
+create function private.store_admin_executor_new_token_impl(p_executor_id bigint) returns text
+language plpgsql security definer set search_path = '' as $$
+declare v_token text := encode(extensions.gen_random_bytes(24), 'hex');
+begin
+  perform private.store_require_admin();
+  update store.executors set token_hash = encode(extensions.digest(v_token, 'sha256'), 'hex')
+  where id = p_executor_id;
+  if not found then raise exception 'PHONE_NOT_FOUND'; end if;
+  return v_token;
+end;
+$$;
+
+create function public.store_admin_executor_new_token(p_executor_id bigint) returns text
+language sql set search_path = '' as $$ select private.store_admin_executor_new_token_impl(p_executor_id); $$;
+
+revoke all on function private.store_admin_executor_new_token_impl(bigint) from public, anon, authenticated;
+grant execute on function private.store_admin_executor_new_token_impl(bigint) to authenticated;
+revoke all on function public.store_admin_executor_new_token(bigint) from public, anon, authenticated;
+grant execute on function public.store_admin_executor_new_token(bigint) to authenticated;
