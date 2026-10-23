@@ -7,20 +7,25 @@
     <div class="card column q-gutter-sm">
       <div class="idoom-line text-center" dir="ltr">{{ pretty || '0XX XXX XXX' }}</div>
       <div v-if="lineOk" class="text-center"><q-badge :color="is4g ? 'indigo' : 'purple'">{{ is4g ? '4G LTE' : 'ADSL / FTTH' }}</q-badge></div>
-      <div v-if="check" class="text-center">
-        <q-badge v-if="check.status === 'looked_up'" color="primary" class="q-pa-sm text-subtitle2 ltr">idoom · {{ check.offer }}</q-badge>
-        <template v-else-if="check.status === 'failed'">
+      <div v-if="check && check.status !== 'looked_up'" class="text-center">
+        <template v-if="check.status === 'failed'">
           <q-badge color="negative" class="q-pa-sm">فشل التحقق — لم تُستعمل أي بطاقة</q-badge>
           <div v-if="check.reply" class="small muted ltr text-left q-mt-xs wrap-any">{{ check.reply }}</div>
         </template>
         <span v-else class="muted">جارٍ التحقق في My IDOOM…</span>
       </div>
+      <div v-if="lineOk && known" class="text-center">
+        <q-badge color="primary" class="q-pa-sm text-subtitle2 ltr">idoom · {{ known.offer }}</q-badge>
+        <div class="small muted q-mt-xs">آخر تحقق {{ ago(known.checked_at) }}<span v-if="!fresh"> — سيُتحقق من الخط عند الشحن</span></div>
+      </div>
+      <div v-else-if="lineOk && infoLoaded && !check" class="small muted text-center">لم يُتحقق من هذا الخط بعد — الهاتف يتحقق منه تلقائيًا قبل استعمال البطاقة</div>
       <q-input v-model="line" dense outlined label="رقم الخط: ثابت 9 أرقام أو 4G يبدأ بـ 213" inputmode="tel" maxlength="16"
         placeholder="0XXXXXXXX" input-class="ltr text-right" />
-      <q-btn unelevated color="primary" icon="search" label="تحقق" :loading="busy" :disable="!lineOk" @click="lookup" />
+      <q-btn outline color="primary" icon="search" label="تحقق (اختياري)" :loading="busy" :disable="!lineOk" @click="lookup" />
     </div>
 
-    <div v-if="check?.status === 'looked_up'" class="card column q-gutter-sm">
+    <!-- Cards show at once: every top-up checks the line on the phone before a card is taken -->
+    <div v-if="lineOk" class="card column q-gutter-sm">
       <div class="text-weight-bold">اختر البطاقة</div>
       <div v-if="cards.length" class="row q-col-gutter-sm">
         <div v-for="c in cards" :key="c.product_id" class="col-6">
@@ -86,7 +91,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Dialog } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { copyText } from 'src/composables/useCopy'
@@ -125,6 +130,26 @@ const isLte = (line) => /^213\d{9}$/.test(line || '')
 // Card value from the product name, e.g. "Idoom 4G 1000 · 40GO / شهر" → 1000
 const amount = (name) => (name || '').match(/\b(\d{3,5})\b/)?.[1] || ''
 
+
+// Last known offer of the typed line (from any check or top-up); display only
+const FRESH_DAYS = 30
+const known = ref(null)
+const infoLoaded = ref(false)
+const fresh = computed(() => known.value && Date.now() - new Date(known.value.checked_at) < FRESH_DAYS * 864e5)
+const ago = (t) => {
+  const m = Math.round((Date.now() - new Date(t)) / 60000)
+  if (m < 60) return `منذ ${m} د`
+  if (m < 1440) return `منذ ${Math.round(m / 60)} سا`
+  return `منذ ${Math.round(m / 1440)} يوم`
+}
+async function loadInfo () {
+  known.value = null
+  infoLoaded.value = false
+  if (!lineOk.value) return
+  const want = digits.value
+  const r = await run(() => api.idoomLineInfo(want))
+  if (want === digits.value) { known.value = r || null; infoLoaded.value = true }
+}
 
 // Latest check of the typed line (a pending one, or the last finished result)
 const check = computed(() => lineOk.value
@@ -189,7 +214,7 @@ function confirmCharge (c) {
   Dialog.create({
     title: 'تأكيد الشحن',
     html: true,
-    message: `شحن <b dir="ltr">${pretty.value}</b><br>العرض: <span dir="ltr">${check.value.offer}</span><br>البطاقة: <b>${c.base_price} دج</b> (${c.name})`,
+    message: `شحن <b dir="ltr">${pretty.value}</b><br>العرض: ${known.value ? `<span dir="ltr">${known.value.offer}</span>` : 'يُقرأ عند الشحن'}<br>البطاقة: <b>${c.base_price} دج</b> (${c.name})`,
     cancel: 'إلغاء',
     ok: 'نعم، اشحن'
   }).onOk(async () => {
@@ -217,6 +242,9 @@ onMounted(async () => {
   timer = setInterval(load, 5000)
 })
 onUnmounted(() => clearInterval(timer))
+watch(digits, loadInfo)
+// a check that just finished updates the known offer
+watch(() => check.value?.status, (s) => { if (s === 'looked_up') loadInfo() })
 </script>
 
 <style scoped>

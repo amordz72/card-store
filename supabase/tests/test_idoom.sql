@@ -1,4 +1,4 @@
--- Behavioural tests for IDOOM top-up (v1.11–v1.16). Run after test_shop.sql on the same database.
+-- Behavioural tests for IDOOM top-up (v1.11–v1.17). Run after test_shop.sql on the same database.
 \set ON_ERROR_STOP on
 \set QUIET on
 create temp table i_results (name text, ok boolean, detail text);
@@ -110,6 +110,15 @@ select pg_temp.check('retry cannot move a fixed card to a 4G line', pg_temp.err(
 select pg_temp.check('retry on a fixed line still allowed', public.store_admin_idoom_retry(:c_job_id, '029669459') = 'queued');
 select public.store_admin_idoom_cancel(:g_job_id) \g /dev/null
 select public.store_admin_idoom_cancel(:c_job_id) \g /dev/null
+reset role;
+-- v1.17 last known offer of a line (display only)
+set role authenticated;
+select pg_temp.check('known offer from a check', (select offer = 'FTTH 15M' and source = 'lookup' from public.store_admin_idoom_line_info('029 669 458')));
+select pg_temp.check('unknown line has no offer', not exists (select 1 from public.store_admin_idoom_line_info('021000000')));
+select pg_temp.check('bad line rejected', pg_temp.err($$select * from public.store_admin_idoom_line_info('123')$$) like '%INVALID_LINE%');
+reset role;
+set role anon;
+select pg_temp.check('anon cannot read line info', pg_temp.err($$select * from public.store_admin_idoom_line_info('029669458')$$) like '%permission denied%');
 reset role;
 \set QUIET off
 select name, ok, detail from i_results where not ok;
