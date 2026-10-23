@@ -16,6 +16,7 @@ export async function me (token) {
 }
 
 export const catalog = (token) => rpc('store_catalog_v2', { p_token: token })
+export const banners = (token) => rpc('store_banners', { p_token: token })
 export const myPrices = (token) => rpc('store_my_prices', { p_token: token })
 
 export async function buy (token, productId, qty, requestId) {
@@ -58,3 +59,19 @@ export const lockStatus = (token) => rpc('store_lock_status', { p_token: token }
 export const setPin = (token, pin) => rpc('store_set_pin', { p_token: token, p_pin: pin })
 export const checkPin = (token, pin) => rpc('store_check_pin', { p_token: token, p_pin: pin })
 export const lockOff = (token) => rpc('store_lock_off', { p_token: token })
+
+// IDOOM top-up (v1.23): only for customers the owner enabled; the card is paid from the balance at once
+export async function idoomStatus (token) {
+  const rows = await rpc('store_idoom_status', { p_token: token })
+  return rows?.[0] || { enabled: false, phone_online: false }
+}
+export async function idoomCreate (token, productId, line, requestId) {
+  const rows = await rpc('store_idoom_create', { p_token: token, p_product_id: productId, p_line: line, p_request_id: requestId })
+  return rows?.[0] || null
+}
+export const idoomJobs = (token, limit, offset) => rpc('store_idoom_jobs', { p_token: token, p_limit: limit, p_offset: offset })
+export const idoomCancel = (token, jobId) => rpc('store_idoom_cancel', { p_token: token, p_job_id: jobId })
+export async function idoomLineInfo (token, line) {
+  const rows = await rpc('store_idoom_line_info', { p_token: token, p_line: line })
+  return rows?.[0] || null
+}

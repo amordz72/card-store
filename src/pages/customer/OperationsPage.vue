@@ -5,8 +5,8 @@
       <OperationRow v-for="op in rows" :key="op.order_id" :op="op" :shop="buyer.isShop.value" :hide="buyer.hide.value" @open="openCodes(op)" />
       <div v-if="!busy && !rows.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
     </div>
-    <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="rows.length" />
-    <q-inner-loading :showing="busy" />
+    <LoadMoreBar :total="total" :shown="rows.length" :size="size" :loading="loadingMore" @more="more" />
+    <q-inner-loading :showing="busy && !loadingMore" />
     <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" />
     <ReportDialog v-model="reportOpen" :card="reportCard" @sent="openCodes(lastOp)" />
   </q-page>
@@ -15,11 +15,12 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useRun } from 'src/composables/useRun'
+import { useLoadMore } from 'src/composables/useLoadMore'
 import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
 import OpsFilters from 'components/OpsFilters.vue'
 import OperationRow from 'components/OperationRow.vue'
-import PagerBar from 'components/PagerBar.vue'
+import LoadMoreBar from 'components/LoadMoreBar.vue'
 import CodesDialog from 'components/CodesDialog.vue'
 import ReportDialog from 'components/ReportDialog.vue'
 import { REPORT_STATUS } from 'src/api/format'
@@ -28,22 +29,11 @@ const buyer = useBuyer()
 const { busy, run } = useRun()
 
 const f = ref({ category: null, from: '', to: '', query: '' })
-const page = ref(1)
-const size = ref(10)   // latest 10 by default
-const rows = ref([])
-const total = ref(0)
+const { rows, total, loadingMore, reset, more, size } =
+  useLoadMore((limit, offset) => run(() => buyer.orders({ ...f.value, limit, offset })), { key: 'order_id' })
 
-async function load () {
-  const data = await run(() => buyer.orders({ ...f.value, limit: size.value, offset: (page.value - 1) * size.value }))
-  if (!data) return
-  rows.value = data
-  total.value = data.length ? Number(data[0].total_count) : 0
-}
-
-watch(f, () => { page.value === 1 ? load() : (page.value = 1) }, { deep: true })
-watch(size, () => { page.value === 1 ? load() : (page.value = 1) })
-watch(page, load)
-onMounted(load)
+watch(f, () => reset(), { deep: true })
+onMounted(() => reset())
 
 const codesOpen = ref(false)
 const codes = ref([])

@@ -22,7 +22,8 @@ body {
 
 .muted { color: #5B6170; }
 .small { font-size: 12px; }
-.ltr { direction: ltr; unicode-bidi: isolate; }
+/* LTR on purpose (numbers, codes, links): keep postcss-rtlcss from flipping it to rtl */
+.ltr { /* rtl:ignore */ direction: ltr; unicode-bidi: isolate; }
 .big-number { font-size: 30px; font-weight: 700; }
 .amount-pos { color: #15803D; }
 .amount-neg { color: #B91C1C; }

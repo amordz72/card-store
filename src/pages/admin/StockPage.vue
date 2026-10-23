@@ -8,9 +8,11 @@
 
     <div v-show="tab === 'settings'" class="tab-pane">
     <div class="card column q-gutter-sm">
-      <q-input v-model="announcement" type="textarea" autogrow dense outlined label="إعلان الصفحة الرئيسية للزبائن (اتركه فارغًا لإخفائه)" />
+      <q-input v-model="announcement" type="textarea" autogrow dense outlined label="إعلان نصي في الصفحة الرئيسية (اتركه فارغًا لإخفائه)" />
       <q-btn outline color="primary" label="حفظ الإعلان" class="self-start" @click="saveAnnouncement" />
     </div>
+
+    <BannersAdmin :brands="brands" />
 
     <div class="section-title">شعارات العلامات</div>
     <div class="card grid-2">
@@ -211,6 +213,7 @@ import * as api from 'src/api/admin'
 import { dateTime, money } from 'src/api/format'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import ImageField from 'components/ImageField.vue'
+import BannersAdmin from 'components/BannersAdmin.vue'
 
 const { busy, run } = useRun()
 

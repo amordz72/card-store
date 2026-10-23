@@ -18,19 +18,20 @@
       <EntryRow v-for="e in rows" :key="e.entry_id" :e="e" />
       <div v-if="!busy && !rows.length" class="text-center muted q-pa-lg">لا توجد تحويلات من هذا النوع</div>
     </div>
-    <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="rows.length" />
-    <q-inner-loading :showing="busy" />
+    <LoadMoreBar :total="total" :shown="rows.length" :size="size" :loading="loadingMore" @more="more" />
+    <q-inner-loading :showing="busy && !loadingMore" />
   </q-page>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRun } from 'src/composables/useRun'
+import { useLoadMore } from 'src/composables/useLoadMore'
 import * as api from 'src/api/admin'
 import { money } from 'src/api/format'
 import EntryRow from 'components/EntryRow.vue'
 import DateField from 'components/DateField.vue'
-import PagerBar from 'components/PagerBar.vue'
+import LoadMoreBar from 'components/LoadMoreBar.vue'
 
 const { busy, run } = useRun()
 const filters = [
@@ -43,28 +44,15 @@ const kind = ref('transfers')
 const customerId = ref(null)
 const from = ref('')
 const to = ref('')
-const page = ref(1)
-const size = ref(10)
-const rows = ref([])
-const total = ref(0)
-const sum = ref(0)
 const customers = ref([])
 const customerOptions = computed(() => [{ value: null, label: 'كل الزبائن' }, ...customers.value.map((c) => ({ value: c.customer_id, label: c.name }))])
 
-async function load () {
-  const data = await run(() => api.entries({
-    customerId: customerId.value, kind: kind.value, from: from.value, to: to.value, scope,
-    limit: size.value, offset: (page.value - 1) * size.value
-  }))
-  if (!data) return
-  rows.value = data
-  total.value = data.length ? Number(data[0].total_count) : 0
-  sum.value = data.length ? Number(data[0].total_amount) : 0
-}
-watch([kind, customerId, from, to, size], () => { page.value === 1 ? load() : (page.value = 1) })
-watch(page, load)
+const { rows, total, sum, loadingMore, reset, more, size } = useLoadMore((limit, offset) => run(() => api.entries({
+  customerId: customerId.value, kind: kind.value, from: from.value, to: to.value, scope, limit, offset
+})), { key: 'entry_id' })
+watch([kind, customerId, from, to], () => reset())
 onMounted(async () => {
   customers.value = (await run(() => api.customers())) || []
-  load()
+  reset()
 })
 </script>

@@ -10,6 +10,8 @@
       </div>
     </div>
 
+    <BannerCarousel :banners="banners" />
+
     <div v-if="announcement" class="card" style="background:#EEF0FF;border-color:#C7CAF5">
       <div class="small text-weight-bold" style="color:#3730A3">إعلان</div>
       <div class="text-subtitle1 text-weight-medium" style="white-space:pre-line">{{ announcement }}</div>
@@ -87,6 +89,8 @@ import * as adminApi from 'src/api/admin'
 import { money, dateTime, debtView } from 'src/api/format'
 import DateField from 'components/DateField.vue'
 import TopupDialog from 'components/TopupDialog.vue'
+import BannerCarousel from 'components/BannerCarousel.vue'
+import * as customerApi from 'src/api/customer'
 import { LocalStorage } from 'quasar'
 import { useLockStore } from 'stores/lock'
 
@@ -139,7 +143,16 @@ watch([from, to], () => run(() => shop.refresh(from.value, to.value)))
 const ownerAnnouncement = ref('')
 const announcement = computed(() => (session.isAdmin ? ownerAnnouncement.value : p.value?.announcement))
 
+// Image banners: same list for everyone; a failure here never blocks the home page
+const banners = ref([])
+async function loadBanners () {
+  try {
+    banners.value = (session.isAdmin ? await adminApi.liveBanners() : await customerApi.banners(customer.token)) || []
+  } catch { banners.value = [] }
+}
+
 onMounted(async () => {
+  loadBanners()
   if (session.isAdmin) {
     await run(() => shop.refresh(from.value, to.value))
     ownerAnnouncement.value = (await run(() => adminApi.getAnnouncement())) || ''

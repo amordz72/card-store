@@ -42,7 +42,7 @@
         <EntryRow v-for="e in entries" :key="e.entry_id" :e="e" admin @reverse="openReverse(e)" />
         <div v-if="!entries.length" class="text-center muted q-pa-lg">لا توجد حركات</div>
       </div>
-      <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="entries.length" />
+      <LoadMoreBar :total="total" :shown="entries.length" :size="size" :loading="loadingMore" @more="more" />
 
       <div class="section-title">إدارة الحساب</div>
       <q-form class="card column q-gutter-sm" @submit.prevent="saveInfo">
@@ -56,6 +56,7 @@
       <div class="card column q-gutter-sm">
         <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
           @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
+        <q-toggle :model-value="idoomOn" label="تعبئة إيدوم (يعبّئ خطوط إيدوم من رصيده)" color="positive" :disable="busy" @update:model-value="setIdoom" />
         <div class="row q-gutter-sm items-start">
           <q-input v-model="newPw" class="col" dense outlined label="كلمة سر جديدة (8 أحرف على الأقل)" input-class="ltr text-right" />
           <q-btn outline color="primary" label="تعيين" :disable="newPw.length < 8" @click="setPw" />
@@ -85,11 +86,12 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRun } from 'src/composables/useRun'
+import { useLoadMore } from 'src/composables/useLoadMore'
 import * as api from 'src/api/admin'
 import { newRequestId } from 'src/api/rpc'
 import { money, debtView, KINDS } from 'src/api/format'
 import EntryRow from 'components/EntryRow.vue'
-import PagerBar from 'components/PagerBar.vue'
+import LoadMoreBar from 'components/LoadMoreBar.vue'
 
 const props = defineProps({ id: { type: String, required: true } })
 const cid = computed(() => Number(props.id))
@@ -109,20 +111,23 @@ async function loadCustomer () {
   }
 }
 
-const entries = ref([])
-const total = ref(0)
-const page = ref(1)
-const size = ref(10)
-async function loadEntries () {
-  const data = await run(() => api.entries({ customerId: cid.value, limit: size.value, offset: (page.value - 1) * size.value }))
-  if (!data) return
-  entries.value = data
-  total.value = data.length ? Number(data[0].total_count) : 0
+const { rows: entries, total, loadingMore, reset: loadEntries, refresh: refreshEntries, more, size } =
+  useLoadMore((limit, offset) => run(() => api.entries({ customerId: cid.value, limit, offset })), { key: 'entry_id' })
+
+// «تعبئة إيدوم» for this customer: off by default, the owner turns it on for customers he trusts
+const idoomOn = ref(false)
+async function loadIdoom () {
+  const ids = await run(() => api.idoomTopupCustomers())
+  if (ids) idoomOn.value = ids.map(Number).includes(cid.value)
 }
-watch(page, loadEntries)
-watch(size, () => { page.value === 1 ? loadEntries() : (page.value = 1) })
+async function setIdoom (v) {
+  const ok = await run(() => api.setIdoomTopup(cid.value, v).then(() => true),
+    { success: v ? 'فُعّلت تعبئة إيدوم لهذا الزبون.' : 'أُوقفت تعبئة إيدوم لهذا الزبون.' })
+  if (ok) idoomOn.value = v
+}
 
 async function reloadAll () {
+  loadIdoom()
   await loadCustomer()
   await loadEntries()
 }
@@ -156,7 +161,6 @@ async function doTransfer () {
   amount.value = null
   note.value = ''
   transferRequest = null
-  page.value = 1
   await reloadAll()
 }
 
@@ -178,7 +182,8 @@ async function doReverse () {
   const res = await run(() => api.reverse(revEntry.value.entry_id, revNote.value, reverseRequest), { success: 'تم الاسترداد.' })
   if (!res) return
   revOpen.value = false
-  await reloadAll()
+  await loadCustomer()
+  await refreshEntries()
 }
 
 // --- settings

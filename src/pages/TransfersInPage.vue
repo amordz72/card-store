@@ -25,7 +25,7 @@
       <EntryRow v-for="e in rows" :key="e.entry_id" :e="e" :admin="session.isAdmin" :hide="hide" @reverse="reverse(e)" />
       <div v-if="!busy && !rows.length" class="text-center muted q-pa-lg">لا توجد تحويلات</div>
     </div>
-    <PagerBar v-model:page="page" v-model:size="size" :total="total" :shown="rows.length" />
+    <LoadMoreBar :total="total" :shown="rows.length" :size="size" :loading="loadingMore" @more="more" />
   </q-page>
 </template>
 
@@ -36,12 +36,13 @@ import { useSessionStore } from 'stores/session'
 import { useCustomerStore } from 'stores/customer'
 import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
+import { useLoadMore } from 'src/composables/useLoadMore'
 import * as adminApi from 'src/api/admin'
 import * as customerApi from 'src/api/customer'
 import { newRequestId } from 'src/api/rpc'
 import { money } from 'src/api/format'
 import EntryRow from 'components/EntryRow.vue'
-import PagerBar from 'components/PagerBar.vue'
+import LoadMoreBar from 'components/LoadMoreBar.vue'
 
 const session = useSessionStore()
 const customer = useCustomerStore()
@@ -54,25 +55,14 @@ const KINDS_FILTER = [
   { id: 'pay', label: 'دفع' }, { id: 'self', label: 'شحن ذاتي' }
 ]
 const kind = ref(null)
-const page = ref(1)
-const size = ref(10)
-const rows = ref([])
-const total = ref(0)
-const sum = ref(0)
-
-async function load () {
-  const f = { kind: kind.value, limit: size.value, offset: (page.value - 1) * size.value }
-  const data = await run(() => (session.isAdmin
+const { rows, total, sum, loadingMore, reset, refresh, more, size } = useLoadMore((limit, offset) => {
+  const f = { kind: kind.value, limit, offset }
+  return run(() => (session.isAdmin
     ? adminApi.entries({ ...f, kind: 'transfers', scope: 'shop' })
     : customerApi.transfers(customer.token, f)))
-  if (!data) return
-  rows.value = data
-  total.value = data.length ? Number(data[0].total_count) : 0
-  sum.value = data.length ? Number(data[0].total_amount) : 0
-}
-watch([kind, size], () => { page.value === 1 ? load() : (page.value = 1) })
-watch(page, load)
-onMounted(load)
+}, { key: 'entry_id' })
+watch(kind, () => reset())
+onMounted(() => reset())
 
 // --- owner: top up the shop balance
 const amount = ref(null)
@@ -87,14 +77,14 @@ async function topup () {
   note.value = ''
   requestId = null
   buyer.refresh()
-  page.value === 1 ? load() : (page.value = 1)
+  reset()
 }
 
 function reverse (e) {
   Dialog.create({ title: 'استرداد شحن المحل', message: `استرداد ${money(e.amount)}؟ لا تُحذف الحركة الأصلية.`, cancel: 'إلغاء', ok: 'تأكيد' })
     .onOk(async () => {
       const ok = await run(() => adminApi.reverse(e.entry_id, null, newRequestId()).then(() => true), { success: 'تم الاسترداد.' })
-      if (ok) { buyer.refresh(); load() }
+      if (ok) { buyer.refresh(); refresh() }
     })
 }
 </script>

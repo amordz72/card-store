@@ -62,9 +62,14 @@
         </div>
         <div class="op-details small muted">
           <span>{{ when(j.created_at) }}</span>
+          <span v-if="j.customer_name"> · <b>{{ j.customer_name }}</b><span v-if="j.attempt > 1"> (محاولة {{ j.attempt }})</span></span>
           <span v-if="j.offer"> · <span class="ltr">{{ j.offer }}</span></span>
           <div v-if="j.reply && j.status !== 'looked_up'" class="ltr text-left wrap-any">{{ j.reply }}</div>
           <q-btn v-if="j.status === 'queued'" flat dense size="sm" color="negative" label="إلغاء" @click="cancel(j.id)" />
+          <div v-if="j.status === 'review' && j.customer_name" class="row q-gutter-sm q-mt-xs">
+            <q-btn unelevated dense size="sm" color="positive" label="تمت" @click="resolve(j, true)" />
+            <q-btn outline dense size="sm" color="negative" label="لم تتم — استرداد للزبون" @click="resolve(j, false)" />
+          </div>
         </div>
       </div>
       <div v-if="loaded && !jobs.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
@@ -74,9 +79,14 @@
       <q-form class="column q-gutter-sm q-pt-sm" @submit.prevent="addExecutor">
         <div class="small muted">ثبّت تطبيق Rech-Doom على الهاتف، ثم أنشئ رمزًا يُلصق فيه مرة واحدة.</div>
         <q-btn unelevated color="primary" icon="download" label="تنزيل تطبيق Rech-Doom" :href="apkUrl" download="rech-doom.apk" />
-        <q-btn outline color="primary" icon="bluetooth" label="إرسال التطبيق لهاتف آخر (بلوتوث…)" :loading="sending" @click="sendApk" />
-        <div v-if="apk" class="small muted">النسخة {{ apk.version }} · {{ when(apk.built_at) }}</div>
-        <q-btn outline color="primary" icon="share" label="مشاركة رابط الموقع" @click="share(siteUrl, 'متجر البطاقات')" />
+        <!-- Android browsers refuse to share .apk files, so the other phone gets the link or scans it -->
+        <q-btn outline color="primary" icon="share" label="إرسال رابط التطبيق لهاتف آخر" @click="share(OFFICIAL_APK, 'تطبيق Rech-Doom')" />
+        <div class="row items-center no-wrap q-gutter-sm">
+          <img v-if="apkQr" :src="apkQr" alt="رمز QR لتنزيل التطبيق" width="132" height="132" class="qr">
+          <div class="small muted">أو امسح هذا الرمز بكاميرا الهاتف الآخر لتنزيل التطبيق مباشرة.</div>
+        </div>
+        <div v-if="apk" class="small muted">النسخة <bdi dir="ltr">{{ apk.version }}</bdi> · <bdi>{{ when(apk.built_at) }}</bdi></div>
+        <q-btn outline color="primary" icon="share" label="مشاركة رابط الموقع" @click="share(OFFICIAL_SITE, 'متجر البطاقات')" />
         <q-input v-model="executorName" dense outlined label="اسم الهاتف" />
         <q-btn type="submit" unelevated color="primary" label="إنشاء رمز" :loading="busy" :disable="!executorName.trim()" />
         <template v-if="token">
@@ -96,6 +106,8 @@ import { Dialog } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { copyText } from 'src/composables/useCopy'
 import * as api from 'src/api/admin'
+import QRCode from 'qrcode'
+import { useBell } from 'src/composables/useBell'
 
 const STATUS = {
   queued: { label: 'في الانتظار', color: 'grey-7' },
@@ -111,6 +123,7 @@ const STATUS = {
 const ONLINE_SECONDS = 60
 
 const { busy, run } = useRun()
+const { refreshBell } = useBell()
 const catalog = ref([])
 const jobs = ref([])
 const phones = ref([])
@@ -172,23 +185,11 @@ const siteUrl = window.location.origin + window.location.pathname
 // Published here by the Rech-Doom build (same key every version, so it installs over the old one)
 const apkUrl = new URL('apps/rech-doom.apk', siteUrl).href
 const apk = ref(null)
-const sending = ref(false)
-
-// The APK file itself when the system share sheet accepts it (Bluetooth…), else its link.
-async function sendApk () {
-  sending.value = true
-  try {
-    const blob = await (await fetch(apkUrl)).blob()
-    const file = new File([blob], 'rech-doom.apk', { type: 'application/vnd.android.package-archive' })
-    if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: 'Rech-Doom' }) } catch { /* closed by the user */ }
-    } else await share(apkUrl, 'تطبيق Rech-Doom')
-  } catch {
-    await share(apkUrl, 'تطبيق Rech-Doom')
-  } finally {
-    sending.value = false
-  }
-}
+// Shared links always point at the one official site, whichever host this page was opened from
+const OFFICIAL_SITE = 'https://amordz72.github.io/card-store/'
+const OFFICIAL_APK = OFFICIAL_SITE + 'apps/rech-doom.apk'
+const apkQr = ref('')
+QRCode.toDataURL(OFFICIAL_APK, { margin: 1, width: 264 }).then((url) => { apkQr.value = url }).catch(() => {})
 
 // System share sheet (Bluetooth, messages…); falls back to copying where sharing is unavailable.
 async function share (text, title) {
@@ -224,6 +225,18 @@ function confirmCharge (c) {
   })
 }
 
+// A customer's top-up in review: the owner decides; «لم تتم» refunds the customer in full
+function resolve (j, done) {
+  Dialog.create({
+    title: done ? 'تأكيد: تمت التعبئة' : 'تأكيد: لم تتم التعبئة',
+    message: done ? `تُسجّل تعبئة ${j.line} لـ${j.customer_name} ناجحة.` : `يُعاد المبلغ كاملًا إلى ${j.customer_name}. البطاقة لا تعود إلى المخزن.`,
+    cancel: 'رجوع',
+    ok: 'تأكيد'
+  }).onOk(async () => {
+    if (await run(() => api.idoomResolve(j.id, done).then(() => true), { success: 'سُجّل القرار.' })) { load(); refreshBell() }
+  })
+}
+
 async function cancel (id) {
   if (await run(() => api.idoomCancel(id), { success: 'أُلغيت العملية.' })) load()
 }
@@ -251,6 +264,7 @@ watch(() => check.value?.status, (s) => { if (s === 'looked_up') loadInfo() })
 .idoom-line { font-size: 2.2rem; font-weight: 700; letter-spacing: 2px; }
 /* raw My IDOOM replies can be long: wrap inside the card, never widen the page */
 .wrap-any { white-space: normal; overflow-wrap: anywhere; }
+.qr { border: 1px solid #ECEEF3; border-radius: 8px; background: #fff; flex-shrink: 0; }
 .op-row { padding: 10px 12px; border-top: 1px solid #EEF0F5; }
 .op-row:first-child { border-top: 0; }
 .op-cells { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
