@@ -87,6 +87,11 @@ export async function restoreBatch (batchId, lines, reason) {
   const rows = await rpc('store_admin_batch_restore', { p_batch_id: batchId, p_lines: lines, p_reason: reason })
   return rows[0]
 }
+// v1.29: one shop card did not work → void + its cost back to the shop. result: 'used' | 'not_found' | 'other'
+export async function cardFailed (codeId, result, requestId) {
+  const rows = await rpc('store_admin_card_failed', { p_code_id: codeId, p_result: result, p_note: null, p_request_id: requestId })
+  return rows[0]
+}
 export const setSuspect = (codeIds, suspect) => rpc('store_admin_codes_set_suspect', { p_code_ids: codeIds, p_suspect: suspect })
 export async function useSuspect (productId, requestId) {
   const rows = await rpc('store_admin_use_suspect', { p_product_id: productId, p_request_id: requestId })

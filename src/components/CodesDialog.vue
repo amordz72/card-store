@@ -24,7 +24,7 @@
               :icon="revealed[c._key] || !c._copied ? 'visibility_off' : 'visibility'"
               :aria-label="revealed[c._key] || !c._copied ? 'إخفاء الكود' : 'إظهار الكود'"
               @click="toggleReveal(c)" />
-            <q-btn v-if="c.help" flat dense no-caps color="negative" icon="help_outline" label="مساعدة" @click="c.help()" />
+            <q-btn v-if="c.help" flat dense no-caps color="negative" icon="help_outline" :label="c.helpLabel || 'مساعدة'" @click="c.help()" />
           </div>
         </div>
       </q-card-section>
