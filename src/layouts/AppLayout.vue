@@ -118,14 +118,15 @@ const { rows: profitRows } = useMyProfits()
 const allowed = (x) => (x.admin ? session.isAdmin : x.customer ? !session.isAdmin && (!x.needsProfit || profitRows.value.length > 0) : true)
 const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.items.filter(allowed) })))
 
-// Right to left: two free slots for frequent services (e.g. flexy later), «الرئيسية» in the centre, then cards and operations
-const nav = [
+// Right to left: two free slots for frequent services, «الرئيسية» in the centre, then cards and operations.
+// The admin gets «تعبئة إيدوم» in the second slot (owner 2026-10-23); «حسابي» stays in the side menu.
+const nav = computed(() => [
   { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
-  { to: '/account', label: 'حسابي', icon: 'person' },
+  session.isAdmin ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' } : { to: '/account', label: 'حسابي', icon: 'person' },
   { to: '/', label: 'الرئيسية', icon: 'home', exact: true, home: true },
   { to: '/store', label: 'البطاقات', icon: 'style' },
   { to: '/operations', label: 'العمليات', icon: 'receipt_long' }
-]
+])
 
 // on phones the menu closes after choosing a page; on wide screens it stays open
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
