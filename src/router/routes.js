@@ -11,6 +11,7 @@ const routes = [
       { path: 'operations', component: () => import('pages/OperationsSwitch.vue'), meta: { title: 'العمليات' } },
       { path: 'transfers', component: () => import('pages/TransfersInPage.vue'), meta: { title: 'التحويلات' } },
       { path: 'account', component: () => import('pages/customer/AccountPage.vue'), meta: { title: 'حسابي' } },
+      { path: 'reports', component: () => import('pages/ReportsPage.vue'), meta: { title: 'البلاغات' } },
       { path: 'profits', component: () => import('pages/customer/MyProfitsPage.vue'), meta: { customer: true, title: 'أرباحي في البطاقات' } },
       // owner only
       { path: 'transfers/out', component: () => import('pages/admin/TransfersPage.vue'), meta: { admin: true, title: 'التحويلات الصادرة' } },

@@ -40,6 +40,12 @@ const MESSAGES = {
   BRAND_NOT_FOUND: 'العلامة غير موجودة.',
   INVALID_IMAGE: 'الصورة غير مقبولة (PNG أو JPG أو WEBP فقط).',
   IMAGE_TOO_BIG: 'الصورة كبيرة جدًا.',
+  INVALID_REASON: 'اختر سببًا صحيحًا.',
+  NOT_REPORTABLE: 'لا يمكن الإبلاغ عن هذه البطاقة (عملية مسترجعة أو بطاقة ملغاة).',
+  REPORT_WINDOW_CLOSED: 'انتهت مهلة الإبلاغ عن هذه البطاقة.',
+  ALREADY_REPORTED: 'أبلغت عن هذه البطاقة من قبل.',
+  REPORT_NOT_FOUND: 'البلاغ غير موجود.',
+  ALREADY_RESOLVED: 'هذا البلاغ عولج من قبل.',
   NETWORK: 'تعذّر الاتصال. تحقق من الإنترنت ثم حاول.'
 }
 

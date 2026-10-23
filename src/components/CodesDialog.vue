@@ -11,8 +11,12 @@
           <div class="col ltr text-left">
             <div class="text-weight-bold" style="font-size:16px;letter-spacing:.5px" :style="c.status === 'void' ? 'text-decoration:line-through;color:#6B7280' : ''">{{ c.code }}</div>
             <div v-if="c.serial" class="small muted">{{ c.serial }}</div>
+            <q-badge v-if="c.badge" :color="c.badge.color" :label="c.badge.label" class="q-mt-xs" />
           </div>
-          <q-btn v-if="c.action" unelevated color="primary" :label="c.actionLabel" @click="c.action()" />
+          <div class="column q-gutter-xs items-stretch">
+            <q-btn v-if="c.action" unelevated color="primary" :label="c.actionLabel" @click="c.action()" />
+            <q-btn v-if="c.help" flat dense no-caps color="negative" icon="help_outline" label="مساعدة" @click="c.help()" />
+          </div>
         </div>
       </q-card-section>
       <q-card-actions>
@@ -23,7 +27,7 @@
 </template>
 
 <script setup>
-// codes: [{ code, serial, status, action?, actionLabel? }]
+// codes: [{ code, serial, status, action?, actionLabel?, help? (report button), badge? { label, color } }]
 defineProps({ title: String, subtitle: String, codes: { type: Array, default: () => [] } })
 const open = defineModel({ type: Boolean, default: false })
 </script>

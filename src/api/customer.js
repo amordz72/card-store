@@ -33,7 +33,12 @@ export const orders = (token, f) => rpc('store_orders', {
   p_offset: f.offset
 })
 
-export const orderCodes = (token, orderId) => rpc('store_order_codes', { p_token: token, p_order_id: orderId })
+// v2 adds code_id and the report state of each card (v1.20)
+export const orderCodes = (token, orderId) => rpc('store_order_codes_v2', { p_token: token, p_order_id: orderId })
+// «مساعدة»: report a card that did not work. reason: 'used' | 'not_found' | 'rejected' | 'other'
+export const reportCode = (token, codeId, reason, note) =>
+  rpc('store_report_code', { p_token: token, p_code_id: codeId, p_reason: reason, p_note: note || null })
+export const myReports = (token) => rpc('store_my_reports', { p_token: token })
 export const entries = (token, limit, offset) => rpc('store_entries', { p_token: token, p_limit: limit, p_offset: offset })
 // «التحويلات»: wallet movements that are not purchases. kind: null | 'debt' | 'cash' | 'pay' | 'self' (with its refunds)
 export const transfers = (token, f) => rpc('store_transfers', {
