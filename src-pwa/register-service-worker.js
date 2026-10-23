@@ -1,41 +1,28 @@
 import { register } from 'register-service-worker'
+import { Notify } from 'quasar'
 
-// The ready(), registered(), cached(), updatefound() and updated()
-// events passes a ServiceWorkerRegistration instance in their arguments.
-// ServiceWorkerRegistration: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration
+// The new service worker takes over at once (skipWaiting + clientsClaim), but the open page still runs
+// the old code until it reloads. Tell the user instead of leaving an old version on screen; reloading is
+// his choice so nothing typed is lost. A long-open app also checks for a new version every hour and on return.
 
 register(process.env.SERVICE_WORKER_FILE, {
-  // The registrationOptions object will be passed as the second argument
-  // to ServiceWorkerContainer.register()
-  // https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register#Parameter
-
-  // registrationOptions: { scope: './' },
-
-  ready (/* registration */) {
-    // console.log('Service worker is active.')
+  registered (registration) {
+    const check = () => registration.update().catch(() => {})
+    setInterval(check, 60 * 60 * 1000)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check() })
   },
 
-  registered (/* registration */) {
-    // console.log('Service worker has been registered.')
-  },
-
-  cached (/* registration */) {
-    // console.log('Content has been cached for offline use.')
-  },
-
-  updatefound (/* registration */) {
-    // console.log('New content is downloading.')
-  },
-
-  updated (/* registration */) {
-    // console.log('New content is available; please refresh.')
-  },
-
-  offline () {
-    // console.log('No internet connection found. App is running in offline mode.')
-  },
-
-  error (/* err */) {
-    // console.error('Error during service worker registration:', err)
+  updated () {
+    Notify.create({
+      message: 'يوجد تحديث للتطبيق',
+      icon: 'system_update',
+      color: 'primary',
+      timeout: 0,
+      position: 'bottom',
+      actions: [
+        { label: 'تحديث الآن', color: 'white', handler: () => window.location.reload() },
+        { label: 'لاحقًا', color: 'white' }
+      ]
+    })
   }
 })
