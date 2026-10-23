@@ -48,6 +48,10 @@
 
     <q-page-container>
       <router-view />
+      <!-- «↑ للأعلى» on every long page, above the bottom bar -->
+      <q-page-scroller position="bottom-right" :scroll-offset="400" :offset="[16, 16]">
+        <q-btn fab-mini unelevated color="primary" icon="keyboard_arrow_up" aria-label="للأعلى" />
+      </q-page-scroller>
     </q-page-container>
 
     <q-footer class="bg-white">
