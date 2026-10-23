@@ -19,6 +19,7 @@ import { useRun } from 'src/composables/useRun'
 import { useLoadMore } from 'src/composables/useLoadMore'
 import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
+import { askCardFailed } from 'src/composables/useCardFailed'
 import OpsFilters from 'components/OpsFilters.vue'
 import OperationRow from 'components/OperationRow.vue'
 import LoadMoreBar from 'components/LoadMoreBar.vue'
@@ -66,7 +67,11 @@ async function openCodes (op) {
     copiedAt: copiedAt.get(c.code_id) || null,
     actionLabel: 'نسخ',
     action: refunded ? null : () => copyText(c.code),
-    help: !buyer.isShop.value && c.can_report ? () => { reportCard.value = c; reportOpen.value = true } : null,
+    // customers report a card; the shop (the owner himself) records «لم تعمل» on his own card
+    help: buyer.isShop.value
+      ? (!refunded && c.status === 'sold' ? () => askCardFailed(run, { id: c.code_id, code: c.code }, () => openCodes(op)) : null)
+      : (c.can_report ? () => { reportCard.value = c; reportOpen.value = true } : null),
+    helpLabel: buyer.isShop.value ? 'لم تعمل' : null,
     badge: c.report_status ? { label: 'بلاغ: ' + REPORT_STATUS[c.report_status].label, color: REPORT_STATUS[c.report_status].color } : null
   }))
   codesOpen.value = true

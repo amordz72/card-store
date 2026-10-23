@@ -21,6 +21,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRun } from 'src/composables/useRun'
 import { useLoadMore } from 'src/composables/useLoadMore'
 import { copyText } from 'src/composables/useCopy'
+import { askCardFailed } from 'src/composables/useCardFailed'
 import * as api from 'src/api/admin'
 import OpsFilters from 'components/OpsFilters.vue'
 import OperationRow from 'components/OperationRow.vue'
@@ -81,7 +82,9 @@ async function openCodes (op) {
   codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id}` + (op.is_shop ? ' — من حساب المحل' : ' — الأكواد مخفية؛ «كشف» يُسجَّل')
   // the shop's own codes come back in full; customers' codes are masked with a logged reveal
   codes.value = op.is_shop
-    ? data.map((c) => ({ id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status, copiedAt: copiedAt.get(c.code_id) || null, actionLabel: 'نسخ', action: refunded ? null : () => copyText(c.masked_code) }))
+    ? data.map((c) => ({ id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status, copiedAt: copiedAt.get(c.code_id) || null, actionLabel: 'نسخ', action: refunded ? null : () => copyText(c.masked_code),
+        help: !refunded && c.status === 'sold' ? () => askCardFailed(run, { id: c.code_id, code: c.masked_code }, () => openCodes(op)) : null,
+        helpLabel: 'لم تعمل' }))
     : data.map((c) => codeItem(c, copiedAt.get(c.code_id)))
   codesOpen.value = true
 }
