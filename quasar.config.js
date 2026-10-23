@@ -10,8 +10,9 @@ export default defineConfig(() => ({
     target: { browser: ['es2022', 'firefox115', 'chrome115', 'safari15'], node: 'node20' },
     // GitHub Pages cannot rewrite unknown paths to index.html, so use hash routing
     vueRouterMode: 'hash',
-    // GitHub Pages serves the site under /card-store/ (the only host: Cloudflare Pages stopped 2026-10-22)
-    publicPath: '/card-store/'
+    // GitHub Pages serves the site under /card-store/; Cloudflare Pages serves it at the root
+    // (its build command must be: DEPLOY_TARGET=cloudflare npm run build, output dist/pwa).
+    publicPath: process.env.DEPLOY_TARGET === 'cloudflare' ? '/' : '/card-store/'
   },
 
   devServer: { open: false, port: 9000 },
