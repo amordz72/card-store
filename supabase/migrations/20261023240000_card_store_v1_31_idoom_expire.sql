@@ -6,9 +6,11 @@
 --   charge with its card already handed to the phone → review (Valider may have been pressed).
 -- Runs every minute (pg_cron) and before every claim, so the phone itself never takes a stale job.
 
+-- Filled for open jobs only: some finished rows predate the stricter line check (NOT VALID) and
+-- cannot be rewritten. A null queued_at falls back to created_at.
 alter table store.idoom_jobs add column queued_at timestamptz;
-update store.idoom_jobs set queued_at = coalesce(claimed_at, created_at);
-alter table store.idoom_jobs alter column queued_at set default now(), alter column queued_at set not null;
+alter table store.idoom_jobs alter column queued_at set default now();
+update store.idoom_jobs set queued_at = created_at where status in ('queued', 'claimed');
 
 -- Every return to «queued» (automatic second attempt, admin retry) starts a new wait.
 create function private.store_idoom_jobs_queued_at() returns trigger
@@ -29,7 +31,7 @@ declare
 begin
   for j in
     select * from store.idoom_jobs x
-     where (x.status = 'queued' and x.queued_at < now() - interval '5 minutes')
+     where (x.status = 'queued' and coalesce(x.queued_at, x.created_at) < now() - interval '5 minutes')
         or (x.status = 'claimed' and x.claimed_at < now() - interval '15 minutes')
      order by x.id
      for update skip locked
