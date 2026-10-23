@@ -80,6 +80,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
 import { money } from 'src/api/format'
@@ -100,7 +101,8 @@ const RULE_TEXT = {
 const { busy, run } = useRun()
 const cat = ref('phone')
 const brand = ref('all')
-const who = ref(DEFAULT)
+// «أسعار ونسب هذا الزبون» in the customer page opens here with ?who=<id>
+const who = ref(String(useRoute().query.who || DEFAULT))
 const rows = ref([])
 const loaded = ref(false)
 
