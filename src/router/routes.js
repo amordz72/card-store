@@ -20,7 +20,9 @@ const routes = [
       { path: 'stock', component: () => import('pages/admin/StockPage.vue'), meta: { admin: true, title: 'المخزن' } },
       { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار ونسب الزبائن' } },
       // the owner's page or the customer's page (customers the owner enabled)
-      { path: 'idoom', component: () => import('pages/IdoomSwitch.vue'), meta: { title: 'تعبئة إيدوم' } }
+      { path: 'idoom', component: () => import('pages/IdoomSwitch.vue'), meta: { title: 'تعبئة إيدوم' } },
+      // the queue for the owner and his workers, the order page for customers
+      { path: 'game', component: () => import('pages/GameSwitch.vue'), meta: { title: 'شحن الألعاب بالمعرّف' } }
     ]
   },
 

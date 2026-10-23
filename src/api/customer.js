@@ -75,3 +75,31 @@ export async function idoomLineInfo (token, line) {
   const rows = await rpc('store_idoom_line_info', { p_token: token, p_line: line })
   return rows?.[0] || null
 }
+
+// Game top-up by player id (v1.25): the card comes from stock and is never shown; an operator tops up by hand
+export async function gameStatus (token) {
+  const rows = await rpc('store_game_status', { p_token: token })
+  return rows?.[0] || { is_open: false, is_operator: false }
+}
+export const gameCards = (token) => rpc('store_game_cards', { p_token: token })
+export async function gameCreate (token, productId, playerId, requestId) {
+  const rows = await rpc('store_game_create', { p_token: token, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
+  return rows?.[0] || null
+}
+export const gameOrders = (token, limit, offset) => rpc('store_game_orders', { p_token: token, p_limit: limit, p_offset: offset })
+export const gameRecentIds = (token) => rpc('store_game_recent_ids', { p_token: token })
+export const gameCancel = (token, gameId) => rpc('store_game_cancel', { p_token: token, p_game_id: gameId })
+
+// Operators: a worker passes his token; the owner passes null (his own Supabase session is checked)
+export const gamePresence = (token, available) => rpc('store_game_presence', { p_token: token, p_available: available ?? null })
+export async function gameBoard (token) {
+  const rows = await rpc('store_game_board', { p_token: token })
+  return rows?.[0] || null
+}
+export const gameQueue = (token, open, limit, offset) => rpc('store_game_queue', { p_token: token, p_open: open, p_limit: limit, p_offset: offset })
+export const gameOpenCount = (token) => rpc('store_game_open_count', { p_token: token })
+export const gameClaim = (token, gameId, claim) => rpc('store_game_claim', { p_token: token, p_game_id: gameId, p_claim: claim })
+// result: 'done' | 'used_card' | 'failed'
+export const gameFinish = (token, gameId, result, f = {}) => rpc('store_game_finish', {
+  p_token: token, p_game_id: gameId, p_result: result, p_txn_ref: f.txnRef || null, p_reason: f.reason || null, p_card_back: f.cardBack ?? null
+})

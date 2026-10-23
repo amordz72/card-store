@@ -57,6 +57,7 @@
         <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
           @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
         <q-toggle :model-value="idoomOn" label="تعبئة إيدوم (يعبّئ خطوط إيدوم من رصيده)" color="positive" :disable="busy" @update:model-value="setIdoom" />
+        <q-toggle :model-value="operatorOn" label="عامل شحن الألعاب (يرى طلبات الشحن بالمعرّف ويضغط «متاح»)" color="positive" :disable="busy" @update:model-value="setOperator" />
         <div class="row q-gutter-sm items-start">
           <q-input v-model="newPw" class="col" dense outlined label="كلمة سر جديدة (8 أحرف على الأقل)" input-class="ltr text-right" />
           <q-btn outline color="primary" label="تعيين" :disable="newPw.length < 8" @click="setPw" />
@@ -126,8 +127,21 @@ async function setIdoom (v) {
   if (ok) idoomOn.value = v
 }
 
+// «عامل شحن الألعاب»: this account works the game top-up queue with the owner (v1.25)
+const operatorOn = ref(false)
+async function loadOperator () {
+  const ids = await run(() => api.gameOperators())
+  if (ids) operatorOn.value = ids.map(Number).includes(cid.value)
+}
+async function setOperator (v) {
+  const ok = await run(() => api.setGameOperator(cid.value, v).then(() => true),
+    { success: v ? 'أصبح عامل شحن الألعاب.' : 'لم يعد عامل شحن الألعاب.' })
+  if (ok) operatorOn.value = v
+}
+
 async function reloadAll () {
   loadIdoom()
+  loadOperator()
   await loadCustomer()
   await loadEntries()
 }
