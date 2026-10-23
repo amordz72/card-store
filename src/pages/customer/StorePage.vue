@@ -56,7 +56,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { LocalStorage } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
@@ -73,7 +74,11 @@ const products = ref([])
 const loaded = ref(false)
 const query = ref('')
 const cat = ref('all')
-const availOnly = ref(false)
+// «المتوفر فقط» is on by default; the viewer's choice is remembered on this device
+const AVAIL_KEY = 'cs_avail_only'
+const readAvail = () => { try { return LocalStorage.getItem(AVAIL_KEY) !== false } catch { return true } }
+const availOnly = ref(readAvail())
+watch(availOnly, (v) => { try { LocalStorage.set(AVAIL_KEY, v) } catch { /* storage blocked: default next time */ } })
 const brand = ref('all')
 const inCat = (p) => cat.value === 'all' || p.category === cat.value
 const brandList = computed(() => [...new Set(products.value.filter(inCat).map((p) => p.brand))])
