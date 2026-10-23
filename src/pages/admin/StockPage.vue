@@ -11,7 +11,7 @@
       <div class="small muted">1. العلامة</div>
       <div class="row q-gutter-xs">
         <button v-for="b in pickBrands" :key="b.name" type="button" class="brand-pick" :class="{ on: pickBrand === b.name }"
-          :aria-pressed="pickBrand === b.name" @click="pickBrand = b.name; codeForm.productId = null">
+          :aria-pressed="pickBrand === b.name" @click="choose(b.name, null)">
           <img v-if="b.image" :src="b.image" :alt="b.name">
           <span v-else>{{ b.name }}</span>
         </button>
@@ -21,7 +21,7 @@
         <div class="row q-gutter-xs">
           <q-btn v-for="p in pickProducts" :key="p.product_id" no-caps dense class="q-px-sm" :ripple="false"
             :unelevated="codeForm.productId === p.product_id" :outline="codeForm.productId !== p.product_id"
-            :color="codeForm.productId === p.product_id ? 'primary' : 'grey-8'" @click="codeForm.productId = p.product_id">
+            :color="codeForm.productId === p.product_id ? 'primary' : 'grey-8'" @click="choose(p.brand, p.product_id)">
             <div class="column items-center" style="line-height:1.25">
               <span class="text-weight-medium">{{ shortName(p) }}</span>
               <span style="font-size:11px">متوفر {{ p.available }}</span>
@@ -30,10 +30,16 @@
         </div>
       </template>
       <div v-if="pickedProduct" class="small text-weight-medium" style="color:#4338CA">البطاقة المختارة: {{ pickedProduct.name }}</div>
-      <q-file v-model="file" dense outlined accept=".txt,.csv,text/plain,text/csv" label="رفع ملف أكواد (txt أو csv) — أو الصق في الخانة التالية" clearable>
+      <!-- Codes only after a card is chosen, so they cannot land on a card picked afterwards -->
+      <q-file v-model="file" dense outlined accept=".txt,.csv,text/plain,text/csv" :disable="!codeForm.productId" clearable
+        :label="codeForm.productId ? 'رفع ملف أكواد (txt أو csv) — أو الصق في الخانة التالية' : 'اختر العلامة والبطاقة أولًا'">
         <template #prepend><q-icon name="upload_file" /></template>
       </q-file>
-      <q-input v-model="codeForm.lines" type="textarea" outlined rows="5" label="الأكواد (كود في كل سطر، أو: الكود ; الرقم التسلسلي)" input-class="ltr text-left" />
+      <q-input v-model="codeForm.lines" type="textarea" outlined rows="5" :disable="!codeForm.productId" input-class="ltr text-left"
+        :label="codeForm.productId ? 'الأكواد (كود في كل سطر، أو: الكود ; الرقم التسلسلي)' : 'اختر العلامة والبطاقة أولًا'" />
+      <div v-if="nameMismatch" class="small q-pa-sm rounded-borders warn-loss text-weight-bold">
+        تنبيه: اسم الملف لا يطابق البطاقة المختارة ({{ pickedProduct.name }}). تأكد من البطاقة قبل الإضافة.
+      </div>
       <!-- What was read: one card per line (code, then optional serial) -->
       <div v-if="parsed.cards" class="small q-pa-sm rounded-borders" :class="parsed.mismatch ? 'warn-loss' : 'preview-ok'">
         <b>عدد البطاقات: {{ parsed.cards }}</b>
@@ -58,7 +64,7 @@
         <div v-else-if="preview.mine < 0" class="text-weight-bold">تنبيه: الزبون يدفع أقل من سعر الشراء — خسارة {{ money(-preview.mine) }} في كل بطاقة.</div>
         <q-btn flat dense no-caps color="primary" icon="edit" label="تعديل سعر البيع" class="self-start" @click="openBase" />
       </div>
-      <q-btn type="submit" unelevated color="primary" size="lg" label="إضافة للمخزن" :loading="busy"
+      <q-btn type="submit" unelevated no-caps color="primary" size="lg" :label="addLabel" :loading="busy"
         :disable="!codeForm.productId || !codeForm.lines.trim() || !(codeForm.cost > 0)" />
     </q-form>
 
@@ -237,11 +243,25 @@ function shortName (p) {
   const n = p.name.trim()
   return n.toLowerCase().startsWith(p.brand.toLowerCase()) && n.length > p.brand.length ? n.slice(p.brand.length).trim() : n
 }
+// Choosing another card while codes are loaded asks first, then clears them
+function choose (brandName, productId) {
+  const apply = () => { pickBrand.value = brandName; codeForm.value.productId = productId }
+  if (brandName === pickBrand.value && (productId == null || productId === codeForm.value.productId)) return
+  if (!codeForm.value.lines.trim() || !pickedProduct.value) return apply()
+  Dialog.create({
+    title: 'تغيير البطاقة',
+    message: `توجد ${parsed.value.cards} كود لـ «${pickedProduct.value.name}». تغيير البطاقة يمسحها. متابعة؟`,
+    cancel: 'رجوع', ok: { label: 'مسح وتغيير', color: 'negative' }
+  }).onOk(() => {
+    codeForm.value.lines = ''
+    file.value = null
+    apply()
+  })
+}
 // «+ أكواد» in the cards table: same form, card already chosen
 const codesFormEl = ref(null)
 function addCodesFor (p) {
-  pickBrand.value = p.brand
-  codeForm.value.productId = p.product_id
+  choose(p.brand, p.product_id)
   codesFormEl.value?.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 const supplierOptions = computed(() => suppliers.value.map((s) => ({ value: s.supplier_id, label: s.name })))
@@ -284,13 +304,26 @@ const parsed = computed(() => {
     return i < 0 ? { code: l, serial: '' } : { code: l.slice(0, i).trim(), serial: l.slice(i + 1).trim() }
   }).filter((r) => r.code)
   const unique = new Set(rows.map((r) => r.code)).size
-  const m = fileName.value.match(/\((\d+)\)/)   // e.g. MOBILIS_1000_DA(50)_…txt
+  // e.g. MOBILIS_1000_DA(50)_…txt or «Forfait 100 - 3 cards - 2026-10-23.txt»
+  const m = fileName.value.match(/\((\d+)\)/) || fileName.value.match(/(\d+)\s*cards?\b/i)
   const expected = m ? Number(m[1]) : null
   return {
     cards: unique, dups: rows.length - unique, withSerial: rows.filter((r) => r.serial).length,
     first: rows[0] || {}, expected, mismatch: expected != null && expected !== unique
   }
 })
+
+// Card amounts named in the file (date, count and long ids left out) must appear in the chosen card's name
+const nameMismatch = computed(() => {
+  if (!fileName.value || !pickedProduct.value) return false
+  const nums = (t) => t.match(/\d+/g) || []
+  const inFile = nums(fileName.value.replace(/\d{4}-\d{2}-\d{2}/g, '').replace(/\(\d+\)|\d+\s*cards?\b/gi, '')).filter((n) => n.length <= 5)
+  if (!inFile.length) return false
+  const inCard = new Set(nums(pickedProduct.value.name).map(Number))
+  return !inFile.some((n) => inCard.has(Number(n)))
+})
+const addLabel = computed(() => (pickedProduct.value && parsed.value.cards
+  ? `إضافة ${parsed.value.cards} كود إلى ${pickedProduct.value.name}` : 'إضافة للمخزن'))
 
 watch(file, async (f) => {
   fileName.value = f ? f.name : ''
