@@ -26,9 +26,9 @@ select public.store_admin_save_product(null, :gb, '100 جوهرة', 250, 1, true
 select public.store_admin_save_product(null, :gb, '210 جوهرة', 500, 2, true) as p210 \gset
 select added from public.store_admin_add_codes(:p100, null, 200, E'G-0001\nG-0002\nG-0003\nG-0004') \g /dev/null
 select added from public.store_admin_add_codes(:p210, null, 400, E'H-0001') \g /dev/null
-select public.store_admin_create_customer('زبون لعبة', '0772000001', 'secret123') as cu \gset
-select public.store_admin_create_customer('زبون آخر', '0772000002', 'secret123') as cu2 \gset
-select public.store_admin_create_customer('عامل الشحن', '0772000003', 'secret123') as wk \gset
+select public.store_admin_create_customer('زبون لعبة', '0779000251', 'secret123') as cu \gset
+select public.store_admin_create_customer('زبون آخر', '0779000252', 'secret123') as cu2 \gset
+select public.store_admin_create_customer('عامل الشحن', '0779000253', 'secret123') as wk \gset
 select entry_id from public.store_admin_transfer(:cu, 'cash', 1000, null, gen_random_uuid()) \g /dev/null
 select entry_id from public.store_admin_transfer(:cu2, 'cash', 1000, null, gen_random_uuid()) \g /dev/null
 select public.store_admin_set_player_topup(:p100, true) \g /dev/null
@@ -40,9 +40,9 @@ reset role;
 
 select set_config('request.jwt.claim.sub', '', false);
 set role anon;
-select session_token as tok from public.store_login('0772000001', 'secret123') \gset
-select session_token as tok2 from public.store_login('0772000002', 'secret123') \gset
-select session_token as wtok from public.store_login('0772000003', 'secret123') \gset
+select session_token as tok from public.store_login('0779000251', 'secret123') \gset
+select session_token as tok2 from public.store_login('0779000252', 'secret123') \gset
+select session_token as wtok from public.store_login('0779000253', 'secret123') \gset
 select pg_temp.check('marked card still in the store', exists (select 1 from public.store_catalog_v2(:'tok') where product_id = :p100 and available));
 select pg_temp.check('top-up cards', array(select public.store_game_cards(:'tok')) = array[:p100]::bigint[]);
 select pg_temp.check('closed at first', (select not is_open and not is_operator from public.store_game_status(:'tok')));
