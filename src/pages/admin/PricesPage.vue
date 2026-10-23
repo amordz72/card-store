@@ -154,7 +154,9 @@ function priceOf (r) {
   if (c == null || r.value == null) return null
   if (r.mode === 'amount') return c + Math.round(r.value)
   if (r.mode === 'pct') return c + Math.round(r.base_price * r.value / 100)
-  return c + Math.round(Math.max(r.base_price - c, 0) * (100 - r.value) / 100)
+  // customer profit first; my profit is what remains
+  const margin = Math.max(r.base_price - c, 0)
+  return c + margin - Math.round(margin * r.value / 100)
 }
 // Customer's share of the margin that a given price means (null when there is no margin)
 const shareOf = (r) => (r.price != null && r.cost != null && r.base_price > r.cost ? round2((r.base_price - r.price) / (r.base_price - r.cost) * 100) : null)

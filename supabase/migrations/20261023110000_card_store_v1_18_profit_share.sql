@@ -1,7 +1,8 @@
 -- =====================================================================
 -- Card Store v1.18 — «ربح الزبون من الربح»: proportional profit share (owner decision 2026-10-23, option ج)
 --   share rule: value = the CUSTOMER's % of the whole margin (selling price − cost); the owner keeps the rest
---   pay = cost + round((selling price − cost) × (100 − value) / 100)
+--   customer profit = round(margin × value / 100), owner profit = margin − customer profit (what remains)
+--   pay = cost + owner profit, margin = selling price − cost
 --   A dearer batch lowers both profits together. e.g. Idoom 1000, customer 50%: cost 960 → 980, cost 970 → 985.
 --   No margin (cost ≥ selling price) → the customer pays the cost.
 -- Additive: fixed / amount / pct keep working exactly as before.
@@ -29,7 +30,9 @@ begin
   if p_cost is null then raise exception 'COST_MISSING'; end if;
   if p_mode = 'amount' then return p_cost + round(p_value); end if;
   if p_mode = 'pct' then return p_cost + round(p_base * p_value / 100); end if;
-  if p_mode = 'share' then return p_cost + round(greatest(p_base - p_cost, 0) * (100 - p_value) / 100); end if;
+  if p_mode = 'share' then
+    return p_cost + greatest(p_base - p_cost, 0) - round(greatest(p_base - p_cost, 0) * p_value / 100);
+  end if;
   raise exception 'INVALID_PRICE_RULE';
 end;
 $$;

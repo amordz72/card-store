@@ -130,6 +130,8 @@ select added from public.store_admin_add_codes(:sh, null, 1010, 'SH-3') \g /dev/
 select pg_temp.check('no margin → customer pays the cost', (select charge_now from public.store_admin_price_list('phone') where customer_id is null and product_id = :sh) = 1010);
 select pg_temp.check('reconcile clean', (select count(*) from public.store_admin_reconcile()) = 0);
 reset role;
+-- rounding: margin 35, customer 50% → customer 18 (rounded first), I keep 17 → pays 965 + 17 = 982
+select pg_temp.check('customer profit first, I keep the rest', private.store_unit_charge('share', 50, 965, 1000) = 982);
 
 \set QUIET off
 select ok, count(*) from p_results group by ok;

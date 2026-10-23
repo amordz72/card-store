@@ -163,7 +163,7 @@ const preview = computed(() => {
   const base = Number(p.base_price)
   const r = defaultRule.value[p.product_id] || { mode: 'fixed', value: base }
   const pay = r.mode === 'fixed' ? Math.round(r.value) : r.mode === 'amount' ? cost + Math.round(r.value)
-    : r.mode === 'share' ? cost + Math.round(Math.max(base - cost, 0) * (100 - r.value) / 100) : cost + Math.round(base * r.value / 100)
+    : r.mode === 'share' ? cost + Math.max(base - cost, 0) - Math.round(Math.max(base - cost, 0) * r.value / 100) : cost + Math.round(base * r.value / 100)
   return { base, cost, margin: base - cost, marginPct: Math.round((base - cost) / base * 10000) / 100, pay, mine: pay - cost, loss: cost >= base || pay < cost }
 })
 
