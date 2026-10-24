@@ -31,9 +31,10 @@ async function owner (path, init) {
 }
 
 export const ownerPreflight = (phone, amount) => owner('630/preflight', { method: 'POST', body: { phone, amount } })
-export const ownerSend = (phone, amount, distributorAccount, idempotencyKey) => owner('630/send', {
+// simUuid: the SIM Flexy Core chose at «تحقق»; the send is refused if its choice changed since.
+export const ownerSend = (phone, amount, distributorAccount, idempotencyKey, simUuid) => owner('630/send', {
   method: 'POST',
-  body: { phone, amount, distributor_account: distributorAccount, idempotency_key: idempotencyKey }
+  body: { phone, amount, distributor_account: distributorAccount, idempotency_key: idempotencyKey, ...(simUuid ? { sim_uuid: simUuid } : {}) }
 })
 export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // The money switch, kept in Flexy Core (owner only). Off = every send refuses.
