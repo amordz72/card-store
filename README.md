@@ -30,6 +30,7 @@ npm run build    # dist/pwa
   ```
 
 ## الأمان
+- **Flexy Core:** الدالة `supabase/functions/store-flexy` (Edge، للمدير فقط، قراءة فقط: `capabilities` و`validate`) تكلّم `flexy-api` بالمفتاح من Secret `FLEXY_CARD_STORE_KEY`. المفتاح لا يوضع في كود الواجهة أبدًا، ويُغيَّر قبل إطلاق الموقع.
 - المفتاح في `src/boot/supabase.js` هو المفتاح **العلني** (publishable)، ولا يجوز وضع `service_role` أو أي سر هنا.
 - CSP في `index.html`، دون سكربتات من أطراف خارجية.
 - قبل الإنتاج: راجع `developer/projects/card-store/PRODUCTION-CHECKLIST.md`، وفيها MFA للمدير وحذف بيانات DEMO.
