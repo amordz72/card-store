@@ -19,14 +19,32 @@
 
     <div v-if="pre && !op" class="card">
       <template v-if="pre.ready">
-        <div>سيُرسل <b>{{ pre.request.amount }} دج</b> إلى <bdi dir="ltr"><b>{{ pre.request.phone }}</b></bdi> من حساب الموزع <b>{{ pre.distributor_account }}</b>.</div>
+        <div>سيُرسل <b>{{ pre.request.amount }} دج</b> إلى <bdi dir="ltr"><b>{{ pre.request.phone }}</b></bdi> من حساب الموزع <b>{{ pre.distributor_account }}</b><template v-if="pre.target">، الشريحة <b dir="ltr">{{ pre.target.sim_code || '—' }}</b> على <b dir="ltr">{{ pre.target.station_code || '—' }}</b></template>.</div>
         <div class="row q-gutter-sm q-mt-md">
           <q-btn unelevated rounded no-caps color="negative" icon="send" label="أرسل الآن" :loading="busy === 'send'" @click="send" />
           <q-btn flat rounded no-caps label="إلغاء" :disable="busy === 'send'" @click="reset" />
         </div>
       </template>
       <div v-else-if="refreshing" class="small"><q-spinner size="14px" /> الرصيد قديم: يُحدَّث آليًا (632، استعلام فقط بلا مال)، ثم يُعاد التحقق وحده…</div>
-      <div v-else class="text-negative">المحطة غير جاهزة: <bdi dir="ltr">{{ pre.refresh?.reason || pre.reason || '—' }}</bdi>. لم يُرسل شيء.</div>
+      <div v-else class="text-negative">المحطة غير جاهزة: {{ reasonText(pre.refresh?.reason || pre.reason) }}. لم يُرسل شيء.</div>
+
+      <!-- Flexy Core's choice, SIM by SIM: why each one can or cannot run this send. Never a balance. -->
+      <div v-if="sims.length" class="q-mt-md">
+        <div class="small text-weight-bold q-mb-xs">اختيار الشريحة (النواة)</div>
+        <div v-for="s in sims" :key="s.sim_uuid" class="sim-row" :class="{ chosen: s.chosen }">
+          <div class="small">
+            <b dir="ltr">{{ s.sim_code || '—' }}</b>
+            <span class="muted"> · <span dir="ltr">{{ s.station_code || '—' }}</span> · <span dir="ltr">{{ s.sim_type }}</span></span>
+            <q-badge v-if="s.chosen" class="q-ml-xs" color="positive" label="المختارة" />
+          </div>
+          <div v-if="s.same" class="small" :class="reasonClass(s.lines[0].reason)">{{ reasonText(s.lines[0].reason) }}</div>
+          <div v-else class="small">
+            <span v-for="l in s.lines" :key="l.account" class="q-mr-sm" :class="reasonClass(l.reason)">
+              <b dir="ltr">{{ l.account }}</b>: {{ reasonText(l.reason) }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="op" class="card">
@@ -73,10 +91,33 @@ const ERRORS = {
   AMOUNT_INVALID: 'المبلغ بين 40 و50000 دج، عدد صحيح.',
   STATION_NOT_READY: 'المحطة غير جاهزة.',
   DISTRIBUTOR_ACCOUNT_CHANGED: 'تغيّر حساب الموزع منذ التحقق. اضغط «تحقق» مرة أخرى.',
+  TARGET_CHANGED: 'تغيّرت الشريحة المختارة منذ التحقق. اضغط «تحقق» مرة أخرى.',
   IDEMPOTENCY_CONFLICT: 'نفس العملية بطلب مختلف. ابدأ عملية جديدة.',
   STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى Station Connect. لم يُرسل شيء.',
   SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.'
 }
+
+// Why a SIM/account can or cannot run the send (Flexy Core, core/selection.ts REASONS).
+const REASONS = {
+  ELIGIBLE: 'صالحة',
+  READY: 'جاهزة',
+  OFFER_NOT_SUPPORTED_ON_SIM_TYPE: 'نوعها لا يدعم هذه العملية',
+  STATION_NOT_APPROVED: 'المحطة غير معتمدة',
+  STATION_OFFLINE: 'المحطة غير متصلة',
+  MODEM_OFFLINE: 'المودم غير متصل',
+  SIM_OFFLINE: 'الشريحة غير متصلة',
+  SIM_NOT_APPROVED: 'الشريحة غير معتمدة',
+  PIN_MISSING: 'بلا PIN',
+  NO_ACCOUNT_BALANCE: 'لا رصيد مقروء لحساباتها',
+  ACCOUNT_DISABLED: 'الحساب معطّل',
+  UNATTRIBUTED_OR_ASSUMED_FINANCIAL_JOB: 'عملية مالية غير محسومة عليها',
+  BALANCE_STALE: 'الرصيد قديم (يُحدَّث بـ632)',
+  INSUFFICIENT_BALANCE: 'الرصيد لا يكفي',
+  SIM_BUSY: 'مشغولة الآن',
+  NO_EXECUTOR: 'لا توجد شريحة'
+}
+const reasonText = (r) => (r ? REASONS[r] || r : '—')
+const reasonClass = (r) => (r === 'ELIGIBLE' ? 'text-positive' : r === 'OFFER_NOT_SUPPORTED_ON_SIM_TYPE' ? 'muted' : 'text-negative')
 
 const phone = ref('')
 const amount = ref(100)
@@ -108,6 +149,22 @@ function flip (on) {
   if (!on) return apply()
   $q.dialog({ title: 'فتح الإرسال الحقيقي', message: 'كل «أرسل» بعدها يُخرج رصيدًا حقيقيًا من الشريحة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
 }
+
+// Candidates grouped by SIM: the chosen one first, then the ones of a supported type.
+const sims = computed(() => {
+  const sel = pre.value?.selection
+  if (!sel?.candidates?.length) return []
+  const bySim = new Map()
+  for (const c of sel.candidates) {
+    if (!bySim.has(c.sim_uuid)) bySim.set(c.sim_uuid, { ...c, lines: [] })
+    bySim.get(c.sim_uuid).lines.push({ account: c.distributor_account || '—', reason: c.reason })
+  }
+  const chosen = sel.selected?.sim_uuid
+  const rank = (s) => (s.sim_uuid === chosen ? 0 : s.lines.every((l) => l.reason === 'OFFER_NOT_SUPPORTED_ON_SIM_TYPE') ? 2 : 1)
+  return [...bySim.values()]
+    .map((s) => ({ ...s, chosen: s.sim_uuid === chosen, same: s.lines.every((l) => l.reason === s.lines[0].reason) }))
+    .sort((a, b) => rank(a) - rank(b) || String(a.sim_code).localeCompare(String(b.sim_code)))
+})
 
 const locked = computed(() => !!op.value || busy.value === 'send')
 
@@ -148,7 +205,8 @@ async function send () {
   remember(key.value)
   busy.value = 'send'
   try {
-    show(await flexy.ownerSend(pre.value.request.phone, pre.value.request.amount, pre.value.distributor_account, key.value))
+    // The SIM the owner saw: Flexy Core refuses (TARGET_CHANGED) if its choice moved since.
+    show(await flexy.ownerSend(pre.value.request.phone, pre.value.request.amount, pre.value.distributor_account, key.value, pre.value.target?.sim_uuid))
   } finally { busy.value = '' }
   if (op.value?.status === 'running') follow()
 }
@@ -184,3 +242,8 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearTimeout(timer))
 </script>
+
+<style scoped>
+.sim-row { border-top: 1px solid #ECEEF2; padding: 6px 0; }
+.sim-row.chosen { background: #F1FAF3; border-radius: 6px; padding: 6px; }
+</style>
