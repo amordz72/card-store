@@ -19,7 +19,7 @@ async function call (path, init) {
 // Owner console (real money): straight to flexy-api with the owner's own session.
 // Station Connect re-checks that this session is the shop admin. No key in the browser.
 async function owner (path, init) {
-  const { data, error } = await supabase.functions.invoke('flexy-api/v1/owner/630/' + path, init)
+  const { data, error } = await supabase.functions.invoke('flexy-api/v1/owner/' + path, init)
   if (!error) return { status: 200, body: data }
   const res = error.context
   if (res && typeof res.json === 'function') {
@@ -30,12 +30,15 @@ async function owner (path, init) {
   return { status: 0, body: { ok: false, error: error.message || 'NETWORK' } }
 }
 
-export const ownerPreflight = (phone, amount) => owner('preflight', { method: 'POST', body: { phone, amount } })
-export const ownerSend = (phone, amount, distributorAccount, idempotencyKey) => owner('send', {
+export const ownerPreflight = (phone, amount) => owner('630/preflight', { method: 'POST', body: { phone, amount } })
+export const ownerSend = (phone, amount, distributorAccount, idempotencyKey) => owner('630/send', {
   method: 'POST',
   body: { phone, amount, distributor_account: distributorAccount, idempotency_key: idempotencyKey }
 })
-export const ownerStatus = (idempotencyKey) => owner(encodeURIComponent(idempotencyKey), { method: 'GET' })
+export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
+// The money switch, kept in Flexy Core (owner only). Off = every send refuses.
+export const ownerSwitch = () => owner('settings', { method: 'GET' })
+export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
 
 export const capabilities = () => call('capabilities', { method: 'GET' })
 export const validate = (phone, amount, distributorAccount) => call('validate', {
