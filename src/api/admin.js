@@ -213,3 +213,13 @@ export const gameOperators = () => rpc('store_admin_game_operators')
 export const setPlayerTopup = (productId, enabled) => rpc('store_admin_set_player_topup', { p_product_id: productId, p_enabled: enabled })
 export const playerTopupProducts = () => rpc('store_admin_player_topup_products')
 export const setGameUrl = (url) => rpc('store_admin_set_game_url', { p_url: url || null })
+
+// Site links (v1.32): the shared official link, and extra sites allowed to call store-flexy
+export const DEFAULT_OFFICIAL_SITE = 'https://amordz72.github.io/card-store/'
+export async function siteLinks () {
+  const rows = await rpc('store_site_links')
+  const r = rows?.[0] || {}
+  return { officialUrl: r.official_url || '', extraOrigins: r.extra_origins || [] }
+}
+export const setOfficialUrl = (url) => rpc('store_admin_set_official_url', { p_url: url || null })
+export const setExtraOrigins = (origins) => rpc('store_admin_set_extra_origins', { p_origins: origins })

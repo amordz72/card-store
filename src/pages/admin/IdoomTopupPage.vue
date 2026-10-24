@@ -199,11 +199,14 @@ const siteUrl = window.location.origin + window.location.pathname
 // Published here by the Rech-Doom build (same key every version, so it installs over the old one)
 const apkUrl = new URL('apps/rech-doom.apk', siteUrl).href
 const apk = ref(null)
-// Shared links always point at the one official site, whichever host this page was opened from
-const OFFICIAL_SITE = 'https://amordz72.github.io/card-store/'
-const OFFICIAL_APK = OFFICIAL_SITE + 'apps/rech-doom.apk'
+// Shared links always point at the one official site, whichever host this page was opened from.
+// The owner setting «الرابط الرسمي» (v1.32) wins over the built-in link.
+const OFFICIAL_SITE = ref(api.DEFAULT_OFFICIAL_SITE)
+const OFFICIAL_APK = computed(() => OFFICIAL_SITE.value + 'apps/rech-doom.apk')
 const apkQr = ref('')
-QRCode.toDataURL(OFFICIAL_APK, { margin: 1, width: 264 }).then((url) => { apkQr.value = url }).catch(() => {})
+watch(OFFICIAL_APK, (link) => {
+  QRCode.toDataURL(link, { margin: 1, width: 264 }).then((url) => { apkQr.value = url }).catch(() => {})
+}, { immediate: true })
 
 // System share sheet (Bluetooth, messages…); falls back to copying where sharing is unavailable.
 async function share (text, title) {
@@ -289,6 +292,7 @@ async function setActive (p, active) {
 onMounted(async () => {
   const data = await run(() => api.shopCatalog())
   if (data) catalog.value = data
+  api.siteLinks().then((l) => { if (l.officialUrl) OFFICIAL_SITE.value = l.officialUrl }).catch(() => {})
   fetch(new URL('apps/rech-doom.json', siteUrl), { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null)).then((j) => { apk.value = j }).catch(() => {})
   load()
