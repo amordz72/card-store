@@ -4,6 +4,13 @@
       إرسال رصيد Mobilis حقيقي عبر أرسلي <b>630</b>، من حسابك أنت فقط. كل ضغطة «أرسل» = عملية واحدة، ولا إعادة محاولة تلقائية.
     </div>
 
+    <div class="card row items-center q-gutter-sm">
+      <q-toggle :model-value="switchOn" :disable="switchOn === null || switchBusy || forcedOff" color="negative"
+        :label="forcedOff ? 'الإرسال موقوف من الخادم (طوارئ)' : switchOn ? 'الإرسال الحقيقي مفتوح' : 'الإرسال الحقيقي مقفل'"
+        @update:model-value="flip" />
+      <q-spinner v-if="switchBusy" size="16px" />
+    </div>
+
     <div class="card grid-2">
       <q-input v-model="phone" dense outlined label="رقم موبيليس (06…)" inputmode="tel" autocomplete="off" :disable="locked" />
       <q-input v-model.number="amount" dense outlined type="number" label="المبلغ (دج)" :disable="locked" />
@@ -37,7 +44,10 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
+
+const $q = useQuasar()
 
 const LAST_KEY = 'flexy-owner-630-last'
 const POLL_MS = 3000
@@ -63,7 +73,8 @@ const ERRORS = {
   STATION_NOT_READY: 'المحطة غير جاهزة.',
   DISTRIBUTOR_ACCOUNT_CHANGED: 'تغيّر حساب الموزع منذ التحقق. اضغط «تحقق» مرة أخرى.',
   IDEMPOTENCY_CONFLICT: 'نفس العملية بطلب مختلف. ابدأ عملية جديدة.',
-  STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى Station Connect. لم يُرسل شيء.'
+  STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى Station Connect. لم يُرسل شيء.',
+  SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.'
 }
 
 const phone = ref('')
@@ -75,6 +86,27 @@ const key = ref('')
 const error = ref('')
 const following = ref(false)
 let timer = null
+
+// Money switch: read from Flexy Core, flipped here, applies to the next «أرسل».
+const switchOn = ref(null)
+const forcedOff = ref(false)
+const switchBusy = ref(false)
+function showSwitch (res) {
+  if (res.status === 200) { switchOn.value = res.body.send_enabled; forcedOff.value = res.body.forced_off }
+  else show(res)
+}
+async function loadSwitch () {
+  switchBusy.value = true
+  try { showSwitch(await flexy.ownerSwitch()) } finally { switchBusy.value = false }
+}
+function flip (on) {
+  const apply = async () => {
+    switchBusy.value = true
+    try { showSwitch(await flexy.setOwnerSwitch(on)) } finally { switchBusy.value = false }
+  }
+  if (!on) return apply()
+  $q.dialog({ title: 'فتح الإرسال الحقيقي', message: 'كل «أرسل» بعدها يُخرج رصيدًا حقيقيًا من الشريحة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
+}
 
 const locked = computed(() => !!op.value || busy.value === 'send')
 
@@ -133,6 +165,7 @@ function reset () {
 }
 
 onMounted(() => {
+  loadSwitch()
   // Back after a reload: keep following the last operation instead of losing it.
   let last = ''
   try { last = localStorage.getItem(LAST_KEY) || '' } catch { last = '' }
