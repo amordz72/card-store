@@ -25,7 +25,8 @@
           <q-btn flat rounded no-caps label="إلغاء" :disable="busy === 'send'" @click="reset" />
         </div>
       </template>
-      <div v-else class="text-negative">المحطة غير جاهزة: <bdi dir="ltr">{{ pre.reason || '—' }}</bdi>. لم يُرسل شيء.</div>
+      <div v-else-if="refreshing" class="small"><q-spinner size="14px" /> الرصيد قديم: يُحدَّث آليًا (632، استعلام فقط بلا مال)، ثم يُعاد التحقق وحده…</div>
+      <div v-else class="text-negative">المحطة غير جاهزة: <bdi dir="ltr">{{ pre.refresh?.reason || pre.reason || '—' }}</bdi>. لم يُرسل شيء.</div>
     </div>
 
     <div v-if="op" class="card">
@@ -119,15 +120,25 @@ function show (res) {
   error.value = res.body?.ok === false && res.body?.error ? (ERRORS[res.body.error] || res.body.error) : ''
 }
 
+// A stale balance is refreshed by the server on each check (one 632 at most, reused while
+// it runs). The page just checks again until ready or blocked, for up to 3 minutes.
+const REFRESH_MS = 5000
+const REFRESH_MAX = 36
+const refreshing = ref(false)
 async function check () {
   error.value = ''
   pre.value = null
   busy.value = 'pre'
   try {
-    const res = await flexy.ownerPreflight(phone.value, Number(amount.value))
-    if (res.status === 200) pre.value = res.body
-    else show(res)
-  } finally { busy.value = '' }
+    for (let i = 0; i < REFRESH_MAX; i++) {
+      const res = await flexy.ownerPreflight(phone.value, Number(amount.value))
+      if (res.status !== 200) { show(res); break }
+      pre.value = res.body
+      refreshing.value = !res.body.ready && res.body.refresh?.state === 'waiting'
+      if (!refreshing.value) break
+      await new Promise((resolve) => { timer = setTimeout(resolve, REFRESH_MS) })
+    }
+  } finally { busy.value = ''; refreshing.value = false }
 }
 
 async function send () {
