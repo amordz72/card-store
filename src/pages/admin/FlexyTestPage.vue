@@ -19,12 +19,32 @@
       </div>
       <pre dir="ltr" class="small q-mt-sm" style="white-space:pre-wrap;word-break:break-all">{{ pretty }}</pre>
     </div>
+    <!-- Owner settings (v1.32): site links instead of constants in the code -->
+    <q-expansion-item class="card q-pa-none" icon="settings" label="روابط الموقع" @show="loadLinks">
+      <div class="column q-gutter-sm q-pa-md">
+        <div class="text-weight-bold">الرابط الرسمي</div>
+        <div class="small muted">يُرسل لهاتف آخر من صفحة إيدوم (رابط الموقع ورابط تطبيق Rech-Doom). فارغ = <bdi dir="ltr">{{ defaultSite }}</bdi></div>
+        <q-input v-model="officialUrl" dense outlined label="https://…/" input-class="ltr text-left" />
+        <q-btn unelevated color="primary" label="حفظ الرابط الرسمي" :loading="saving" @click="saveOfficial" />
+        <q-separator />
+        <div class="text-weight-bold">مواقع إضافية مسموحة</div>
+        <div class="small muted">
+          نسخ أخرى من المتجر يُسمح لها باختبار Flexy، مثل نسخة Cloudflare. <bdi dir="ltr">amordz72.github.io</bdi> مسموح دائمًا.
+          سطر لكل موقع، مثل <bdi dir="ltr">https://card-store-eej.pages.dev</bdi>. الحد 3. يسري التغيير خلال دقيقة.
+        </div>
+        <q-input v-model="originsText" type="textarea" autogrow dense outlined input-class="ltr text-left" />
+        <div class="small text-negative">⚠ احذف الموقع من هنا قبل حذف موقعه: الاسم المحذوف قد يأخذه غيرك.</div>
+        <q-btn unelevated color="primary" label="حفظ المواقع" :loading="saving" @click="saveOrigins" />
+      </div>
+    </q-expansion-item>
   </q-page>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
 import * as flexy from 'src/api/flexy'
+import * as admin from 'src/api/admin'
+import { useRun } from 'src/composables/useRun'
 
 const accounts = [
   { value: '01', label: '01 POSTE' }, { value: '02', label: '02 ASSILOU' }, { value: '03', label: '03 DATA' },
@@ -53,4 +73,23 @@ async function go (kind, fn) {
 }
 const runCapabilities = () => go('cap', () => flexy.capabilities())
 const runValidate = () => go('val', () => flexy.validate(phone.value, Number(amount.value), account.value))
+
+// Site links
+const { busy: saving, run } = useRun()
+const defaultSite = admin.DEFAULT_OFFICIAL_SITE
+const officialUrl = ref('')
+const originsText = ref('')
+async function loadLinks () {
+  const l = await run(() => admin.siteLinks())
+  if (!l) return
+  officialUrl.value = l.officialUrl
+  originsText.value = l.extraOrigins.join('\n')
+}
+async function saveOfficial () {
+  if (await run(() => admin.setOfficialUrl(officialUrl.value.trim()).then(() => true), { success: 'حُفظ الرابط الرسمي.' })) loadLinks()
+}
+async function saveOrigins () {
+  const list = originsText.value.split(/\s+/).filter(Boolean)
+  if (await run(() => admin.setExtraOrigins(list).then(() => true), { success: 'حُفظت المواقع.' })) loadLinks()
+}
 </script>

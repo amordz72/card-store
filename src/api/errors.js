@@ -49,6 +49,8 @@ const MESSAGES = {
   REPORT_NOT_FOUND: 'البلاغ غير موجود.',
   ALREADY_RESOLVED: 'هذا البلاغ عولج من قبل.',
   INVALID_LINK: 'الرابط غير صحيح: رابط خارجي يبدأ بـ https://، أو صفحة من القائمة.',
+  INVALID_ORIGIN: 'الموقع غير صحيح: اكتب https:// واسم الموقع فقط، بلا مسار وبلا *.',
+  TOO_MANY_ORIGINS: 'الحد 3 مواقع إضافية.',
   INVALID_DATES: 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية.',
   BANNER_NOT_FOUND: 'الإعلان غير موجود.',
   TOO_MANY_BANNERS: 'الحد 20 إعلانًا. احذف إعلانًا قديمًا أولًا.',

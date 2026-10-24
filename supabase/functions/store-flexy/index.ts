@@ -13,11 +13,38 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const FLEXY_KEY = Deno.env.get("FLEXY_CARD_STORE_KEY") ?? "";
 const FLEXY_API = `${SUPABASE_URL}/functions/v1/flexy-api/v1`;
 
-const ALLOWED_ORIGINS = new Set(["https://amordz72.github.io", "http://localhost:9000"]);
+// Built in, so a wrong setting can never lock out the official site. Other sites (e.g. a Cloudflare copy)
+// are the owner setting «مواقع إضافية مسموحة» (store.settings.extra_origins, v1.32), read at most once a
+// minute. Remove a site there BEFORE deleting it: a deleted name may be taken by someone else.
+const BUILT_IN_ORIGINS = ["https://amordz72.github.io", "http://localhost:9000"];
+const ORIGINS_TTL_MS = 60_000;
+let extraOrigins: string[] = [];
+let extraOriginsAt = 0;
 
-function cors(req: Request): Record<string, string> {
+async function allowedOrigins(): Promise<Set<string>> {
+  if (Date.now() - extraOriginsAt > ORIGINS_TTL_MS) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/store_site_links`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
+        body: "{}",
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        extraOrigins = Array.isArray(rows?.[0]?.extra_origins) ? rows[0].extra_origins : [];
+        extraOriginsAt = Date.now();
+      }
+    } catch (err) {
+      // Keep the last known list; the built-in sites always work.
+      console.error("store-flexy origins", err instanceof Error ? err.message : err);
+    }
+  }
+  return new Set([...BUILT_IN_ORIGINS, ...extraOrigins]);
+}
+
+async function cors(req: Request): Promise<Record<string, string>> {
   const origin = req.headers.get("origin") ?? "";
-  if (!ALLOWED_ORIGINS.has(origin)) return {};
+  if (!(await allowedOrigins()).has(origin)) return {};
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-headers": "authorization, apikey, content-type, x-client-info",
@@ -26,10 +53,10 @@ function cors(req: Request): Record<string, string> {
   };
 }
 
-const json = (req: Request, status: number, body: unknown) =>
+const json = async (req: Request, status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", ...cors(req) },
+    headers: { "content-type": "application/json; charset=utf-8", ...(await cors(req)) },
   });
 
 async function isStoreAdmin(authorization: string): Promise<boolean> {
@@ -43,7 +70,7 @@ async function isStoreAdmin(authorization: string): Promise<boolean> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req) });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: await cors(req) });
 
   try {
     if (!(await isStoreAdmin(req.headers.get("authorization") ?? ""))) return json(req, 403, { ok: false, error: "NOT_ADMIN" });
