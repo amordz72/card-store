@@ -144,6 +144,7 @@ const MENU = [
     ]
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()

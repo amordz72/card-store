@@ -19,6 +19,7 @@ const routes = [
       { path: 'customers/:id', component: () => import('pages/admin/CustomerDetailPage.vue'), props: true, meta: { admin: true, title: 'الزبون' } },
       { path: 'stock', component: () => import('pages/admin/StockPage.vue'), meta: { admin: true, title: 'المخزن' } },
       { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار ونسب الزبائن' } },
+      { path: 'flexy', component: () => import('pages/admin/FlexyTestPage.vue'), meta: { admin: true, title: 'اختبار Flexy' } },
       // the owner's page or the customer's page (customers the owner enabled)
       { path: 'idoom', component: () => import('pages/IdoomSwitch.vue'), meta: { title: 'تعبئة إيدوم' } },
       // the queue for the owner and his workers, the order page for customers
