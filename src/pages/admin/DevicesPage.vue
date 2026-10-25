@@ -72,6 +72,12 @@
             <span v-if="m.sim" class="small muted">· {{ m.sim.sim_type_name }}</span>
           </span>
           <span class="small muted"><bdi class="ltr">{{ m.ip || '—' }}</bdi><span v-if="m.usb != null"> · USB {{ m.usb }}</span></span>
+          <!-- What stops a send right now: the executable balance and whether the number is known -->
+          <span v-if="m.sim" class="small">
+            <span :class="balanceClass(m.sim)">{{ balanceText(m.sim) }}</span>
+            <span class="muted"> · </span>
+            <span :class="m.sim.msisdn_source ? '' : 'text-deep-orange'">{{ numberText(m.sim) }}</span>
+          </span>
           <span v-if="m.reasons.length" class="small" :class="m.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ m.reasons[0].text }}<bdi v-if="m.reasons.length > 1" class="ltr q-ml-xs"> (+{{ m.reasons.length - 1 }})</bdi></span>
         </span>
         <q-badge :color="LEVEL[m.level].color" :label="LEVEL[m.level].label" />
@@ -118,7 +124,8 @@
             <span class="muted">النوع</span><span>{{ picked.m.sim.sim_type_name }} · {{ picked.m.sim.approved ? 'معتمدة' : 'غير معتمدة' }}</span>
             <span class="muted">PIN</span><span>{{ picked.m.sim.pin_present ? 'محفوظ' : 'غير محفوظ' }}</span>
             <span class="muted">ICCID</span><bdi class="ltr">…{{ picked.m.sim.iccid_tail || '—' }}</bdi>
-            <span class="muted">الرقم</span><bdi class="ltr">…{{ picked.m.sim.msisdn_tail || '—' }}</bdi>
+            <span class="muted">الرقم</span><span><bdi class="ltr">…{{ picked.m.sim.msisdn_tail || '—' }}</bdi> · {{ numberText(picked.m.sim) }}</span>
+            <span class="muted">الرصيد</span><span :class="balanceClass(picked.m.sim)">{{ balanceText(picked.m.sim) }}<span v-if="picked.m.sim.balance_checked_at" class="muted"> · قُرئ {{ clock(picked.m.sim.balance_checked_at) }}</span></span>
           </template>
           <template v-else>
             <span class="muted">الشريحة</span><span>لا شريحة</span>
@@ -138,6 +145,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Dialog } from 'quasar'
 import * as flexy from 'src/api/flexy'
+import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 
 // Read only: Flexy Core answers from what the stations already report. No USSD, no money.
@@ -177,6 +185,21 @@ function toggle (st) {
 const isConnected = (m) => !!m.sim && m.level !== 'down'
 const shownModems = (st) => live(st).filter((m) =>
   simFilter.value === 'all' || (simFilter.value === 'connected' ? isConnected(m) : !isConnected(m)))
+// Balance: one total the SIM can execute now, with how old the reading is. Old = past the
+// core's refresh window (6 h), when a send would first ask for a fresh 632.
+const BALANCE_FRESH_MS = 6 * 3600 * 1000
+function balanceText (sim) {
+  if (sim.balance == null) return 'الرصيد غير مقروء'
+  const age = sim.balance_checked_at ? Date.now() - Date.parse(sim.balance_checked_at) : null
+  const when = age == null ? '' : age < 3600 * 1000 ? ` · قبل ${Math.max(1, Math.round(age / 60000))} دقيقة` : age < 48 * 3600 * 1000 ? ` · قبل ${Math.round(age / 3600000)} ساعة` : ` · قبل ${Math.round(age / 86400000)} يوم`
+  return money(sim.balance) + when
+}
+function balanceClass (sim) {
+  if (sim.balance == null) return 'text-deep-orange'
+  const age = sim.balance_checked_at ? Date.now() - Date.parse(sim.balance_checked_at) : Infinity
+  return age > BALANCE_FRESH_MS ? 'text-deep-orange' : sim.balance <= 0 ? 'text-negative' : ''
+}
+const numberText = (sim) => sim.msisdn_source === 'ussd' ? 'الرقم من الشبكة' : sim.msisdn_source === 'manual' ? 'الرقم مكتوب يدويًا' : 'الرقم غير معروف'
 function simSummary (st) {
   const ms = live(st)
   const connected = ms.filter(isConnected).length
