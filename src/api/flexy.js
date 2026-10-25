@@ -30,17 +30,19 @@ async function owner (path, init) {
   return { status: 0, body: { ok: false, error: error.message || 'NETWORK' } }
 }
 
-export const ownerPreflight = (phone, amount) => owner('630/preflight', { method: 'POST', body: { phone, amount } })
-// simUuid: the SIM Flexy Core chose at «تحقق»; the send is refused if its choice changed since.
-export const ownerSend = (phone, amount, distributorAccount, idempotencyKey, simUuid) => owner('630/send', {
-  method: 'POST',
-  body: { phone, amount, distributor_account: distributorAccount, idempotency_key: idempotencyKey, ...(simUuid ? { sim_uuid: simUuid } : {}) }
+// One press, no «تحقق» (owner 2026-10-25): Flexy Core chooses the SIM and account at send time.
+// 409 STATION_NOT_READY with refresh.state 'waiting' = nothing created, a 632 is on its way.
+export const ownerSend = (phone, amount, idempotencyKey) => owner('630/send', {
+  method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
 })
 export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Offers from the owner's page: the same flow as the shops', under the owner's switch, no wallet.
 export const ownerOffers = (phone) => owner('offers/lookup', { method: 'POST', body: { phone } })
 export const ownerOfferSend = (phone, offer, idempotencyKey) => owner('665/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey } })
 export const ownerOfferStatus = (idempotencyKey) => owner('665/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
+// «آخر العمليات» of the owner's page: newest 630s and offers, older than `before` (created_at).
+export const ownerOperations = (limit, before) =>
+  owner('operations?limit=' + limit + (before ? '&before=' + encodeURIComponent(before) : ''), { method: 'GET' })
 // The money switch, kept in Flexy Core (owner only). Off = every send refuses.
 export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
