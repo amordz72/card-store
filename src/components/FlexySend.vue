@@ -32,7 +32,7 @@
     <div v-else-if="!offers" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
     <div v-else-if="phoneFull && !phoneOk" class="card text-center muted q-pa-lg">قريبًا: عروض هذا المتعامل غير متوفرة بعد.</div>
     <FlexyOffers v-else :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="maxAmount"
-      :lookup="lookup" :send="sendOffer" @sent="sentOffer" />
+      :lookup="lookup" :send="sendOffer" :repeat-of="repeatOf" @sent="sentOffer" />
 
     <div>
       <div class="row items-center justify-between">
@@ -64,10 +64,17 @@
 // One Flexy send screen for the shop's «فليكسي» and the owner's «إرسال فليكسي» (owner rule: admin and
 // customer share the same pages; developer/guidelines/role-aware-labels-and-context.md). Each page passes
 // its own way to the server; nothing here knows about wallets, keys or switches:
-//   send(phone, amount, { wait }) sends one 630 credit and resolves truthy once it is accepted for sending
-//     (it may call wait(text) while the server gets ready); it throws an Error with an Arabic message.
-//   lookup(phone) / sendOffer(phone, label): as FlexyOffers.
-//   rows: [{ id, title, phone, badge: { label, color }, at, reply }], newest first.
+//   send(phone, amount, { wait, key }) sends one 630 credit under `key` and resolves truthy once it is
+//     accepted for sending (it may call wait(text) while the server gets ready); it throws an Error with an
+//     Arabic message, marked `lost` when no answer came (the request may have been taken).
+//   lookup(phone) / sendOffer(phone, label, key): as FlexyOffers.
+//   rows: [{ id, title, phone, kind: '630' | 'offer', amount, offer, badge: { label, color }, at, reply }], newest first.
+//
+// Two guards before money leaves (owner 2026-10-25):
+//   * one key per press, kept while its answer is lost: pressing again re-asks the same request, never a
+//     second send. A definite answer (sent or refused) frees it.
+//   * the last operation of this shop (or of the owner) to the same number with the same amount or offer
+//     asks «أرسل مرة ثانية؟» first. Nothing is blocked.
 import { computed, ref } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
@@ -120,20 +127,49 @@ function typed (v) {
   phone.value = /^[\d\s]*$/.test(s) ? s.replace(/\D/g, '').slice(0, 10).replace(/(\d{2})(?=\d)/g, '$1 ') : s
 }
 
+// The key of a press whose answer was lost, per request: the same request pressed again reuses it
+const lost = new Map()
+async function keyed (id, fn) {
+  const key = lost.get(id) || crypto.randomUUID()
+  try {
+    const r = await fn(key)
+    lost.delete(id)
+    return r
+  } catch (e) {
+    if (e?.lost) lost.set(id, key)
+    else lost.delete(id)
+    throw e
+  }
+}
+
+// The last operation, when it went to the same number with the same amount (630) or the same offer
+function repeatOf (p, { amount = null, offer = null }) {
+  const last = props.rows[0]
+  if (!last || last.phone !== p) return null
+  const same = offer ? last.kind === 'offer' && last.offer === offer : last.kind !== 'offer' && Number(last.amount) === Number(amount)
+  return same ? last : null
+}
+const repeatLine = (last) => last
+  ? `<div style="margin-top:8px;padding:8px;border-radius:8px;background:#FFF3E0;color:#BF360C;text-align:center">
+      آخر عملية كانت لنفس الرقم ونفس ${last.kind === 'offer' ? 'العرض' : 'المبلغ'} (${last.badge.label}، ${when(last.at)}).<br><b>أرسل مرة ثانية؟</b></div>`
+  : ''
+
 function pressSend () {
   if (!phoneOk.value) return Notify.create({ message: 'قريبًا: الإرسال إلى هذا المتعامل غير متوفر بعد.', timeout: 2500 })
+  if (busy.value) return
   const v = value.value
   const p = digits.value
+  const last = repeatOf(p, { amount: v })
   Dialog.create({
-    title: 'تأكيد الإرسال',
+    title: last ? 'نفس آخر عملية' : 'تأكيد الإرسال',
     html: true,
     message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
       <div style="text-align:center">يصل للزبون: <b>${money(v)}</b></div>
-      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>`,
+      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${repeatLine(last)}`,
     cancel: 'رجوع',
-    ok: 'نعم، أرسل'
+    ok: last ? 'نعم، أرسل مرة ثانية' : 'نعم، أرسل'
   }).onOk(async () => {
-    const r = await run(() => props.send(p, v, { wait: (text) => { waiting.value = text } }))
+    const r = await run(() => keyed('630:' + p + ':' + v, (key) => props.send(p, v, { wait: (text) => { waiting.value = text }, key })))
     waiting.value = ''
     if (!r) return
     phone.value = ''
@@ -141,7 +177,7 @@ function pressSend () {
   })
 }
 
-const sendOffer = (p, label) => props.sendOffer(p, label)
+const sendOffer = (p, label) => keyed('offer:' + p + ':' + label, (key) => props.sendOffer(p, label, key))
 function sentOffer (e) {
   phone.value = ''
   emit('sent', e)
