@@ -40,6 +40,8 @@ export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent
 // The money switch, kept in Flexy Core (owner only). Off = every send refuses.
 export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
+// The shops' switch in Flexy Core (apps.630.send_enabled), read with ownerSwitch().
+export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: { apps_send_enabled: on } })
 
 export const capabilities = () => call('capabilities', { method: 'GET' })
 export const validate = (phone, amount, distributorAccount) => call('validate', {

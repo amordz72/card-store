@@ -19,8 +19,11 @@
 
     <div class="card column q-gutter-sm">
       <div class="section-title">لكل المحلات</div>
-      <q-toggle :model-value="settings.open" color="primary" :disable="busy"
-        :label="settings.open ? 'فليكسي المحلات مفتوح' : 'فليكسي المحلات مقفل'" @update:model-value="setOpen" />
+      <q-toggle :model-value="isOpen" color="primary" :disable="busy || core.apps === null || core.forcedOff"
+        :label="isOpen ? 'فليكسي المحلات مفتوح' : 'فليكسي المحلات مقفل'" @update:model-value="setOpen" />
+      <div v-if="core.forcedOff" class="small text-negative">الإرسال موقوف من الخادم (طوارئ).</div>
+      <div v-else-if="core.apps === null" class="small text-negative">تعذّرت قراءة مفتاح Flexy Core.</div>
+      <div v-else-if="settings.open !== core.apps" class="small text-deep-orange">نصف مفتوح: المتجر {{ settings.open ? 'مفتوح' : 'مقفل' }} وFlexy Core {{ core.apps ? 'مفتوح' : 'مقفل' }}. أعد الضغط لتوحيدهما.</div>
       <div class="small muted">إقفاله يوقف إرسال كل المحلات فورًا. إرسالك أنت من «إرسال فليكسي» له مفتاحه الخاص.</div>
       <div class="grid-3">
         <q-input v-model.number="defaults.rate630" dense outlined type="number" step="0.25" label="نسبة العادي %" />
@@ -91,6 +94,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Dialog } from 'quasar'
 import * as api from 'src/api/admin'
+import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import { useRun } from 'src/composables/useRun'
 import { useBell } from 'src/composables/useBell'
@@ -111,6 +115,14 @@ const STATUS = {
 const when = (t) => new Date(t).toLocaleString('ar-DZ')
 
 const settings = reactive({ open: false })
+// Shops send only when both are on: the store's switch and Flexy Core's apps switch.
+const core = reactive({ apps: null, forcedOff: false })
+const isOpen = computed(() => settings.open && core.apps === true && !core.forcedOff)
+function showCore (res) {
+  if (res.status !== 200) throw new Error('تعذّر الوصول إلى مفتاح Flexy Core (' + (res.body?.error || 'FLEXY_CORE') + ').')
+  core.apps = res.body.apps_send_enabled === true
+  core.forcedOff = res.body.forced_off === true
+}
 const defaults = reactive({ rate630: null, rateOffer: null, max: null })
 const shops = ref([])
 const jobs = ref([])
@@ -121,7 +133,8 @@ const shown = computed(() => shops.value.filter((c) => (!roleFilter.value || c.r
   (!search.value || c.name.includes(search.value))))
 
 async function load () {
-  const [s, c, j, r] = await Promise.all([api.flexySettings(), api.flexyCustomers(), api.flexyJobs(null, 20), api.flexyJobs('review', 50)])
+  const [s, c, j, r, k] = await Promise.all([api.flexySettings(), api.flexyCustomers(), api.flexyJobs(null, 20), api.flexyJobs('review', 50), flexy.ownerSwitch()])
+  try { showCore(k) } catch { core.apps = null }
   if (s) {
     settings.open = s.open
     defaults.rate630 = Number(s.default_rate_630)
@@ -133,8 +146,20 @@ async function load () {
   reviews.value = r
 }
 
+// One toggle for both switches. Opening: Flexy Core first, then the store; closing: the store first.
 async function setOpen (on) {
-  if (await run(() => api.setFlexySettings(on, null, null, null).then(() => true))) settings.open = on
+  const apply = async () => {
+    const ok = await run(async () => {
+      if (on) showCore(await flexy.setAppsSwitch(true))
+      await api.setFlexySettings(on, null, null, null)
+      settings.open = on
+      if (!on) showCore(await flexy.setAppsSwitch(false))
+      return true
+    })
+    if (!ok) load()
+  }
+  if (!on) return apply()
+  Dialog.create({ title: 'فتح فليكسي المحلات', message: 'كل «أرسل» من محل مفعّل يُخرج رصيدًا حقيقيًا من الشريحة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
 }
 async function saveDefaults () {
   if (await run(() => api.setFlexySettings(null, defaults.rate630, defaults.rateOffer, defaults.max).then(() => true), { success: 'حُفظت الافتراضية.' })) load()
