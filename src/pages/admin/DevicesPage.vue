@@ -150,10 +150,12 @@
               :label="picked.m.sim.pin_present ? 'PIN جديد (اتركه فارغًا لإبقاء المحفوظ)' : 'PIN'" :error="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" error-message="4 إلى 8 أرقام" />
             <div v-if="form.error" class="small text-negative">{{ form.error }}</div>
             <div v-if="form.saved" class="small text-positive">حُفظ</div>
+            <div v-if="reading.text" class="small" :class="reading.ok ? 'text-positive' : 'text-negative'">{{ reading.text }}</div>
           </q-card-section>
         </template>
         <q-card-section class="small muted q-pt-none">الشبكة والإشارة وحالة الشريحة تظهر بعد تحديث الـAgent.</q-card-section>
         <q-card-actions align="right">
+          <q-btn v-if="picked.m.sim?.approved" outline no-caps color="primary" label="اقرأ الرصيد" :loading="reading.busy" @click="readBalance" />
           <q-btn v-if="picked.m.sim" unelevated no-caps color="primary" label="حفظ" :loading="form.busy" :disable="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" @click="saveSettings" />
           <q-btn flat no-caps label="إغلاق" v-close-popup />
         </q-card-actions>
@@ -337,7 +339,8 @@ const ALERTS = {
   NUMBER_NOT_FOUND: 'لم يُكتشف الرقم بعد 3 محاولات',
   PIN_REJECTED: 'الشبكة رفضت الـPIN: أدخل PIN جديدًا',
   TYPE_NOT_CONFIRMED: 'رد الشبكة لا يطابق النوع: حدّد النوع بنفسك',
-  BALANCE_NOT_CONFIRMED: 'لم يُؤكَّد أول رصيد'
+  BALANCE_NOT_CONFIRMED: 'لم يُؤكَّد أول رصيد',
+  BALANCE_READ_FAILED: 'تعذّرت قراءة الرصيد: افحص الموديم ثم اضغط «اقرأ الرصيد»'
 }
 const onboardingOf = (sim) => (tree.value?.onboarding || []).find((o) => o.sim_uuid === sim.sim_uuid) || null
 const noteOf = (sim) => onboardingOf(sim)?.note || ''
@@ -347,6 +350,7 @@ function onboardingText (sim) {
   if (o.stage === 'number') return `يُكتشف الرقم (محاولة ${o.number_tries || 1} من 3)`
   if (o.stage === 'pin_wait') return 'ينتظر PIN منك قبل سؤال الرصيد'
   if (o.stage === 'balance') return 'يُسأل أول رصيد'
+  if (o.stage === 'read') return 'يُقرأ الرصيد'
   if (o.stage === 'approved') return 'اعتُمدت آليًا بعد أول رصيد'
   if (o.stage === 'balance_only') return 'الرصيد ' + (o.probe_amount != null ? money(o.probe_amount) : 'مقروء') + ' (بلا اعتماد)'
   if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code)
@@ -360,9 +364,11 @@ const onboardingClass = (sim) => {
 const details = ref(false)
 const picked = ref(null)
 const form = ref({ label: '', note: '', pin: '', busy: false, error: '', saved: false })
+const reading = ref({ busy: false, ok: false, text: '' })
 function open (st, m) {
   picked.value = { st, m }
   form.value = { label: m.sim?.label || '', note: m.sim ? noteOf(m.sim) : '', pin: '', busy: false, error: '', saved: false }
+  reading.value = { busy: false, ok: false, text: '' }
   details.value = true
 }
 async function saveSettings () {
@@ -383,6 +389,29 @@ async function saveSettings () {
     form.value.error = 'لم يُحفظ (' + (e.message || 'FLEXY_CORE') + ')'
   } finally {
     form.value.busy = false
+  }
+}
+
+// One balance code for an approved SIM, at once if it is connected and its modem free.
+const READ_ERRORS = {
+  SIM_NOT_APPROVED: 'الشريحة غير معتمدة',
+  PROBE_RUNNING: 'كود آخر يعمل على الموديم الآن',
+  SIM_NOT_FOUND: 'الشريحة غير موجودة'
+}
+async function readBalance () {
+  const sim = picked.value?.m.sim
+  if (!sim || reading.value.busy) return
+  reading.value = { busy: true, ok: false, text: '' }
+  try {
+    const res = await flexy.readSimBalance(sim.sim_uuid)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+    reading.value.ok = true
+    reading.value.text = res.body.sent ? 'أُرسل كود الرصيد، والرد يظهر هنا خلال دقيقة' : 'سيُرسل كود الرصيد عند اتصال الشريحة'
+    await load()
+  } catch (e) {
+    reading.value.text = 'لم يُرسل: ' + (READ_ERRORS[e.message] || e.message || 'FLEXY_CORE')
+  } finally {
+    reading.value.busy = false
   }
 }
 
