@@ -35,7 +35,10 @@
             <q-btn v-if="active(st).status === 'pending'" flat dense no-caps size="sm" color="negative" label="إلغاء" :loading="busy" @click="cancel(active(st))" />
           </template>
           <template v-else-if="!st.absent_minutes">
-            <q-btn v-if="latest && latest.agent_version !== st.agent_version" outline dense no-caps size="sm" color="primary" :label="'حدّث إلى ' + latest.agent_version" :loading="busy" @click="askRelease(st)" />
+            <!-- The release is main on GitHub itself: the computer's updater reports what main holds -->
+            <q-btn v-if="newInMain(st)" outline dense no-caps size="sm" color="primary" :label="'حدّث إلى ' + newInMain(st).main_version" :loading="busy" @click="askRelease(st)" />
+            <span v-else-if="mainOf(st)?.main_error" class="small text-deep-orange">لا يمكن التحديث: {{ MAIN_ERRORS[mainOf(st).main_error] || mainOf(st).main_error }}</span>
+            <span v-else-if="mainOf(st)" class="small muted">على آخر main</span>
             <q-btn v-if="st.gateway === 'old'" outline dense no-caps size="sm" color="primary" label="انقل إلى بوابة النواة" :loading="busy" @click="askGateway(st, 'flexy-gateway')" />
             <q-btn v-if="st.gateway === 'core'" flat dense no-caps size="sm" color="grey-8" label="أرجع إلى البوابة القديمة" :loading="busy" @click="askGateway(st, 'station-gateway')" />
           </template>
@@ -155,11 +158,24 @@ const UPDATE_STATUS = {
 const GATEWAYS = { 'flexy-gateway': 'بوابة النواة', 'station-gateway': 'البوابة القديمة' }
 const FUNCTIONS = 'https://wqyebqzbbpohbnznqdjj.supabase.co/functions/v1/'
 const updates = ref(null)
-const latest = computed(() => updates.value?.releases?.[0] || null)
+// What each computer's updater last reported: the version and commit it runs, and main's
+const mainOf = (st) => (updates.value?.main || []).find((m) => m.station_uuid === st.station_uuid) || null
+// A newer version on main, or the same version at another commit (a fix merged without a bump)
+const newInMain = (st) => {
+  const m = mainOf(st)
+  if (!m || !m.main_version || m.main_error) return null
+  return m.main_version !== m.agent_version || (m.main_commit && m.agent_commit && m.main_commit !== m.agent_commit) ? m : null
+}
+const MAIN_ERRORS = {
+  GIT_LOCAL_CHANGES: 'ملفات معدّلة يدويًا على الكمبيوتر',
+  GIT_NOT_ON_MAIN: 'الكمبيوتر ليس على فرع main',
+  GIT_NOT_AGENT_REPOSITORY: 'المجلد ليس نسخة من المستودع',
+  GIT_REMOTE_VERSION_UNREADABLE: 'تعذّرت قراءة الإصدار من main'
+}
 const last = (st) => (updates.value?.stations || []).find((x) => x.station_uuid === st.station_uuid) || null
 const active = (st) => { const u = last(st); return u && (u.status === 'pending' || u.status === 'claimed') ? u : null }
 function updateLabel (u) {
-  if (u.kind === 'release') return 'إصدار ' + String(u.release).split('+')[0]
+  if (u.kind === 'release') return 'إصدار ' + u.release
   const url = u.config?.SERVER_URL || ''
   return 'نقل إلى ' + (GATEWAYS[url.slice(FUNCTIONS.length)] || 'عنوان آخر')
 }
@@ -181,9 +197,9 @@ async function send (fn) {
 }
 const confirm = (title, message, fn) => Dialog.create({ title, message, cancel: 'لا', ok: 'نعم' }).onOk(() => send(fn))
 function askRelease (st) {
-  const r = latest.value
-  confirm('تحديث ' + (st.code || 'الكمبيوتر'), `يُثبَّت الإصدار ${r.agent_version} حين لا يكون على الكمبيوتر أي USSD. إن لم يتصل الـAgent الجديد خلال 3 دقائق يرجع وحده إلى السابق.`,
-    () => flexy.requestUpdate(st.station_uuid, 'release', r.release))
+  const m = newInMain(st)
+  confirm('تحديث ' + (st.code || 'الكمبيوتر'), `يسحب الكمبيوتر main من GitHub (الإصدار ${m.main_version}) حين لا يكون عليه أي USSD. إن لم يتصل الـAgent الجديد خلال 3 دقائق يرجع وحده إلى السابق.`,
+    () => flexy.requestUpdate(st.station_uuid, 'release', m.main_version))
 }
 function askGateway (st, gateway) {
   confirm('نقل ' + (st.code || 'الكمبيوتر'), `يكلّم الـAgent ${GATEWAYS[gateway]} بعد إعادة تشغيله. إن لم يتصل خلال 3 دقائق يرجع وحده إلى العنوان السابق.`,

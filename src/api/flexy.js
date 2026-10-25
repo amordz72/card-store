@@ -48,8 +48,9 @@ export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: 
 export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: { apps_send_enabled: on } })
 // Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).
 export const ownerDevices = () => owner('devices', { method: 'GET' })
-// Agent updates: releases and each computer's last request; ask one computer for a release or
-// a gateway move (its updater applies it and rolls back by itself); withdraw one not yet taken.
+// Agent updates: what each computer runs and what main on GitHub holds, and its last request;
+// ask one computer to pull main (its version as shown) or move gateway (its updater applies it
+// and rolls back by itself); withdraw a request not yet taken.
 export const ownerUpdates = () => owner('updates', { method: 'GET' })
 export const requestUpdate = (stationUuid, kind, value) => owner('updates', {
   method: 'POST',
