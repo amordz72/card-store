@@ -21,10 +21,13 @@ const routes = [
       { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار ونسب الزبائن' } },
       { path: 'flexy', component: () => import('pages/admin/FlexyTestPage.vue'), meta: { admin: true, title: 'اختبار Flexy' } },
       { path: 'flexy/send', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, title: 'إرسال فليكسي' } },
+      { path: 'flexy/shops', component: () => import('pages/admin/FlexyShopsPage.vue'), meta: { admin: true, title: 'فليكسي المحلات' } },
       // the owner's page or the customer's page (customers the owner enabled)
       { path: 'idoom', component: () => import('pages/IdoomSwitch.vue'), meta: { title: 'تعبئة إيدوم' } },
       // the queue for the owner and his workers, the order page for customers
-      { path: 'game', component: () => import('pages/GameSwitch.vue'), meta: { title: 'شحن الألعاب بالمعرّف' } }
+      { path: 'game', component: () => import('pages/GameSwitch.vue'), meta: { title: 'شحن الألعاب بالمعرّف' } },
+      // shops the owner enabled (v1.33)
+      { path: 'flexy/shop', component: () => import('pages/customer/FlexyShopPage.vue'), meta: { customer: true, title: 'فليكسي' } }
     ]
   },
 

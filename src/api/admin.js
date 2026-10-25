@@ -223,3 +223,18 @@ export async function siteLinks () {
 }
 export const setOfficialUrl = (url) => rpc('store_admin_set_official_url', { p_url: url || null })
 export const setExtraOrigins = (origins) => rpc('store_admin_set_extra_origins', { p_origins: origins })
+
+// Flexy for shops (v1.33): the owner's settings, per-shop rates («نسب المحلات»), the shops' operations and reviews
+export async function flexySettings () {
+  const rows = await rpc('store_admin_flexy_settings')
+  return rows?.[0] || null
+}
+export const setFlexySettings = (open, rate630, rateOffer, max) =>
+  rpc('store_admin_set_flexy_settings', { p_open: open, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max })
+export const flexyCustomers = () => rpc('store_admin_flexy_customers')
+export const setCustomerFlexy = (customerId, { enabled = null, role = null, rate630 = null, rateOffer = null, max = null }) =>
+  rpc('store_admin_set_customer_flexy', { p_customer_id: customerId, p_enabled: enabled, p_role: role, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max })
+export const flexyJobs = (status = null, limit = 20, before = null) => rpc('store_admin_flexy_jobs', { p_status: status, p_limit: limit, p_before: before })
+export const flexyReviewCount = () => rpc('store_admin_flexy_review_count')
+// A shop's job in review: sent (the charge stays) or not sent (full refund to the shop)
+export const flexyResolve = (jobId, done) => rpc('store_admin_flexy_resolve', { p_job_id: jobId, p_done: done })
