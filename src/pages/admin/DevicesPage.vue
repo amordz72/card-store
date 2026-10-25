@@ -6,43 +6,36 @@
         <div class="col section-title">الحالة الآن</div>
         <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy" @click="load" />
       </div>
-      <!-- The counters are the filter: tap one to see only that level, tap again for all -->
-      <div v-if="tree" class="grid-3">
-        <button v-for="l in ['down', 'warn', 'ok']" :key="l" type="button" class="count" :class="['count-' + l, { 'count-on': filter === l, 'count-off': filter && filter !== l }]" @click="filter = filter === l ? null : l">
-          <span class="big">{{ tree.summary[l] }}</span>
-          <span class="small">{{ LEVEL[l].label }}</span>
-        </button>
-      </div>
+      <!-- Level 1 filter: the computers, present or absent (owner 2026-10-25) -->
       <div v-if="tree" class="row items-center q-gutter-sm">
-        <q-btn-toggle v-model="view" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: 'الكمبيوترات', value: 'stations' }, { label: 'الشرائح', value: 'sims' }]" />
-        <q-btn v-if="filter" flat dense no-caps size="sm" label="الكل" icon="close" @click="filter = null" />
+        <q-btn-toggle v-model="presence" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: 'الكل', value: 'all' }, { label: 'موجود', value: 'present' }, { label: 'غائب', value: 'absent' }]" />
+        <span class="small muted">{{ presentCount }} موجود · {{ absentCount }} غائب</span>
       </div>
       <div v-if="tree" class="small muted">آخر تحديث {{ clock(tree.checked_at) }} · غائب بعد {{ tree.limits.absentMinutes }} دقيقة · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
-    <!-- Flat list of SIMs, worst first, same details on tap -->
-    <div v-if="view === 'sims'" class="card q-pa-none">
-      <button v-for="row in simRows" :key="row.m.modem_uuid || row.m.ip" type="button" class="modem" @click="open(row.st, row.m)">
-        <span class="column items-start">
-          <span class="text-weight-bold">{{ row.m.sim ? (row.m.sim.code || 'شريحة بلا اسم') : 'لا شريحة' }}<span v-if="row.m.sim" class="small muted"> · {{ row.m.sim.sim_type_name }}</span></span>
-          <span class="small muted">{{ row.st.code }} · <bdi class="ltr">{{ row.m.ip || '—' }}</bdi><span v-if="row.m.usb != null"> · USB {{ row.m.usb }}</span></span>
-          <span v-if="row.m.reasons.length" class="small" :class="row.m.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ row.m.reasons[0].text }}</span>
+    <!-- Level 1: one row per computer. A present one opens to its SIMs; an absent one has nothing to open. -->
+    <div v-for="st in shownStations" :key="st.station_uuid" class="card q-pa-none">
+      <button type="button" class="station-row" :class="{ 'station-open': opened === st.station_uuid }" :disabled="isAbsent(st)" @click="toggle(st)">
+        <span class="column items-start col">
+          <span class="row items-center q-gutter-xs">
+            <q-icon :name="isAbsent(st) ? 'computer' : 'computer'" size="20px" :color="isAbsent(st) ? 'grey-6' : 'dark'" />
+            <span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span><span v-if="st.label" class="muted">· {{ st.label }}</span>
+          </span>
+          <span v-if="isAbsent(st)" class="small text-negative">غائب · آخر ظهور {{ clock(st.last_seen_at) }}</span>
+          <span v-else class="small">{{ simSummary(st) }}</span>
         </span>
-        <q-badge :color="LEVEL[row.m.level].color" :label="LEVEL[row.m.level].label" />
-      </button>
-      <div v-if="!simRows.length" class="text-center muted q-pa-lg">لا شيء بهذا الفلتر</div>
-    </div>
-
-    <div v-for="st in view === 'stations' ? shownStations : []" :key="st.station_uuid" class="card q-pa-none">
-      <div class="station">
-        <div class="row items-center no-wrap q-gutter-sm">
-          <q-icon name="computer" size="20px" />
-          <span class="col text-weight-bold">{{ st.code || 'كمبيوتر' }}<span v-if="st.label" class="muted"> · {{ st.label }}</span></span>
+        <q-badge v-if="isAbsent(st)" color="grey-6" label="غائب" />
+        <template v-else>
           <q-badge :color="LEVEL[st.level].color" :label="LEVEL[st.level].label" />
-        </div>
-        <div class="small muted">{{ st.computer_name }} · Agent {{ st.agent_version || '—' }} · {{ st.absent_minutes ? 'آخر ظهور ' + clock(st.last_seen_at) : 'متصل' }}</div>
+          <q-icon :name="opened === st.station_uuid ? 'expand_less' : 'expand_more'" size="20px" class="q-ml-xs" />
+        </template>
+      </button>
+
+      <div v-if="opened === st.station_uuid" class="station">
+        <div class="small muted">{{ st.computer_name }} · Agent {{ st.agent_version || '—' }} · متصل</div>
         <!-- Moving station by station to the core's gateway (step 2) -->
         <div v-if="st.gateway" class="small">البوابة: <q-badge :color="st.gateway === 'core' ? 'primary' : 'grey-6'" :label="st.gateway === 'core' ? 'النواة' : 'القديمة'" /></div>
         <div v-for="r in st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
@@ -65,22 +58,27 @@
         <div v-if="last(st) && !active(st)" class="small" :class="last(st).status === 'succeeded' ? 'text-positive' : last(st).status === 'cancelled' ? 'muted' : 'text-deep-orange'">
           آخر تحديث: {{ updateLabel(last(st)) }} · {{ UPDATE_STATUS[last(st).status] }}<span v-if="last(st).error"> ({{ last(st).error }})</span>
         </div>
+        <!-- Level 2 filter: this computer's SIMs, connected or not -->
+        <div class="row items-center q-gutter-sm q-mt-xs">
+          <q-btn-toggle v-model="simFilter" dense unelevated no-caps size="sm" toggle-color="primary" color="grey-3" text-color="dark"
+            :options="[{ label: 'الكل', value: 'all' }, { label: 'متصلة', value: 'connected' }, { label: 'غير متصلة', value: 'disconnected' }]" />
+        </div>
       </div>
 
-      <button v-for="m in shownModems(st)" :key="m.modem_uuid || m.ip" type="button" class="modem" @click="open(st, m)">
+      <button v-for="m in opened === st.station_uuid ? shownModems(st) : []" :key="m.modem_uuid || m.ip" type="button" class="modem" @click="open(st, m)">
         <span class="column items-start">
           <span class="row items-center q-gutter-xs">
-            <bdi class="ltr text-weight-bold">{{ m.ip || '—' }}</bdi>
-            <span v-if="m.usb != null" class="small muted">· USB {{ m.usb }}</span>
+            <span class="text-weight-bold">{{ m.sim ? (m.sim.code || 'شريحة بلا اسم') : 'لا شريحة' }}</span>
+            <span v-if="m.sim" class="small muted">· {{ m.sim.sim_type_name }}</span>
           </span>
-          <span class="small">{{ simLine(m) }}</span>
+          <span class="small muted"><bdi class="ltr">{{ m.ip || '—' }}</bdi><span v-if="m.usb != null"> · USB {{ m.usb }}</span></span>
           <span v-if="m.reasons.length" class="small" :class="m.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ m.reasons[0].text }}<bdi v-if="m.reasons.length > 1" class="ltr q-ml-xs"> (+{{ m.reasons.length - 1 }})</bdi></span>
         </span>
         <q-badge :color="LEVEL[m.level].color" :label="LEVEL[m.level].label" />
       </button>
-      <div v-if="!shownModems(st).length" class="small muted q-pa-md">{{ filter ? 'لا موديمات بهذا الفلتر' : 'لا موديمات حديثة' }}</div>
+      <div v-if="opened === st.station_uuid && !shownModems(st).length" class="small muted q-pa-md">لا شيء بهذا الفلتر</div>
 
-      <q-expansion-item v-if="!filter && old(st).length" dense switch-toggle-side :label="`قديمة (${old(st).length})`" header-class="small muted">
+      <q-expansion-item v-if="opened === st.station_uuid && simFilter === 'all' && old(st).length" dense switch-toggle-side :label="`قديمة (${old(st).length})`" header-class="small muted">
         <button v-for="m in old(st)" :key="m.modem_uuid || m.ip" type="button" class="modem" @click="open(st, m)">
           <span class="column items-start">
             <bdi class="ltr">{{ m.ip || '—' }}</bdi>
@@ -91,15 +89,15 @@
       </q-expansion-item>
     </div>
 
-    <q-expansion-item v-if="view === 'stations' && !filter && gone.length" class="card q-pa-none" dense switch-toggle-side :label="`كمبيوترات غائبة منذ مدة (${gone.length})`" header-class="small muted">
+    <q-expansion-item v-if="presence !== 'present' && gone.length" class="card q-pa-none" dense switch-toggle-side :label="`كمبيوترات غائبة منذ مدة (${gone.length})`" header-class="small muted">
       <div v-for="st in gone" :key="st.station_uuid" class="op-row">
         <span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span>
         <span class="small muted">{{ st.computer_name }} · آخر ظهور {{ clock(st.last_seen_at) }}</span>
       </div>
     </q-expansion-item>
 
-    <div v-if="view === 'stations' && tree && !tree.stations.length" class="card text-center muted">لا كمبيوترات مسجّلة</div>
-    <div v-else-if="view === 'stations' && filter && !shownStations.length" class="card text-center muted">لا شيء بهذا الفلتر</div>
+    <div v-if="tree && !tree.stations.length" class="card text-center muted">لا كمبيوترات مسجّلة</div>
+    <div v-else-if="tree && !shownStations.length" class="card text-center muted">لا شيء بهذا الفلتر</div>
 
     <q-dialog v-model="details">
       <q-card v-if="picked" style="min-width: 300px; max-width: 420px">
@@ -137,7 +135,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Dialog } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { useBell } from 'src/composables/useBell'
@@ -160,18 +158,32 @@ const current = computed(() => (tree.value?.stations || []).filter((s) => s.leve
 const gone = computed(() => (tree.value?.stations || []).filter((s) => s.level === 'old'))
 const live = (st) => st.modems.filter((m) => m.level !== 'old')
 const old = (st) => st.modems.filter((m) => m.level === 'old')
-// Filter by level (the counters) and view (computers tree, or SIMs flat); kept per phone
-const filter = ref(null)
-const view = ref('stations')
-try { view.value = localStorage.getItem('devices.view') === 'sims' ? 'sims' : 'stations' } catch { /* no storage */ }
-watch(view, (v) => { try { localStorage.setItem('devices.view', v) } catch { /* no storage */ } })
-const shownModems = (st) => live(st).filter((m) => !filter.value || m.level === filter.value)
-// With a filter, a computer shows only when it or one of its modems matches
-const shownStations = computed(() => current.value.filter((st) => !filter.value || st.level === filter.value || shownModems(st).length))
-const ORDER = { down: 0, warn: 1, ok: 2 }
-const simRows = computed(() => current.value
-  .flatMap((st) => shownModems(st).map((m) => ({ st, m })))
-  .sort((a, b) => ORDER[a.m.level] - ORDER[b.m.level] || (a.m.sim?.code || 'z').localeCompare(b.m.sim?.code || 'z')))
+// Level 1: computers, present or absent. Level 2 (inside an opened computer): its SIMs,
+// connected or not. A SIM only matters when its computer is present (owner 2026-10-25).
+const presence = ref('all')
+const simFilter = ref('all')
+const opened = ref(null)
+const isAbsent = (st) => !!st.absent_minutes
+const presentCount = computed(() => current.value.filter((s) => !isAbsent(s)).length)
+const absentCount = computed(() => current.value.filter(isAbsent).length + gone.value.length)
+const shownStations = computed(() => current.value.filter((st) =>
+  presence.value === 'all' || (presence.value === 'present' ? !isAbsent(st) : isAbsent(st))))
+function toggle (st) {
+  if (isAbsent(st)) return
+  opened.value = opened.value === st.station_uuid ? null : st.station_uuid
+  simFilter.value = 'all'
+}
+// Connected = the modem answers and holds a SIM (ready or with a warning); otherwise not.
+const isConnected = (m) => !!m.sim && m.level !== 'down'
+const shownModems = (st) => live(st).filter((m) =>
+  simFilter.value === 'all' || (simFilter.value === 'connected' ? isConnected(m) : !isConnected(m)))
+function simSummary (st) {
+  const ms = live(st)
+  const connected = ms.filter(isConnected).length
+  const off = ms.length - connected
+  if (!ms.length) return 'لا موديمات'
+  return `${connected} متصلة` + (off ? ` · ${off} غير متصلة` : '')
+}
 function simLine (m) {
   if (m.unreachable && !m.sim) return 'لا ترد صفحته'
   if (!m.sim) return 'لا شريحة'
@@ -270,13 +282,9 @@ onMounted(load)
 </script>
 
 <style scoped>
-.count { border: 2px solid transparent; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; align-items: center; font: inherit; cursor: pointer; }
-.count-on { border-color: currentColor; }
-.count-off { opacity: 0.45; }
-.count .big { font-size: 24px; font-weight: 700; }
-.count-down { background: #FEF2F2; color: #B91C1C; }
-.count-warn { background: #FFF7ED; color: #C2410C; }
-.count-ok { background: #ECFDF3; color: #15803D; }
+.station-row { width: 100%; border: 0; background: transparent; padding: 12px 14px; text-align: right; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.station-row:disabled { cursor: default; opacity: 0.7; }
+.station-open { border-bottom: 1px solid #EEF0F4; }
 .station { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .modem { width: 100%; border: 0; border-top: 1px solid #EEF0F4; background: transparent; padding: 10px 14px; text-align: right; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .op-row { padding: 10px 14px; border-top: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
