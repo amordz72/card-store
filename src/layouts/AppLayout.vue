@@ -232,5 +232,5 @@ async function logout () {
 </script>
 
 <style scoped>
-.menu-active { background: #EEF0FF; color: #3730A3; font-weight: 600; }
+.menu-active { background: #FFF1E8; color: #9A3412; font-weight: 600; }
 </style>

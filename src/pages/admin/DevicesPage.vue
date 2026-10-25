@@ -6,105 +6,103 @@
         <div class="col section-title">الحالة الآن</div>
         <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy" @click="load" />
       </div>
-      <!-- Level 1 filter: the computers, present or absent (owner 2026-10-25) -->
-      <div v-if="tree" class="row items-center q-gutter-sm">
-        <q-btn-toggle v-model="presence" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: 'الكل', value: 'all' }, { label: 'موجود', value: 'present' }, { label: 'غائب', value: 'absent' }]" />
-        <span class="small muted">{{ presentCount }} موجود · {{ absentCount }} غائب</span>
+      <!-- What is connected now, counted for the owner (owner 2026-10-25): zero shows red -->
+      <!-- A type's tile filters the SIMs table (funnel icon); the computers tile only counts -->
+      <div v-if="tree" class="sum">
+        <component :is="t.type ? 'button' : 'div'" v-for="t in summary" :key="t.label" :type="t.type ? 'button' : undefined" class="tile"
+          :class="{ zero: !t.n, picked: t.type && typeFilter === t.type }" @click="t.type && pickType(t.type)">
+          <q-icon v-if="t.type" name="filter_alt" size="14px" class="funnel" />
+          <div class="n">{{ t.n }}</div><div class="small">{{ t.label }}</div>
+        </component>
       </div>
-      <div v-if="tree" class="small muted">آخر تحديث {{ clock(tree.checked_at) }} · غائب بعد {{ tree.limits.absentMinutes }} دقيقة · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
+      <div v-if="tree" class="small muted">المتصل الآن<template v-if="typeFilter"> · <button type="button" class="link" @click="typeFilter = null">مفلتر: {{ typeName(typeFilter) }} ✕</button></template> · آخر تحديث {{ clock(tree.checked_at) }} · غائب بعد {{ tree.limits.absentMinutes }} دقيقة · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
-    <!-- Level 1: one row per computer. A present one opens to its SIMs; an absent one has nothing to open. -->
-    <div v-for="st in shownStations" :key="st.station_uuid" class="card q-pa-none">
-      <button type="button" class="station-row" :class="{ 'station-open': opened === st.station_uuid }" :disabled="isAbsent(st)" @click="toggle(st)">
-        <span class="column items-start col">
-          <span class="row items-center q-gutter-xs">
-            <q-icon :name="isAbsent(st) ? 'computer' : 'computer'" size="20px" :color="isAbsent(st) ? 'grey-6' : 'dark'" />
-            <span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span><span v-if="st.label" class="muted">· {{ st.label }}</span>
-          </span>
-          <span v-if="isAbsent(st)" class="small text-negative">غائب · آخر ظهور {{ clock(st.last_seen_at) }}</span>
-          <span v-else class="small">{{ simSummary(st) }}</span>
-        </span>
-        <q-badge v-if="isAbsent(st)" color="grey-6" label="غائب" />
-        <template v-else>
-          <q-badge :color="LEVEL[st.level].color" :label="LEVEL[st.level].label" />
-          <q-icon :name="opened === st.station_uuid ? 'expand_less' : 'expand_more'" size="20px" class="q-ml-xs" />
-        </template>
-      </button>
-
-      <div v-if="opened === st.station_uuid" class="station">
-        <div class="small muted">{{ st.computer_name }} · Agent {{ st.agent_version || '—' }} · متصل</div>
-        <!-- Moving station by station to the core's gateway (step 2) -->
-        <div v-if="st.gateway" class="small">البوابة: <q-badge :color="st.gateway === 'core' ? 'primary' : 'grey-6'" :label="st.gateway === 'core' ? 'النواة' : 'القديمة'" /></div>
-        <div v-for="r in st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
-        <!-- Agent updates: the computer's updater applies them and rolls back by itself -->
-        <div v-if="updates" class="row items-center q-gutter-xs q-mt-xs">
-          <template v-if="active(st)">
-            <q-badge color="info" :label="UPDATE_STATUS[active(st).status]" />
-            <span class="small muted">{{ updateLabel(active(st)) }}</span>
-            <q-btn v-if="active(st).status === 'pending'" flat dense no-caps size="sm" color="negative" label="إلغاء" :loading="busy" @click="cancel(active(st))" />
-          </template>
-          <template v-else-if="!st.absent_minutes">
-            <!-- The release is main on GitHub itself: the computer's updater reports what main holds -->
-            <q-btn v-if="newInMain(st)" outline dense no-caps size="sm" color="primary" :label="'حدّث إلى ' + newInMain(st).main_version" :loading="busy" @click="askRelease(st)" />
-            <span v-else-if="mainOf(st)?.main_error" class="small text-deep-orange">لا يمكن التحديث: {{ MAIN_ERRORS[mainOf(st).main_error] || mainOf(st).main_error }}</span>
-            <span v-else-if="mainOf(st)" class="small muted">على آخر main</span>
-            <q-btn v-if="st.gateway === 'old'" outline dense no-caps size="sm" color="primary" label="انقل إلى بوابة النواة" :loading="busy" @click="askGateway(st, 'flexy-gateway')" />
-            <q-btn v-if="st.gateway === 'core'" flat dense no-caps size="sm" color="grey-8" label="أرجع إلى البوابة القديمة" :loading="busy" @click="askGateway(st, 'station-gateway')" />
-          </template>
-        </div>
-        <div v-if="last(st) && !active(st)" class="small" :class="last(st).status === 'succeeded' ? 'text-positive' : last(st).status === 'cancelled' ? 'muted' : 'text-deep-orange'">
-          آخر تحديث: {{ updateLabel(last(st)) }} · {{ UPDATE_STATUS[last(st).status] }}<span v-if="last(st).error"> ({{ last(st).error }})</span>
-        </div>
-        <!-- Level 2 filter: this computer's SIMs, connected or not -->
-        <div class="row items-center q-gutter-sm q-mt-xs">
-          <q-btn-toggle v-model="simFilter" dense unelevated no-caps size="sm" toggle-color="primary" color="grey-3" text-color="dark"
-            :options="[{ label: 'الكل', value: 'all' }, { label: 'متصلة', value: 'connected' }, { label: 'غير متصلة', value: 'disconnected' }]" />
-        </div>
+    <!-- SIMs (owner 2026-10-25, agreed on a picture): the computer first, then active or not inside it.
+         Active = its computer present and its modem connected. Gone 7+ days = «قديمة» at the end. -->
+    <div v-if="tree" class="card q-pa-none">
+      <div class="section-title q-pa-sm">الشرائح</div>
+      <div class="row q-gutter-xs q-px-sm">
+        <q-btn v-for="c in stationChips" :key="c.value" dense unelevated rounded no-caps size="md" :label="c.label"
+          :color="simStation === c.value ? 'primary' : 'white'" :text-color="simStation === c.value ? 'white' : c.muted ? 'grey-6' : 'dark'"
+          class="chip" @click="simStation = c.value" />
       </div>
-
-      <button v-for="m in opened === st.station_uuid ? shownModems(st) : []" :key="m.modem_uuid || m.ip" type="button" class="modem" @click="open(st, m)">
-        <span class="column items-start">
-          <span class="row items-center q-gutter-xs">
-            <span class="text-weight-bold">{{ m.sim ? (m.sim.code || 'شريحة بلا اسم') : 'لا شريحة' }}</span>
-            <span v-if="m.sim" class="small muted">· {{ m.sim.sim_type_name }}</span>
-          </span>
-          <span class="small muted"><bdi class="ltr">{{ m.ip || '—' }}</bdi><span v-if="m.usb != null"> · USB {{ m.usb }}</span></span>
-          <!-- What stops a send right now: the executable balance and whether the number is known -->
-          <span v-if="m.sim" class="small">
-            <span :class="balanceClass(m.sim)">{{ balanceText(m.sim) }}</span>
-            <span class="muted"> · </span>
-            <span :class="m.sim.msisdn_source ? '' : 'text-deep-orange'">{{ numberText(m.sim) }}</span>
-          </span>
-          <span v-if="m.sim && onboardingText(m.sim)" class="small" :class="onboardingClass(m.sim)">{{ onboardingText(m.sim) }}</span>
-          <span v-if="m.reasons.length" class="small" :class="m.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ m.reasons[0].text }}<bdi v-if="m.reasons.length > 1" class="ltr q-ml-xs"> (+{{ m.reasons.length - 1 }})</bdi></span>
-        </span>
-        <q-badge :color="LEVEL[m.level].color" :label="LEVEL[m.level].label" />
-      </button>
-      <div v-if="opened === st.station_uuid && !shownModems(st).length" class="small muted q-pa-md">لا شيء بهذا الفلتر</div>
-
-      <q-expansion-item v-if="opened === st.station_uuid && simFilter === 'all' && old(st).length" dense switch-toggle-side :label="`قديمة (${old(st).length})`" header-class="small muted">
-        <button v-for="m in old(st)" :key="m.modem_uuid || m.ip" type="button" class="modem" @click="open(st, m)">
-          <span class="column items-start">
-            <bdi class="ltr">{{ m.ip || '—' }}</bdi>
-            <span class="small muted">{{ simLine(m) }} · آخر ظهور {{ clock(m.last_seen_at) }}</span>
-          </span>
-          <q-badge :color="LEVEL.old.color" :label="LEVEL.old.label" />
-        </button>
-      </q-expansion-item>
+      <div class="sub">
+        <q-btn-toggle v-model="simActive" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: `النشطة (${simRows.active.length})`, value: true }, { label: `غير النشطة (${simRows.inactive.length})`, value: false }]" />
+      </div>
+      <div class="table-wrap">
+        <table class="sims">
+          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th></tr></thead>
+          <tbody>
+            <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
+              <td><span class="text-weight-bold">{{ r.m.sim.code || 'جديدة' }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
+              <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
+              <td>{{ r.st.code || '—' }}</td>
+              <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
+              <td><q-badge :color="r.old ? 'grey-6' : LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : LEVEL[r.m.level].label" />
+                <div v-if="statusText(r)" class="small" :class="statusClass(r)">{{ statusText(r) }}</div></td>
+            </tr>
+            <tr v-if="!shownSims.length">
+              <td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر
+                <q-btn v-if="typeFilter || simStation !== 'all'" flat dense no-caps size="sm" color="primary" label="إلغاء الفلاتر" @click="clearFilters" /></td>
+            </tr>
+            <tr v-if="!simActive && simRows.old.length" class="static">
+              <td colspan="5"><button type="button" class="link" @click="showOldSims = !showOldSims">قديمة ({{ simRows.old.length }}) {{ showOldSims ? '▴' : '▾' }}</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <q-expansion-item v-if="presence !== 'present' && gone.length" class="card q-pa-none" dense switch-toggle-side :label="`كمبيوترات غائبة منذ مدة (${gone.length})`" header-class="small muted">
-      <div v-for="st in gone" :key="st.station_uuid" class="op-row">
-        <span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span>
-        <span class="small muted">{{ st.computer_name }} · آخر ظهور {{ clock(st.last_seen_at) }}</span>
+    <!-- Computers: connected first, one row each, the Agent's update and gateway buttons in the row -->
+    <div v-if="tree" class="card q-pa-none">
+      <div class="section-title q-pa-sm">الكمبيوترات</div>
+      <div class="sub">
+        <q-btn-toggle v-model="stationActive" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: `النشطة (${presentCount})`, value: true }, { label: `غير النشطة (${current.length - presentCount})`, value: false }]" />
       </div>
-    </q-expansion-item>
-
-    <div v-if="tree && !tree.stations.length" class="card text-center muted">لا كمبيوترات مسجّلة</div>
-    <div v-else-if="tree && !shownStations.length" class="card text-center muted">لا شيء بهذا الفلتر</div>
+      <div class="table-wrap">
+        <table class="sims">
+          <thead><tr><th>الجهاز</th><th>الحالة</th><th>الشرائح</th><th>البوابة</th><th>التحديث</th></tr></thead>
+          <tbody>
+            <tr v-for="st in stationRows" :key="st.station_uuid" class="static">
+              <td><span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span><span v-if="st.label" class="muted"> · {{ st.label }}</span>
+                <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div></td>
+              <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'غائب' : '✅ متصل'" />
+                <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div></td>
+              <td>{{ isAbsent(st) ? '—' : simSummary(st) }}</td>
+              <td>{{ st.gateway === 'core' ? 'النواة' : st.gateway === 'old' ? 'القديمة' : '—' }}</td>
+              <td>
+                <template v-if="updates && active(st)">
+                  <q-badge color="info" :label="UPDATE_STATUS[active(st).status]" />
+                  <div class="small muted">{{ updateLabel(active(st)) }}</div>
+                  <q-btn v-if="active(st).status === 'pending'" flat dense no-caps size="sm" color="negative" label="إلغاء" :loading="busy" @click="cancel(active(st))" />
+                </template>
+                <template v-else-if="updates && !isAbsent(st)">
+                  <q-btn v-if="newInMain(st)" outline dense no-caps size="sm" color="primary" :label="'حدّث إلى ' + newInMain(st).main_version" :loading="busy" @click="askRelease(st)" />
+                  <span v-else-if="mainOf(st)?.main_error" class="small text-deep-orange">لا يمكن التحديث: {{ MAIN_ERRORS[mainOf(st).main_error] || mainOf(st).main_error }}</span>
+                  <span v-else-if="mainOf(st)" class="small muted">على آخر main</span>
+                  <div>
+                    <q-btn v-if="st.gateway === 'old'" flat dense no-caps size="sm" color="primary" label="انقل إلى بوابة النواة" :loading="busy" @click="askGateway(st, 'flexy-gateway')" />
+                    <q-btn v-if="st.gateway === 'core'" flat dense no-caps size="sm" color="grey-8" label="أرجع إلى القديمة" :loading="busy" @click="askGateway(st, 'station-gateway')" />
+                  </div>
+                </template>
+                <span v-else class="small muted">—</span>
+                <div v-if="last(st) && !active(st)" class="small" :class="last(st).status === 'succeeded' ? 'text-positive' : last(st).status === 'cancelled' ? 'muted' : 'text-deep-orange'">
+                  آخر تحديث: {{ UPDATE_STATUS[last(st).status] }}<span v-if="last(st).error"> ({{ last(st).error }})</span>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!stationRows.length"><td colspan="5" class="text-center muted">لا كمبيوترات بهذا الفلتر</td></tr>
+            <tr v-if="!stationActive && gone.length" class="static">
+              <td colspan="5"><button type="button" class="link" @click="showOldStations = !showOldStations">قديمة ({{ gone.length }}) {{ showOldStations ? '▴' : '▾' }}</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <q-dialog v-model="details">
       <q-card v-if="picked" style="min-width: 300px; max-width: 420px">
@@ -125,7 +123,7 @@
             <span class="muted">النوع</span><span>{{ picked.m.sim.sim_type_name }} · {{ picked.m.sim.approved ? 'معتمدة' : 'غير معتمدة' }}</span>
             <span class="muted">PIN</span><span>{{ picked.m.sim.pin_present ? 'محفوظ' : 'غير محفوظ' }}</span>
             <span class="muted">ICCID</span><bdi class="ltr">…{{ picked.m.sim.iccid_tail || '—' }}</bdi>
-            <span class="muted">الرقم</span><span><bdi class="ltr">…{{ picked.m.sim.msisdn_tail || '—' }}</bdi> · {{ numberText(picked.m.sim) }}</span>
+            <span class="muted">الرقم</span><span><bdi class="ltr">{{ picked.m.sim.msisdn || (picked.m.sim.msisdn_tail ? '…' + picked.m.sim.msisdn_tail : '—') }}</bdi> · {{ numberText(picked.m.sim) }}</span>
             <span class="muted">الرصيد</span><span :class="balanceClass(picked.m.sim)">{{ balanceText(picked.m.sim) }}<span v-if="picked.m.sim.balance_checked_at" class="muted"> · قُرئ {{ clock(picked.m.sim.balance_checked_at) }}</span></span>
             <template v-if="onboardingText(picked.m.sim)">
               <span class="muted">الاكتشاف الآلي</span><span :class="onboardingClass(picked.m.sim)">{{ onboardingText(picked.m.sim) }}</span>
@@ -188,26 +186,51 @@ const clock = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', t
 const current = computed(() => (tree.value?.stations || []).filter((s) => s.level !== 'old'))
 const gone = computed(() => (tree.value?.stations || []).filter((s) => s.level === 'old'))
 const live = (st) => st.modems.filter((m) => m.level !== 'old')
-const old = (st) => st.modems.filter((m) => m.level === 'old')
-// Level 1: computers, present or absent. Level 2 (inside an opened computer): its SIMs,
-// connected or not. A SIM only matters when its computer is present (owner 2026-10-25).
-const presence = ref('all')
-const simFilter = ref('all')
-const opened = ref(null)
 const isAbsent = (st) => !!st.absent_minutes
 const presentCount = computed(() => current.value.filter((s) => !isAbsent(s)).length)
-const absentCount = computed(() => current.value.filter(isAbsent).length + gone.value.length)
-const shownStations = computed(() => current.value.filter((st) =>
-  presence.value === 'all' || (presence.value === 'present' ? !isAbsent(st) : isAbsent(st))))
-function toggle (st) {
-  if (isAbsent(st)) return
-  opened.value = opened.value === st.station_uuid ? null : st.station_uuid
-  simFilter.value = 'all'
-}
 // Connected = the modem answers and holds a SIM (ready or with a warning); otherwise not.
 const isConnected = (m) => !!m.sim && m.level !== 'down'
-const shownModems = (st) => live(st).filter((m) =>
-  simFilter.value === 'all' || (simFilter.value === 'connected' ? isConnected(m) : !isConnected(m)))
+// Computers table: active (present) first; «غير النشطة» = absent; gone 7+ days only under «قديمة».
+const stationActive = ref(true)
+const showOldStations = ref(false)
+const stationRows = computed(() => stationActive.value
+  ? current.value.filter((st) => !isAbsent(st))
+  : [...current.value.filter(isAbsent), ...(showOldStations.value ? gone.value : [])])
+
+// SIMs: the computer first, then active or not inside it; a type tile narrows it further.
+// Filters stay as chosen across the 30-second refresh.
+const SUMMARY_TYPES = [['mobilis-arsselli', 'أرسلي'], ['mobilis-sama', 'Sama'], ['djezzy-flexy', 'جيزي'], ['ooredoo-flexy', 'أوريدو']]
+const typeName = (type) => SUMMARY_TYPES.find(([t]) => t === type)?.[1] || type
+const typeFilter = ref(null)
+const simStation = ref('all')
+const simActive = ref(true)
+const showOldSims = ref(false)
+const pickType = (type) => { typeFilter.value = typeFilter.value === type ? null : type }
+function clearFilters () { typeFilter.value = null; simStation.value = 'all' }
+const stationChips = computed(() => [
+  { value: 'all', label: 'الكل' },
+  ...current.value.filter((st) => !isAbsent(st)).map((st) => ({ value: st.station_uuid, label: st.code || 'كمبيوتر' })),
+  ...current.value.filter(isAbsent).map((st) => ({ value: st.station_uuid, label: (st.code || 'كمبيوتر') + ' (غائب)', muted: true }))
+])
+// Every SIM with its computer; old = its modem or its computer gone for longer than old_days.
+const everySim = computed(() => [...current.value, ...gone.value].flatMap((st) =>
+  st.modems.filter((m) => m.sim).map((m) => ({ st, m, old: st.level === 'old' || m.level === 'old' }))))
+const isActive = (r) => !r.old && !isAbsent(r.st) && isConnected(r.m)
+const simRows = computed(() => {
+  const rows = everySim.value.filter((r) =>
+    (simStation.value === 'all' || r.st.station_uuid === simStation.value) && (!typeFilter.value || r.m.sim.sim_type === typeFilter.value))
+  return { active: rows.filter(isActive), inactive: rows.filter((r) => !r.old && !isActive(r)), old: rows.filter((r) => r.old) }
+})
+const shownSims = computed(() => simActive.value
+  ? simRows.value.active
+  : [...simRows.value.inactive, ...(showOldSims.value ? simRows.value.old : [])])
+// The summary counts every active SIM of each type, whatever the filters (owner 2026-10-25).
+const summary = computed(() => [
+  { label: 'كمبيوتر', n: presentCount.value },
+  ...SUMMARY_TYPES.map(([type, label]) => ({ type, label, n: everySim.value.filter((r) => isActive(r) && r.m.sim.sim_type === type).length }))
+])
+const statusText = (r) => onboardingText(r.m.sim) || (r.old ? '' : isAbsent(r.st) ? 'الكمبيوتر غائب' : r.m.reasons[0]?.text) || ''
+const statusClass = (r) => onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : r.m.level === 'down' ? 'text-negative' : 'text-deep-orange'
 // Balance: one total the SIM can execute now, with how old the reading is. Old = past the
 // core's refresh window (6 h), when a send would first ask for a fresh 632.
 const BALANCE_FRESH_MS = 6 * 3600 * 1000
@@ -229,11 +252,6 @@ function simSummary (st) {
   const off = ms.length - connected
   if (!ms.length) return 'لا موديمات'
   return `${connected} متصلة` + (off ? ` · ${off} غير متصلة` : '')
-}
-function simLine (m) {
-  if (m.unreachable && !m.sim) return 'لا ترد صفحته'
-  if (!m.sim) return 'لا شريحة'
-  return (m.sim.code || 'شريحة بلا اسم') + ' · ' + m.sim.sim_type_name
 }
 
 // Agent updates (owner 2026-10-25): one request per computer at a time
@@ -382,4 +400,25 @@ onMounted(load)
 .modem { width: 100%; border: 0; border-top: 1px solid #EEF0F4; background: transparent; padding: 10px 14px; text-align: right; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .op-row { padding: 10px 14px; border-top: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+.table-wrap { overflow-x: auto; }
+.sims td { white-space: nowrap; }
+.sims tbody tr.static { cursor: default; }
+.sum { display: flex; gap: 6px; }
+button.tile { border: 0; font: inherit; cursor: pointer; }
+.tile { position: relative; }
+.tile .funnel { position: absolute; top: 5px; left: 5px; color: #9AA0AC; }
+.tile.picked { outline: 2px solid var(--q-primary); }
+.tile.picked .funnel { color: var(--q-primary); }
+.sub { margin: 8px; padding: 8px; background: #F4F6FA; border-radius: 8px; }
+.chip { border: 1px solid #D5D9E0; }
+.link { border: 0; background: transparent; padding: 0; font: inherit; color: var(--q-primary); cursor: pointer; }
+.tile { flex: 1 1 0; min-width: 0; background: #F1F8F3; border-radius: 10px; padding: 8px 4px; text-align: center; color: #5B6170; }
+.tile .n { font-size: 22px; font-weight: 700; color: #1E8E3E; }
+.tile.zero { background: #FDECEA; color: #C62828; }
+.tile.zero .n { color: #C62828; }
+.sims { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sims th { text-align: right; font-weight: 600; color: #5B6170; padding: 8px 10px; border-bottom: 1px solid #E3E6EC; white-space: nowrap; }
+.sims td { padding: 8px 10px; border-top: 1px solid #EEF0F4; vertical-align: top; }
+.sims tbody tr { cursor: pointer; }
+.sims tbody tr:hover { background: #F6F7F9; }
 </style>

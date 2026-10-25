@@ -6,7 +6,7 @@
     </div>
     <div v-if="brands.length > 1" class="row q-gutter-xs">
       <q-btn v-for="b in ['all', ...brands]" :key="b" dense rounded no-caps :ripple="false" size="13px" class="q-px-sm"
-        :unelevated="brand === b" :outline="brand !== b" :color="brand === b ? 'indigo-7' : 'grey-7'"
+        :unelevated="brand === b" :outline="brand !== b" :color="brand === b ? 'deep-orange-8' : 'grey-7'"
         :label="b === 'all' ? 'كل العلامات' : b" @click="emit('update:brand', b)" />
     </div>
   </div>

@@ -45,7 +45,7 @@
           </q-btn>
         </div>
       </template>
-      <div v-if="pickedProduct" class="small text-weight-medium" style="color:#4338CA">البطاقة المختارة: {{ pickedProduct.name }}</div>
+      <div v-if="pickedProduct" class="small text-weight-medium" style="color:#C2410C">البطاقة المختارة: {{ pickedProduct.name }}</div>
       <!-- Codes only after a card is chosen, so they cannot land on a card picked afterwards -->
       <q-file v-model="file" dense outlined accept=".txt,.csv,text/plain,text/csv" :disable="!codeForm.productId" clearable
         :label="codeForm.productId ? 'رفع ملف أكواد (txt أو csv) — أو الصق في الخانة التالية' : 'اختر العلامة والبطاقة أولًا'">
@@ -125,12 +125,12 @@
       </div>
       <div v-if="bf.brand && batchProducts.length > 1" class="row q-gutter-xs">
         <q-btn v-for="p in batchProducts" :key="p.id" dense rounded no-caps size="13px" class="q-px-sm" :ripple="false"
-          :unelevated="bf.product === p.id" :outline="bf.product !== p.id" :color="bf.product === p.id ? 'indigo-7' : 'grey-7'"
+          :unelevated="bf.product === p.id" :outline="bf.product !== p.id" :color="bf.product === p.id ? 'deep-orange-8' : 'grey-7'"
           :label="p.label" @click="bf.product = bf.product === p.id ? null : p.id" />
       </div>
       <div v-if="batchSuppliers.length > 1" class="row q-gutter-xs">
         <q-btn v-for="sp in ['all', ...batchSuppliers]" :key="sp" dense rounded no-caps size="13px" class="q-px-sm" :ripple="false"
-          :unelevated="bf.supplier === sp" :outline="bf.supplier !== sp" :color="bf.supplier === sp ? 'indigo-7' : 'grey-7'"
+          :unelevated="bf.supplier === sp" :outline="bf.supplier !== sp" :color="bf.supplier === sp ? 'deep-orange-8' : 'grey-7'"
           :label="sp === 'all' ? 'كل المصادر' : sp" @click="bf.supplier = sp" />
       </div>
       <q-btn rounded no-caps dense class="self-start q-px-sm" :unelevated="bf.availOnly" :outline="!bf.availOnly" color="positive"
@@ -185,7 +185,7 @@
             <q-input :model-value="productForm.margin" dense outlined type="number" stack-label label="الربح الكلي" suffix="%"
               @update:model-value="(v) => editPrice('margin', v)" />
           </div>
-          <div v-if="productForm.basePrice > 0 && productForm.usualCost > 0" class="small" style="color:#4338CA">
+          <div v-if="productForm.basePrice > 0 && productForm.usualCost > 0" class="small" style="color:#C2410C">
             الربح الكلي {{ money(productForm.basePrice - productForm.usualCost) }} = {{ productForm.margin }}% من سعر البيع (يُقسم بينك وبين الزبون في «الأسعار»)
           </div>
           <div class="small muted">سعر الشراء اختياري: يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح قبل وصولها.</div>
@@ -598,5 +598,5 @@ onMounted(() => { load(); loadBatches(); loadAnnouncement() })
 .brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
 .brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.brand-pick.on { border-color: #4338CA; box-shadow: 0 0 0 2px #C7CAF5; }
+.brand-pick.on { border-color: #C2410C; box-shadow: 0 0 0 2px #C7CAF5; }
 </style>

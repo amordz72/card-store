@@ -2,7 +2,7 @@
   <div class="q-pa-sm column q-gutter-xs" :style="{ borderTop: '1px solid #EEF0F5', opacity: e.reversed ? 0.75 : 1, background: e.reversed ? '#F7F8FB' : '#FFFFFF' }">
     <div class="row justify-between items-center">
       <span class="badge" :style="{ background: kind.color }">{{ kind.label }}</span>
-      <span v-if="e.customer_name" class="q-px-sm rounded-borders small text-weight-medium" style="background:#EEF0FF;color:#3730A3">{{ e.customer_name }}</span>
+      <span v-if="e.customer_name" class="q-px-sm rounded-borders small text-weight-medium" style="background:#FFF1E8;color:#9A3412">{{ e.customer_name }}</span>
       <span class="text-weight-bold">{{ mask(money(e.amount)) }}</span>
     </div>
     <div class="small" style="color:#374151">{{ hide ? '••••' : effectText(e.d_balance, e.d_debt) }}</div>
