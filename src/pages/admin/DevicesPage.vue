@@ -71,6 +71,7 @@
             <span class="text-weight-bold">{{ m.sim ? (m.sim.code || 'شريحة بلا اسم') : 'لا شريحة' }}</span>
             <span v-if="m.sim" class="small muted">· {{ m.sim.sim_type_name }}</span>
           </span>
+          <span v-if="m.sim?.msisdn" class="text-weight-medium"><bdi class="ltr">{{ m.sim.msisdn }}</bdi></span>
           <span class="small muted"><bdi class="ltr">{{ m.ip || '—' }}</bdi><span v-if="m.usb != null"> · USB {{ m.usb }}</span></span>
           <!-- What stops a send right now: the executable balance and whether the number is known -->
           <span v-if="m.sim" class="small">
@@ -125,7 +126,7 @@
             <span class="muted">النوع</span><span>{{ picked.m.sim.sim_type_name }} · {{ picked.m.sim.approved ? 'معتمدة' : 'غير معتمدة' }}</span>
             <span class="muted">PIN</span><span>{{ picked.m.sim.pin_present ? 'محفوظ' : 'غير محفوظ' }}</span>
             <span class="muted">ICCID</span><bdi class="ltr">…{{ picked.m.sim.iccid_tail || '—' }}</bdi>
-            <span class="muted">الرقم</span><span><bdi class="ltr">…{{ picked.m.sim.msisdn_tail || '—' }}</bdi> · {{ numberText(picked.m.sim) }}</span>
+            <span class="muted">الرقم</span><span><bdi class="ltr">{{ picked.m.sim.msisdn || (picked.m.sim.msisdn_tail ? '…' + picked.m.sim.msisdn_tail : '—') }}</bdi> · {{ numberText(picked.m.sim) }}</span>
             <span class="muted">الرصيد</span><span :class="balanceClass(picked.m.sim)">{{ balanceText(picked.m.sim) }}<span v-if="picked.m.sim.balance_checked_at" class="muted"> · قُرئ {{ clock(picked.m.sim.balance_checked_at) }}</span></span>
             <template v-if="onboardingText(picked.m.sim)">
               <span class="muted">الاكتشاف الآلي</span><span :class="onboardingClass(picked.m.sim)">{{ onboardingText(picked.m.sim) }}</span>
