@@ -23,10 +23,10 @@
 
       <template v-if="tab === '630'">
         <div class="card column q-gutter-sm">
-          <div class="section-title">المبلغ</div>
-          <q-btn v-for="a in amounts" :key="a" unelevated no-caps align="left"
-            :outline="amount !== a" :color="amount === a ? 'primary' : 'grey-8'" class="amount-row"
-            :label="money(a)" @click="pick(a)" />
+          <div class="amounts">
+            <q-btn v-for="a in amounts" :key="a" dense unelevated no-caps class="chip"
+              :outline="amount !== a" :color="amount === a ? 'primary' : 'grey-7'" :label="money(a)" @click="pick(a)" />
+          </div>
           <q-input v-model.number="other" dense outlined type="number" inputmode="numeric"
             :label="`أو اكتب مبلغًا (40 إلى ${money(access.maxAmount.value)})`" @update:model-value="amount = null" />
         </div>
@@ -36,25 +36,31 @@
       </template>
       <div v-else-if="!access.offers.value" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
       <template v-else>
-        <!-- Discovery first (no money): only the offers the network lists for this number are shown -->
-        <div class="card column q-gutter-sm">
-          <q-btn-toggle v-model="menu" spread no-caps unelevated toggle-color="primary" color="grey-3" text-color="grey-9"
-            :options="[{ label: 'Mix · Talk · PixX', value: '1' }, { label: 'Net', value: '2' }]" @update:model-value="resetDiscovery" />
-          <q-btn unelevated color="primary" icon="travel_explore" label="اكتشف عروض الرقم" :loading="discovering"
-            :disable="!access.open.value || !phoneOk" @click="discover" />
-          <div v-if="discovering" class="small muted text-center">جارٍ السؤال عن عروض الرقم… قد يأخذ حتى دقيقة.</div>
-          <div v-else-if="discoverError" class="small text-negative text-center">{{ discoverError }}</div>
+        <!-- The line's group (kept, or discovered without money), then its offers: name and price -->
+        <div v-if="!phoneOk" class="card text-center muted q-pa-lg">اكتب رقم الزبون لتظهر عروضه.</div>
+        <div v-else-if="loading" class="card column items-center q-gutter-sm q-pa-lg">
+          <q-spinner color="primary" size="32px" />
+          <div class="small muted">جارٍ معرفة نوع خط الزبون… قد يأخذ حتى دقيقة.</div>
         </div>
-        <div v-if="found" class="card q-pa-none">
-          <button v-for="o in found" :key="o.label" type="button" class="offer-row" @click="confirmOffer(o)">
-            <span class="column items-start">
+        <div v-else-if="offersError" class="card column items-center q-gutter-sm q-pa-lg">
+          <div class="small text-negative text-center">{{ offersError }}</div>
+          <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="loadOffers" />
+        </div>
+        <div v-else-if="families.length" class="card q-pa-none">
+          <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
+            group="families" header-class="family" expand-separator>
+            <div v-for="o in f.offers" :key="o.label" class="offer-row" role="button" tabindex="0"
+              @click="confirmOffer(o)" @keyup.enter="confirmOffer(o)">
               <span class="text-weight-bold">{{ o.label }}</span>
-              <span class="small muted">{{ o.details }}</span>
-            </span>
-            <span class="price">{{ money(o.price) }}</span>
-          </button>
-          <div v-if="!found.length" class="text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
+              <span class="row items-center no-wrap q-gutter-xs">
+                <q-btn v-if="DETAILS[o.label]" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
+                  @click.stop="showDetails(o)" />
+                <span class="price">{{ money(o.amount) }}</span>
+              </span>
+            </div>
+          </q-expansion-item>
         </div>
+        <div v-else-if="looked" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
       </template>
 
       <div class="row items-center justify-between q-mt-md">
@@ -83,7 +89,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Dialog } from 'quasar'
 import { useCustomerStore } from 'stores/customer'
 import { useBuyer } from 'src/composables/useBuyer'
@@ -204,9 +210,9 @@ function confirmSend () {
   })
 }
 
-// Offers the store sells: name → what the customer gets. The price is the number in the name.
-const OFFERS = {
-  'Sama Mix 100': '500Mo — يوم واحد', 'Sama Mix 500': '5Go — 15 يومًا', 'Sama Mix 1000': '15Go — 30 يومًا',
+// What the customer gets for each offer (shown from «i»). The price is the number in the name.
+const DETAILS = {
+  'Sama Mix 50': '', 'Sama Mix 100': '500Mo — يوم واحد', 'Sama Mix 500': '5Go — 15 يومًا', 'Sama Mix 1000': '15Go — 30 يومًا',
   'Sama Mix 1500': '30Go — 30 يومًا', 'Sama Mix 2000': '50Go — 30 يومًا',
   'Sama Talk 500': '500Mo — 15 يومًا', 'Sama Talk 1000': '2Go — 30 يومًا', 'Sama Talk 1500': '3Go — 30 يومًا',
   'Sama Talk 2000': '4Go — 30 يومًا',
@@ -215,48 +221,72 @@ const OFFERS = {
   'PixX 50': '500Mo — يوم واحد', 'PixX 100': '1Go — يوم واحد', 'PixX 500': '5Go — 15 يومًا',
   'PixX 1000': '13Go — 30 يومًا', 'PixX 2000': '30Go'
 }
-const menu = ref('1')
-const discovering = ref(false)
-const discoverError = ref('')
-const found = ref(null)
-let discoveredFor = ''
-function resetDiscovery () { found.value = null; discoverError.value = '' }
+const loading = ref(false)
+const looked = ref(false)
+const offersError = ref('')
+const offers = ref([])
+let offersFor = ''
+let lookupRun = 0
+// Families in the catalog's order (Mix, Talk, Net…), prices rising inside each one
+const families = computed(() => {
+  const out = []
+  for (const o of offers.value.filter((x) => x.amount <= access.maxAmount.value)) {
+    let f = out.find((x) => x.name === o.family)
+    if (!f) out.push(f = { name: o.family, offers: [] })
+    f.offers.push(o)
+  }
+  for (const f of out) f.offers.sort((a, b) => a.amount - b.amount)
+  return out
+})
 
-// One discovery, then a light poll (every 3 s, at most 90 s) until the network has answered
-async function discover () {
-  resetDiscovery()
-  discovering.value = true
+// One request; while the core discovers the line, ask again every 3 s (at most 90 s)
+async function loadOffers () {
   const p = digits.value
+  const mine = ++lookupRun
+  offers.value = []
+  offersError.value = ''
+  looked.value = false
+  loading.value = true
   try {
-    let r = await api.flexyDiscover(customer.token, p, menu.value)
-    for (let i = 0; r.status === 'running' && i < 30; i++) {
+    let r = await api.flexyOffers(customer.token, p)
+    for (let i = 0; r.status === 'discovering' && i < 30 && mine === lookupRun; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000))
-      r = await api.flexyDiscovery(customer.token, r.key)
+      r = await api.flexyOffers(customer.token, p)
     }
-    if (r.status === 'done') {
-      discoveredFor = p
-      // The name on the network may carry a size note in brackets: «PixX 100 (1Go)»
-      found.value = r.offers.map((n) => n.replace(/\s*\(.*\)$/, '').trim())
-        .filter((n) => OFFERS[n])
-        .map((label) => ({ label, details: OFFERS[label], price: Number(label.match(/(\d+)$/)[1]) }))
-        .filter((o) => o.price <= access.maxAmount.value)
+    if (mine !== lookupRun) return
+    if (r.status === 'ready') {
+      offersFor = p
+      offers.value = r.offers
+      looked.value = true
     } else {
-      discoverError.value = r.status === 'running' ? 'لم تردّ الشبكة. حاول مرة أخرى.' : 'تعذّر الاستكشاف الآن. حاول بعد قليل.'
+      offersError.value = r.status === 'discovering' ? 'لم تردّ الشبكة. أعد المحاولة.' : 'تعذّر معرفة نوع خط الزبون الآن.'
     }
   } catch (e) {
-    discoverError.value = e?.message || 'تعذّر الاستكشاف الآن. حاول بعد قليل.'
-  } finally { discovering.value = false }
+    if (mine === lookupRun) offersError.value = e?.message || 'تعذّر جلب العروض الآن.'
+  } finally {
+    if (mine === lookupRun) loading.value = false
+  }
+}
+// «عروض» opens the offers of the number written; a new number loads its own
+watch([tab, digits], () => {
+  if (tab.value !== 'offer' || !access.offers.value) return
+  if (!phoneOk.value) { lookupRun++; loading.value = false; offers.value = []; looked.value = false; return }
+  if (digits.value !== offersFor || !looked.value) loadOffers()
+})
+
+function showDetails (o) {
+  Dialog.create({ title: o.label, message: DETAILS[o.label], ok: 'حسنًا', position: 'bottom' })
 }
 
 function confirmOffer (o) {
   const p = digits.value
-  if (p !== discoveredFor) { resetDiscovery(); return }
+  if (p !== offersFor) { loadOffers(); return }
   Dialog.create({
     title: 'تأكيد العرض',
     html: true,
     message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
-      <div style="text-align:center"><b>${o.label}</b> — ${o.details}</div>
-      <div style="text-align:center">السعر: <b>${money(o.price)}</b></div>
+      <div style="text-align:center"><b>${o.label}</b>${DETAILS[o.label] ? ' — ' + DETAILS[o.label] : ''}</div>
+      <div style="text-align:center">السعر: <b>${money(o.amount)}</b></div>
       <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>`,
     cancel: 'رجوع',
     ok: 'نعم، أرسل'
@@ -265,7 +295,6 @@ function confirmOffer (o) {
     if (!r) return
     buyer.refresh()
     phone.value = ''
-    resetDiscovery()
     await loadFirst().catch(() => null)
     delay = 3000
     schedule()
@@ -283,15 +312,16 @@ onUnmounted(() => clearTimeout(timer))
 
 <style scoped>
 .tabs { background: #E4E6EC; border-radius: 12px; }
-.amount-row { min-height: 48px; justify-content: flex-start; font-weight: 700; font-size: 16px; }
+.amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chip { min-height: 40px; font-weight: 700; border-radius: 10px; }
 .op-row { width: 100%; border: 0; background: transparent; text-align: right; padding: 10px 14px; border-bottom: 1px solid #ECEEF3;
   display: flex; flex-direction: column; gap: 4px; font: inherit; color: inherit; cursor: pointer; }
 .op-row:last-child { border-bottom: 0; }
 .details { margin-top: 6px; padding: 8px; border: 1px solid #E4E6EC; border-radius: 8px; background: #F8F9FB; }
 .reply { white-space: normal; word-break: break-word; }
-.offer-row { width: 100%; border: 0; border-bottom: 1px solid #ECEEF3; background: transparent; padding: 12px 14px; font: inherit;
-  color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
-.offer-row:last-child { border-bottom: 0; }
+.offer-row { border-top: 1px solid #ECEEF3; padding: 10px 14px;
+  cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
+:deep(.family) { font-weight: 700; }
 .price { font-weight: 700; white-space: nowrap; }
 :deep(.phone) { font-size: 1.4rem; letter-spacing: 1px; }
 </style>
