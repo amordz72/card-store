@@ -59,7 +59,7 @@ const DETAILS = {
   'PixX 50': '500Mo — يوم واحد', 'PixX 100': '1Go — يوم واحد', 'PixX 500': '5Go — 15 يومًا',
   'PixX 1000': '13Go — 30 يومًا', 'PixX 2000': '30Go'
 }
-const spaced = (d) => (d || '').replace(/^(\d{4})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4')
+const spaced = (d) => (d || '').replace(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5')
 
 const loading = ref(false)
 const looked = ref(false)
