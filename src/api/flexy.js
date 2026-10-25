@@ -48,6 +48,14 @@ export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: 
 export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: { apps_send_enabled: on } })
 // Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).
 export const ownerDevices = () => owner('devices', { method: 'GET' })
+// Agent updates: releases and each computer's last request; ask one computer for a release or
+// a gateway move (its updater applies it and rolls back by itself); withdraw one not yet taken.
+export const ownerUpdates = () => owner('updates', { method: 'GET' })
+export const requestUpdate = (stationUuid, kind, value) => owner('updates', {
+  method: 'POST',
+  body: kind === 'release' ? { station_uuid: stationUuid, kind, release: value } : { station_uuid: stationUuid, kind, config: value }
+})
+export const cancelUpdate = (deploymentId) => owner('updates', { method: 'POST', body: { cancel: deploymentId } })
 
 export const capabilities = () => call('capabilities', { method: 'GET' })
 export const validate = (phone, amount, distributorAccount) => call('validate', {

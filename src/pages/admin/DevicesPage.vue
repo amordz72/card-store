@@ -27,6 +27,22 @@
         <!-- Moving station by station to the core's gateway (step 2) -->
         <div v-if="st.gateway" class="small">البوابة: <q-badge :color="st.gateway === 'core' ? 'primary' : 'grey-6'" :label="st.gateway === 'core' ? 'النواة' : 'القديمة'" /></div>
         <div v-for="r in st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
+        <!-- Agent updates: the computer's updater applies them and rolls back by itself -->
+        <div v-if="updates" class="row items-center q-gutter-xs q-mt-xs">
+          <template v-if="active(st)">
+            <q-badge color="info" :label="UPDATE_STATUS[active(st).status]" />
+            <span class="small muted">{{ updateLabel(active(st)) }}</span>
+            <q-btn v-if="active(st).status === 'pending'" flat dense no-caps size="sm" color="negative" label="إلغاء" :loading="busy" @click="cancel(active(st))" />
+          </template>
+          <template v-else-if="!st.absent_minutes">
+            <q-btn v-if="latest && latest.agent_version !== st.agent_version" outline dense no-caps size="sm" color="primary" :label="'حدّث إلى ' + latest.agent_version" :loading="busy" @click="askRelease(st)" />
+            <q-btn v-if="st.gateway === 'old'" outline dense no-caps size="sm" color="primary" label="انقل إلى بوابة النواة" :loading="busy" @click="askGateway(st, 'flexy-gateway')" />
+            <q-btn v-if="st.gateway === 'core'" flat dense no-caps size="sm" color="grey-8" label="أرجع إلى البوابة القديمة" :loading="busy" @click="askGateway(st, 'station-gateway')" />
+          </template>
+        </div>
+        <div v-if="last(st) && !active(st)" class="small" :class="last(st).status === 'succeeded' ? 'text-positive' : last(st).status === 'cancelled' ? 'muted' : 'text-deep-orange'">
+          آخر تحديث: {{ updateLabel(last(st)) }} · {{ UPDATE_STATUS[last(st).status] }}<span v-if="last(st).error"> ({{ last(st).error }})</span>
+        </div>
       </div>
 
       <button v-for="m in live(st)" :key="m.modem_uuid || m.ip" type="button" class="modem" @click="open(st, m)">
@@ -99,6 +115,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { Dialog } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { useBell } from 'src/composables/useBell'
 
@@ -126,6 +143,54 @@ function simLine (m) {
   return (m.sim.code || 'شريحة بلا اسم') + ' · ' + m.sim.sim_type_name
 }
 
+// Agent updates (owner 2026-10-25): one request per computer at a time
+const UPDATE_STATUS = {
+  pending: 'في الانتظار',
+  claimed: 'جارٍ على الكمبيوتر',
+  succeeded: 'تم',
+  failed: 'فشل، لم يتغيّر شيء',
+  rolled_back: 'رجع وحده إلى السابق',
+  cancelled: 'أُلغي'
+}
+const GATEWAYS = { 'flexy-gateway': 'بوابة النواة', 'station-gateway': 'البوابة القديمة' }
+const FUNCTIONS = 'https://wqyebqzbbpohbnznqdjj.supabase.co/functions/v1/'
+const updates = ref(null)
+const latest = computed(() => updates.value?.releases?.[0] || null)
+const last = (st) => (updates.value?.stations || []).find((x) => x.station_uuid === st.station_uuid) || null
+const active = (st) => { const u = last(st); return u && (u.status === 'pending' || u.status === 'claimed') ? u : null }
+function updateLabel (u) {
+  if (u.kind === 'release') return 'إصدار ' + String(u.release).split('+')[0]
+  const url = u.config?.SERVER_URL || ''
+  return 'نقل إلى ' + (GATEWAYS[url.slice(FUNCTIONS.length)] || 'عنوان آخر')
+}
+async function loadUpdates () {
+  const res = await flexy.ownerUpdates()
+  if (res.status === 200 && res.body?.ok) updates.value = res.body
+}
+async function send (fn) {
+  busy.value = true
+  try {
+    const res = await fn()
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+    await loadUpdates()
+  } catch (e) {
+    error.value = 'لم يُقبل الطلب (' + (e.message || 'FLEXY_CORE') + ').'
+  } finally {
+    busy.value = false
+  }
+}
+const confirm = (title, message, fn) => Dialog.create({ title, message, cancel: 'لا', ok: 'نعم' }).onOk(() => send(fn))
+function askRelease (st) {
+  const r = latest.value
+  confirm('تحديث ' + (st.code || 'الكمبيوتر'), `يُثبَّت الإصدار ${r.agent_version} حين لا يكون على الكمبيوتر أي USSD. إن لم يتصل الـAgent الجديد خلال 3 دقائق يرجع وحده إلى السابق.`,
+    () => flexy.requestUpdate(st.station_uuid, 'release', r.release))
+}
+function askGateway (st, gateway) {
+  confirm('نقل ' + (st.code || 'الكمبيوتر'), `يكلّم الـAgent ${GATEWAYS[gateway]} بعد إعادة تشغيله. إن لم يتصل خلال 3 دقائق يرجع وحده إلى العنوان السابق.`,
+    () => flexy.requestUpdate(st.station_uuid, 'config', { SERVER_URL: FUNCTIONS + gateway }))
+}
+const cancel = (u) => send(() => flexy.cancelUpdate(u.deployment_id))
+
 async function load () {
   if (busy.value) return
   busy.value = true
@@ -133,6 +198,7 @@ async function load () {
     const res = await flexy.ownerDevices()
     if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
     tree.value = res.body
+    await loadUpdates().catch(() => {})
     error.value = ''
     devicesDown.value = Number(res.body.summary?.down) || 0
   } catch (e) {
