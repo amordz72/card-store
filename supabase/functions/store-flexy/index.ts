@@ -9,6 +9,8 @@
 // Shop (customer session token in the body; the database checks it):
 //   POST /store-flexy/shop/send    → take the charge, send to flexy-api POST /v1/operations
 //   POST /store-flexy/shop/refresh → follow up this shop's open requests
+// Database tick (pg_cron, only while a request is open; body {secret} from Vault, checked by the database):
+//   POST /store-flexy/internal/sweep → follow up every shop's open requests
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -184,12 +186,23 @@ async function handleShop(req: Request, route: string): Promise<Response> {
   return json(req, 404, { ok: false, error: "ROUTE_NOT_FOUND" });
 }
 
+async function sweep(req: Request): Promise<Response> {
+  if (!SERVICE_KEY || !FLEXY_KEY) return json(req, 500, { ok: false, error: "FLEXY_NOT_CONFIGURED" });
+  const body = await req.json().catch(() => null);
+  const open = await serviceRpc("store_flexy_sweep_jobs", { p_secret: typeof body?.secret === "string" ? body.secret : "" });
+  const jobs = await open.json().catch(() => null);
+  if (!open.ok || !Array.isArray(jobs)) return json(req, 403, { ok: false, error: "NOT_ALLOWED" });
+  await Promise.all((jobs as Job[]).map(followUp));
+  return json(req, 200, { ok: true, open: jobs.length });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: await cors(req) });
 
   try {
     const route = new URL(req.url).pathname.replace(/^.*\/store-flexy/, "");
     if (req.method === "POST" && route.startsWith("/shop/")) return await handleShop(req, route);
+    if (req.method === "POST" && route === "/internal/sweep") return await sweep(req);
 
     if (!(await isStoreAdmin(req.headers.get("authorization") ?? ""))) return json(req, 403, { ok: false, error: "NOT_ADMIN" });
     if (!FLEXY_KEY) return json(req, 500, { ok: false, error: "FLEXY_KEY_MISSING" });
