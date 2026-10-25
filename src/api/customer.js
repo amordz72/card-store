@@ -101,10 +101,10 @@ async function shop (path, body) {
 }
 export const flexySend = (token, phone, amount, requestId) => shop('send', { token, phone, amount, request_id: requestId })
 export const flexyRefresh = (token) => shop('refresh', { token })
-// Offers (Sama / PixX): discovery first (no money), then one offer by its name; the server takes the price from the name.
+// Offers: the line's group and its offers (Flexy Core keeps or discovers the group, no money), then one offer
+// by its name; the server takes the price from the name.
 export const flexyOffer = (token, phone, offer, requestId) => shop('send', { token, kind: 'offer', phone, offer, request_id: requestId })
-export const flexyDiscover = (token, phone, menu) => shop('discover', { token, phone, menu })
-export const flexyDiscovery = (token, key) => shop('discovery', { token, key })
+export const flexyOffers = (token, phone) => shop('offers', { token, phone })
 
 // Game top-up by player id (v1.25): the card comes from stock and is never shown; an operator tops up by hand
 export async function gameStatus (token) {

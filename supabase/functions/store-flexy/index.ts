@@ -9,8 +9,7 @@
 // Shop (customer session token in the body; the database checks it):
 //   POST /store-flexy/shop/send    → take the charge, send to flexy-api POST /v1/operations
 //   POST /store-flexy/shop/refresh → follow up this shop's open requests
-//   POST /store-flexy/shop/discover → ask Flexy Core which offers a number can take (no money)
-//   POST /store-flexy/shop/discovery → the result of that discovery
+//   POST /store-flexy/shop/offers  → the offers a number can take (Flexy Core: line group, no money)
 // Database tick (pg_cron, only while a request is open; body {secret} from Vault, checked by the database):
 //   POST /store-flexy/internal/sweep → follow up every shop's open requests
 
@@ -85,7 +84,6 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CORE_EXPIRES_MS = 120_000;
 const OP_630 = "mobilis.arsselli.ordinary.630";
 const OP_OFFER = "mobilis.sama.offer.665";
-const OP_DISCOVER = "mobilis.sama.discover.665";
 
 async function serviceRpc(fn: string, args: Record<string, unknown>): Promise<Response> {
   return await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -196,8 +194,9 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     return json(req, 200, { ok: true, open: jobs.length });
   }
 
-  // Discovery: which offers the carrier lists for a number. No money; the shop must be allowed offers.
-  if (route === "/shop/discover") {
+  // Offers for a number: Flexy Core keeps the line's group (or discovers it, no money) and
+  // returns the group's offers a connected SIM can run. The shop polls while it is discovering.
+  if (route === "/shop/offers") {
     // store_flexy_status is the shop's own read (anon), not a service function.
     const st = await fetch(`${SUPABASE_URL}/rest/v1/rpc/store_flexy_status`, {
       method: "POST",
@@ -208,47 +207,27 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     if (!st.ok || !s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
     if (!s.enabled) return json(req, 403, { ok: false, error: "FLEXY_NOT_ENABLED" });
     if (!s.open || !s.offers) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
-    const key = "csd_" + crypto.randomUUID().replaceAll("-", "");
-    const menu = body.menu === "2" ? "2" : "1";
     try {
-      const res = await fetch(`${FLEXY_API}/operations`, {
+      const res = await fetch(`${FLEXY_API}/offers/lookup`, {
         method: "POST",
         headers: { authorization: `Bearer ${FLEXY_KEY}`, "content-type": "application/json" },
-        body: JSON.stringify({ operation_key: OP_DISCOVER, idempotency_key: key, phone: String(body.phone ?? ""), menu,
-          expires_at: new Date(Date.now() + CORE_EXPIRES_MS).toISOString() }),
+        body: JSON.stringify({ phone: String(body.phone ?? "") }),
         signal: AbortSignal.timeout(25_000),
       });
       const b = await res.json().catch(() => ({}));
       if (!res.ok) return json(req, 422, { ok: false, error: String(b?.error ?? "FLEXY_REFUSED") });
-      return json(req, 200, { ok: true, key, ...discoveryView(b) });
-    } catch {
-      return json(req, 502, { ok: false, error: "FLEXY_UNAVAILABLE" });
-    }
-  }
-  if (route === "/shop/discovery") {
-    const key = String(body.key ?? "");
-    if (!/^csd_[0-9a-f]{32}$/.test(key)) return json(req, 400, { ok: false, error: "BAD_REQUEST" });
-    try {
-      const res = await fetch(`${FLEXY_API}/operations/${key}`, {
-        headers: { authorization: `Bearer ${FLEXY_KEY}` }, signal: AbortSignal.timeout(10_000),
-      });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) return json(req, 404, { ok: false, error: "NOT_FOUND" });
-      return json(req, 200, { ok: true, key, ...discoveryView(b) });
+      // Only what a shop needs: the status, the group and the offers it can buy now.
+      const offers = Array.isArray(b.offers)
+        ? b.offers.filter((o: { available?: boolean }) => o.available)
+          .map((o: { label: string; family: string; amount: number }) => ({ label: o.label, family: o.family, amount: o.amount }))
+        : [];
+      return json(req, 200, { ok: true, status: String(b.status ?? "unknown"), group: b.group ?? null, offers });
     } catch {
       return json(req, 502, { ok: false, error: "FLEXY_UNAVAILABLE" });
     }
   }
 
   return json(req, 404, { ok: false, error: "ROUTE_NOT_FOUND" });
-}
-
-// What a shop sees of a discovery: running, done with the offers listed, or why not.
-function discoveryView(b: { operation?: { status?: string; offers?: unknown; outcome?: { code?: string } | null } }) {
-  const op = b?.operation;
-  if (!op?.status || op.status === "queued" || op.status === "running") return { status: "running" };
-  if (op.outcome?.code === "665_DISCOVERED" && Array.isArray(op.offers)) return { status: "done", offers: op.offers.map(String) };
-  return { status: "failed", reason: op.outcome?.code ?? null };
 }
 
 async function sweep(req: Request): Promise<Response> {
