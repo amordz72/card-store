@@ -82,6 +82,9 @@ async function isStoreAdmin(authorization: string): Promise<boolean> {
 // ---------------------------------------------------------------------------------------------
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CORE_EXPIRES_MS = 120_000;
+// A request the core still has not decided after this long goes to the owner's review (he decides:
+// «تم الإرسال» or «فشل، أرجع المبلغ»). The core itself sends its accepted ones to review after 2 hours.
+const UNDECIDED_REVIEW_MS = 3 * 60 * 60_000;
 const OP_630 = "mobilis.arsselli.ordinary.630";
 const OP_OFFER = "mobilis.sama.offer.665";
 
@@ -135,8 +138,14 @@ async function sendToCore(job: Job): Promise<string | null> {
   // A 4xx answer means the core created nothing for this key (validation, closed, expired, no route).
   else if (res.status >= 400 && res.status < 500 && res.status !== 409) status = "not_sent";
   else return null;
-  await serviceRpc("store_flexy_mark", { p_job_id: job.job_id, p_status: status, p_reply: body?.operation?.network_reply ?? null });
+  await mark(job, status, body?.operation?.network_reply ?? null);
   return status;
+}
+
+async function mark(job: Job, status: string, reply: string | null): Promise<void> {
+  const res = await serviceRpc("store_flexy_mark", { p_job_id: job.job_id, p_status: status, p_reply: reply });
+  // Never silent: a refused mark keeps the shop's money held and its number busy.
+  if (!res.ok) console.error("store-flexy mark", job.job_id, status, res.status, await res.text().catch(() => ""));
 }
 
 async function followUp(job: Job): Promise<void> {
@@ -154,7 +163,9 @@ async function followUp(job: Job): Promise<void> {
     if (!op?.status) return;
     const status = shopStatus(String(op.status));
     if (status !== job.status) {
-      await serviceRpc("store_flexy_mark", { p_job_id: job.job_id, p_status: status, p_reply: op.network_reply ?? null });
+      await mark(job, status, op.network_reply ?? null);
+    } else if (status === "sent" && Date.now() - Date.parse(job.created_at) > UNDECIDED_REVIEW_MS) {
+      await mark(job, "review", op.network_reply ?? null);
     }
   } catch {
     // Next refresh tries again.
