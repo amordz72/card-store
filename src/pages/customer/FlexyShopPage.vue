@@ -34,7 +34,28 @@
         <q-btn unelevated color="primary" size="lg" icon="send" label="إرسال" :loading="busy"
           :disable="!canSend" @click="confirmSend" />
       </template>
-      <div v-else class="card text-center muted q-pa-lg">العروض ستتوفر قريبًا.</div>
+      <div v-else-if="!access.offers.value" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
+      <template v-else>
+        <!-- Discovery first (no money): only the offers the network lists for this number are shown -->
+        <div class="card column q-gutter-sm">
+          <q-btn-toggle v-model="menu" spread no-caps unelevated toggle-color="primary" color="grey-3" text-color="grey-9"
+            :options="[{ label: 'Mix · Talk · PixX', value: '1' }, { label: 'Net', value: '2' }]" @update:model-value="resetDiscovery" />
+          <q-btn unelevated color="primary" icon="travel_explore" label="اكتشف عروض الرقم" :loading="discovering"
+            :disable="!access.open.value || !phoneOk" @click="discover" />
+          <div v-if="discovering" class="small muted text-center">جارٍ السؤال عن عروض الرقم… قد يأخذ حتى دقيقة.</div>
+          <div v-else-if="discoverError" class="small text-negative text-center">{{ discoverError }}</div>
+        </div>
+        <div v-if="found" class="card q-pa-none">
+          <button v-for="o in found" :key="o.label" type="button" class="offer-row" @click="confirmOffer(o)">
+            <span class="column items-start">
+              <span class="text-weight-bold">{{ o.label }}</span>
+              <span class="small muted">{{ o.details }}</span>
+            </span>
+            <span class="price">{{ money(o.price) }}</span>
+          </button>
+          <div v-if="!found.length" class="text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
+        </div>
+      </template>
 
       <div class="row items-center justify-between q-mt-md">
         <div class="text-weight-bold">آخر العمليات</div>
@@ -183,6 +204,74 @@ function confirmSend () {
   })
 }
 
+// Offers the store sells: name → what the customer gets. The price is the number in the name.
+const OFFERS = {
+  'Sama Mix 100': '500Mo — يوم واحد', 'Sama Mix 500': '5Go — 15 يومًا', 'Sama Mix 1000': '15Go — 30 يومًا',
+  'Sama Mix 1500': '30Go — 30 يومًا', 'Sama Mix 2000': '50Go — 30 يومًا',
+  'Sama Talk 500': '500Mo — 15 يومًا', 'Sama Talk 1000': '2Go — 30 يومًا', 'Sama Talk 1500': '3Go — 30 يومًا',
+  'Sama Talk 2000': '4Go — 30 يومًا',
+  'Sama Net 500': '10Go — 15 يومًا', 'Sama Net 1000': '30Go — 30 يومًا', 'Sama Net 1500': '60Go — 30 يومًا',
+  'Sama Net 2000': '90Go — 30 يومًا',
+  'PixX 50': '500Mo — يوم واحد', 'PixX 100': '1Go — يوم واحد', 'PixX 500': '5Go — 15 يومًا',
+  'PixX 1000': '13Go — 30 يومًا', 'PixX 2000': '30Go'
+}
+const menu = ref('1')
+const discovering = ref(false)
+const discoverError = ref('')
+const found = ref(null)
+let discoveredFor = ''
+function resetDiscovery () { found.value = null; discoverError.value = '' }
+
+// One discovery, then a light poll (every 3 s, at most 90 s) until the network has answered
+async function discover () {
+  resetDiscovery()
+  discovering.value = true
+  const p = digits.value
+  try {
+    let r = await api.flexyDiscover(customer.token, p, menu.value)
+    for (let i = 0; r.status === 'running' && i < 30; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+      r = await api.flexyDiscovery(customer.token, r.key)
+    }
+    if (r.status === 'done') {
+      discoveredFor = p
+      // The name on the network may carry a size note in brackets: «PixX 100 (1Go)»
+      found.value = r.offers.map((n) => n.replace(/\s*\(.*\)$/, '').trim())
+        .filter((n) => OFFERS[n])
+        .map((label) => ({ label, details: OFFERS[label], price: Number(label.match(/(\d+)$/)[1]) }))
+        .filter((o) => o.price <= access.maxAmount.value)
+    } else {
+      discoverError.value = r.status === 'running' ? 'لم تردّ الشبكة. حاول مرة أخرى.' : 'تعذّر الاستكشاف الآن. حاول بعد قليل.'
+    }
+  } catch (e) {
+    discoverError.value = e?.message || 'تعذّر الاستكشاف الآن. حاول بعد قليل.'
+  } finally { discovering.value = false }
+}
+
+function confirmOffer (o) {
+  const p = digits.value
+  if (p !== discoveredFor) { resetDiscovery(); return }
+  Dialog.create({
+    title: 'تأكيد العرض',
+    html: true,
+    message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
+      <div style="text-align:center"><b>${o.label}</b> — ${o.details}</div>
+      <div style="text-align:center">السعر: <b>${money(o.price)}</b></div>
+      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>`,
+    cancel: 'رجوع',
+    ok: 'نعم، أرسل'
+  }).onOk(async () => {
+    const r = await run(() => api.flexyOffer(customer.token, p, o.label, crypto.randomUUID()))
+    if (!r) return
+    buyer.refresh()
+    phone.value = ''
+    resetDiscovery()
+    await loadFirst().catch(() => null)
+    delay = 3000
+    schedule()
+  })
+}
+
 onMounted(async () => {
   await access.refresh()
   if (!access.enabled.value) return
@@ -200,5 +289,9 @@ onUnmounted(() => clearTimeout(timer))
 .op-row:last-child { border-bottom: 0; }
 .details { margin-top: 6px; padding: 8px; border: 1px solid #E4E6EC; border-radius: 8px; background: #F8F9FB; }
 .reply { white-space: normal; word-break: break-word; }
+.offer-row { width: 100%; border: 0; border-bottom: 1px solid #ECEEF3; background: transparent; padding: 12px 14px; font: inherit;
+  color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
+.offer-row:last-child { border-bottom: 0; }
+.price { font-weight: 700; white-space: nowrap; }
 :deep(.phone) { font-size: 1.4rem; letter-spacing: 1px; }
 </style>

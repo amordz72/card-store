@@ -9,6 +9,8 @@
 // Shop (customer session token in the body; the database checks it):
 //   POST /store-flexy/shop/send    → take the charge, send to flexy-api POST /v1/operations
 //   POST /store-flexy/shop/refresh → follow up this shop's open requests
+//   POST /store-flexy/shop/discover → ask Flexy Core which offers a number can take (no money)
+//   POST /store-flexy/shop/discovery → the result of that discovery
 // Database tick (pg_cron, only while a request is open; body {secret} from Vault, checked by the database):
 //   POST /store-flexy/internal/sweep → follow up every shop's open requests
 
@@ -82,6 +84,8 @@ async function isStoreAdmin(authorization: string): Promise<boolean> {
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CORE_EXPIRES_MS = 120_000;
 const OP_630 = "mobilis.arsselli.ordinary.630";
+const OP_OFFER = "mobilis.sama.offer.665";
+const OP_DISCOVER = "mobilis.sama.discover.665";
 
 async function serviceRpc(fn: string, args: Record<string, unknown>): Promise<Response> {
   return await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -100,7 +104,10 @@ function shopStatus(core: string): "sent" | "success" | "failed" | "review" | "n
   return "sent";
 }
 
-type Job = { job_id: number; core_key: string; status: string; phone: string; amount: number; created_at: string };
+type Job = {
+  job_id: number; core_key: string; status: string; phone: string; amount: number; created_at: string;
+  kind: string; offer_label: string | null;
+};
 
 // Send (or resend: same key, same request) to the core and record what it said.
 // Returns the shop status, or null when the core could not be reached (the job stays as it is).
@@ -111,10 +118,12 @@ async function sendToCore(job: Job): Promise<string | null> {
       method: "POST",
       headers: { authorization: `Bearer ${FLEXY_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({
-        operation_key: OP_630,
+        // Sent again as what it is: an offer is never re-sent as ordinary credit.
+        ...(job.kind === "offer"
+          ? { operation_key: OP_OFFER, offer: job.offer_label }
+          : { operation_key: OP_630, amount: job.amount }),
         idempotency_key: job.core_key,
         phone: job.phone,
-        amount: job.amount,
         expires_at: new Date(Date.parse(job.created_at) + CORE_EXPIRES_MS).toISOString(),
       }),
       signal: AbortSignal.timeout(25_000),
@@ -161,16 +170,20 @@ async function handleShop(req: Request, route: string): Promise<Response> {
   if (!token) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
 
   if (route === "/shop/send") {
+    // An offer's price is the number its name ends with (the database checks it again).
+    const kind = body.kind === "offer" ? "offer" : "630";
+    const label = kind === "offer" ? String(body.offer ?? "").trim() : null;
+    const amount = kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
     const created = await serviceRpc("store_flexy_create", {
-      p_token: token, p_kind: "630", p_phone: String(body.phone ?? ""), p_amount: Number(body.amount),
-      p_offer_code: null, p_offer_label: null, p_request_id: body.request_id ?? null,
+      p_token: token, p_kind: kind, p_phone: String(body.phone ?? ""), p_amount: amount,
+      p_offer_code: null, p_offer_label: label, p_request_id: body.request_id ?? null,
     });
     const rows = await created.json().catch(() => null);
     // The database names the refusal (FLEXY_CLOSED, FLEXY_PHONE_BUSY, INSUFFICIENT_BALANCE...).
     if (!created.ok || !Array.isArray(rows) || !rows[0]) {
       return json(req, 422, { ok: false, error: String(rows?.message ?? "FLEXY_REFUSED") });
     }
-    const job = rows[0] as Job;
+    const job = { ...rows[0], kind, offer_label: label } as Job;
     const status = job.status === "queued" ? (await sendToCore(job)) ?? "queued" : job.status;
     return json(req, 200, { ok: true, job_id: job.job_id, status });
   }
@@ -183,7 +196,59 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     return json(req, 200, { ok: true, open: jobs.length });
   }
 
+  // Discovery: which offers the carrier lists for a number. No money; the shop must be allowed offers.
+  if (route === "/shop/discover") {
+    // store_flexy_status is the shop's own read (anon), not a service function.
+    const st = await fetch(`${SUPABASE_URL}/rest/v1/rpc/store_flexy_status`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ p_token: token }),
+    });
+    const s = (await st.json().catch(() => null))?.[0];
+    if (!st.ok || !s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
+    if (!s.enabled) return json(req, 403, { ok: false, error: "FLEXY_NOT_ENABLED" });
+    if (!s.open || !s.offers) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
+    const key = "csd_" + crypto.randomUUID().replaceAll("-", "");
+    const menu = body.menu === "2" ? "2" : "1";
+    try {
+      const res = await fetch(`${FLEXY_API}/operations`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${FLEXY_KEY}`, "content-type": "application/json" },
+        body: JSON.stringify({ operation_key: OP_DISCOVER, idempotency_key: key, phone: String(body.phone ?? ""), menu,
+          expires_at: new Date(Date.now() + CORE_EXPIRES_MS).toISOString() }),
+        signal: AbortSignal.timeout(25_000),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) return json(req, 422, { ok: false, error: String(b?.error ?? "FLEXY_REFUSED") });
+      return json(req, 200, { ok: true, key, ...discoveryView(b) });
+    } catch {
+      return json(req, 502, { ok: false, error: "FLEXY_UNAVAILABLE" });
+    }
+  }
+  if (route === "/shop/discovery") {
+    const key = String(body.key ?? "");
+    if (!/^csd_[0-9a-f]{32}$/.test(key)) return json(req, 400, { ok: false, error: "BAD_REQUEST" });
+    try {
+      const res = await fetch(`${FLEXY_API}/operations/${key}`, {
+        headers: { authorization: `Bearer ${FLEXY_KEY}` }, signal: AbortSignal.timeout(10_000),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) return json(req, 404, { ok: false, error: "NOT_FOUND" });
+      return json(req, 200, { ok: true, key, ...discoveryView(b) });
+    } catch {
+      return json(req, 502, { ok: false, error: "FLEXY_UNAVAILABLE" });
+    }
+  }
+
   return json(req, 404, { ok: false, error: "ROUTE_NOT_FOUND" });
+}
+
+// What a shop sees of a discovery: running, done with the offers listed, or why not.
+function discoveryView(b: { operation?: { status?: string; offers?: unknown; outcome?: { code?: string } | null } }) {
+  const op = b?.operation;
+  if (!op?.status || op.status === "queued" || op.status === "running") return { status: "running" };
+  if (op.outcome?.code === "665_DISCOVERED" && Array.isArray(op.offers)) return { status: "done", offers: op.offers.map(String) };
+  return { status: "failed", reason: op.outcome?.code ?? null };
 }
 
 async function sweep(req: Request): Promise<Response> {

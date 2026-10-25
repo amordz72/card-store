@@ -76,8 +76,8 @@ select pg_temp.check('above max', pg_temp.err(format(
   'select * from public.store_flexy_create(%L, %L, %L, 5001, null, null, gen_random_uuid())', :'tok', '630', '0661000001')) = 'FLEXY_AMOUNT_OUT_OF_RANGE');
 select pg_temp.check('below 40', pg_temp.err(format(
   'select * from public.store_flexy_create(%L, %L, %L, 39, null, null, gen_random_uuid())', :'tok', '630', '0661000001')) = 'FLEXY_AMOUNT_OUT_OF_RANGE');
-select pg_temp.check('offers not ready', pg_temp.err(format(
-  'select * from public.store_flexy_create(%L, %L, %L, 1000, %L, %L, gen_random_uuid())', :'tok', 'offer', '0661000001', 'pixx-1000', 'PixX 1000')) = 'FLEXY_OFFERS_NOT_READY');
+select pg_temp.check('offer without an offers rate', pg_temp.err(format(
+  'select * from public.store_flexy_create(%L, %L, %L, 1000, null, %L, gen_random_uuid())', :'tok', 'offer', '0661000001', 'PixX 1000')) = 'FLEXY_RATE_MISSING');
 select pg_temp.check('other shop not enabled', pg_temp.err(format(
   'select * from public.store_flexy_create(%L, %L, %L, 100, null, null, gen_random_uuid())', :'tok2', '630', '0661000009')) = 'FLEXY_NOT_ENABLED');
 
@@ -156,6 +156,27 @@ select pg_temp.check('shop list columns: no charge', (select count(*) = 0 from i
 select pg_temp.check('paging', (select count(*) = 2 from public.store_flexy_jobs(:'tok', 10, :j3)));
 select pg_temp.check('other shop sees nothing', (select count(*) = 0 from public.store_flexy_jobs(:'tok2', 10, null)));
 select pg_temp.check('status open now', (select enabled and open from public.store_flexy_status(:'tok')));
+reset role;
+
+-- ===== offers (v1.35): the price is the name's number; the open list says the kind =====
+set role authenticated;
+select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
+select public.store_admin_set_customer_flexy(:cu, true, 'trader', null, 5, null);
+reset role;
+set role service_role;
+select pg_temp.check('offer: price must be the name''s number', pg_temp.err(format(
+  'select * from public.store_flexy_create(%L, %L, %L, 100, null, %L, gen_random_uuid())', :'tok', 'offer', '0661000006', 'Sama Mix 2000')) = 'FLEXY_OFFER_INVALID');
+select pg_temp.check('offer: a name is required', pg_temp.err(format(
+  'select * from public.store_flexy_create(%L, %L, %L, 100, null, null, gen_random_uuid())', :'tok', 'offer', '0661000006')) = 'FLEXY_OFFER_INVALID');
+select pg_temp.check('630 refuses an offer name', pg_temp.err(format(
+  'select * from public.store_flexy_create(%L, %L, %L, 100, null, %L, gen_random_uuid())', :'tok', '630', '0661000006', 'Sama Mix 100')) = 'FLEXY_BAD_REQUEST');
+select balance as b0 from store.customers where id = :cu \gset
+select job_id as jo from public.store_flexy_create(:'tok', 'offer', '0661000006', 100, null, 'Sama Mix 100', gen_random_uuid()) \gset
+select pg_temp.check('offer: charged at the offers rate (5%)', (select charged = 95 and kind = 'offer' and offer_label = 'Sama Mix 100'
+  and offer_code = 'Sama Mix 100' from store.flexy_jobs where id = :jo)
+  and (select balance = :b0 - 95 from store.customers where id = :cu));
+select pg_temp.check('open list says kind and offer', (select kind = 'offer' and offer_label = 'Sama Mix 100'
+  from public.store_flexy_open_jobs(null) where job_id = :jo));
 reset role;
 
 select name, detail from c_results where not ok;
