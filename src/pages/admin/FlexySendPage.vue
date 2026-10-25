@@ -41,7 +41,8 @@ const ERRORS = {
   SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
   APP_SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
   OFFER_NOT_ON_SAMA: 'هذا العرض لا يُنفَّذ من Sama.',
-  '665_NO_SAMA_READY': 'لا توجد شريحة Sama متصلة وفارغة الآن.'
+  '665_NO_SAMA_READY': 'لا توجد شريحة Sama متصلة وفارغة الآن.',
+  '665_SAMA_PIN_UNCONFIRMED': 'شريحة Sama لم تقبل الـPIN في آخر محاولة: تحقق من الـPIN واحفظه من جديد في «المحطات والشرائح».'
 }
 // Why no SIM can run the send now (Flexy Core, core/selection.ts REASONS)
 const REASONS = {
