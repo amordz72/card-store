@@ -340,7 +340,8 @@ const ALERTS = {
   PIN_REJECTED: 'الشبكة رفضت الـPIN: أدخل PIN جديدًا',
   TYPE_NOT_CONFIRMED: 'رد الشبكة لا يطابق النوع: حدّد النوع بنفسك',
   BALANCE_NOT_CONFIRMED: 'لم يُؤكَّد أول رصيد',
-  BALANCE_READ_FAILED: 'تعذّرت قراءة الرصيد: افحص الموديم ثم اضغط «اقرأ الرصيد»'
+  BALANCE_READ_FAILED: 'تعذّرت قراءة الرصيد: افحص الموديم ثم اضغط «اقرأ الرصيد»',
+  LAST_632_UNCONFIRMED: 'آخر طلب رصيد (632) لم يتأكد: تحقق من الـPIN واحفظه من جديد قبل طلب آخر'
 }
 const onboardingOf = (sim) => (tree.value?.onboarding || []).find((o) => o.sim_uuid === sim.sim_uuid) || null
 const noteOf = (sim) => onboardingOf(sim)?.note || ''
@@ -396,6 +397,13 @@ async function saveSettings () {
 const READ_ERRORS = {
   SIM_NOT_APPROVED: 'الشريحة غير معتمدة',
   PROBE_RUNNING: 'كود آخر يعمل على الموديم الآن',
+  // The 632 guard (one at a time, never again with a PIN refused or unconfirmed)
+  PIN_REJECTED: 'الشبكة رفضت الـPIN: أدخل الـPIN الصحيح واحفظه أولًا',
+  LAST_632_UNCONFIRMED: 'آخر طلب رصيد لم يتأكد: تحقق من الـPIN واحفظه من جديد أولًا',
+  RUNNING: 'طلب رصيد آخر يعمل الآن',
+  LAST_QUERY_RECENT: 'قُرئ الرصيد قبل قليل',
+  NOTHING_CHANGED: 'الرصيد لم يتغير منذ آخر قراءة',
+  MODEM_BUSY: 'الموديم مشغول الآن',
   SIM_NOT_FOUND: 'الشريحة غير موجودة'
 }
 async function readBalance () {
