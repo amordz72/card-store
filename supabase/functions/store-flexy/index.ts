@@ -79,7 +79,7 @@ async function isStoreAdmin(authorization: string): Promise<boolean> {
 // ---------------------------------------------------------------------------------------------
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CORE_EXPIRES_MS = 120_000;
-const OP_630 = "mobilis.arsselli.630";
+const OP_630 = "mobilis.arsselli.ordinary.630";
 
 async function serviceRpc(fn: string, args: Record<string, unknown>): Promise<Response> {
   return await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
