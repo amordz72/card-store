@@ -6,16 +6,41 @@
         <div class="col section-title">الحالة الآن</div>
         <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy" @click="load" />
       </div>
-      <!-- Level 1 filter: the computers, present or absent (owner 2026-10-25) -->
-      <div v-if="tree" class="row items-center q-gutter-sm">
-        <q-btn-toggle v-model="presence" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: 'الكل', value: 'all' }, { label: 'موجود', value: 'present' }, { label: 'غائب', value: 'absent' }]" />
-        <span class="small muted">{{ presentCount }} موجود · {{ absentCount }} غائب</span>
-      </div>
       <div v-if="tree" class="small muted">آخر تحديث {{ clock(tree.checked_at) }} · غائب بعد {{ tree.limits.absentMinutes }} دقيقة · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
+    <!-- Every SIM in one table, one row each, nothing to open to read it (owner 2026-10-25).
+         Connected first; a row opens the SIM's settings only, and closing keeps your place. -->
+    <div v-if="tree" class="card q-pa-none">
+      <div class="row items-center q-gutter-sm q-pa-sm">
+        <q-btn-toggle v-model="tableFilter" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: 'المتصلة', value: 'connected' }, { label: 'الكل', value: 'all' }]" />
+        <span class="small muted">{{ connectedRows.length }} متصلة · {{ allRows.length }} في الكل</span>
+      </div>
+      <div class="table-wrap">
+        <table class="sims">
+          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الكمبيوتر</th><th>الرصيد</th><th>الحالة</th></tr></thead>
+          <tbody>
+            <tr v-for="r in tableRows" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
+              <td><span class="text-weight-bold">{{ r.m.sim.code || 'جديدة' }}</span><div v-if="r.m.sim.label" class="small muted">{{ r.m.sim.label }}</div><div class="small muted">{{ r.m.sim.sim_type_name }}</div></td>
+              <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
+              <td>{{ r.st.code || '—' }}<div class="small muted"><bdi class="ltr">{{ r.m.ip || '—' }}</bdi></div></td>
+              <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
+              <td><q-badge :color="LEVEL[r.m.level].color" :label="LEVEL[r.m.level].label" /><div class="small" :class="statusClass(r)">{{ statusText(r) }}</div></td>
+            </tr>
+            <tr v-if="!tableRows.length"><td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <q-expansion-item v-if="tree" class="card q-pa-none" dense switch-toggle-side label="الكمبيوترات والتحديثات" header-class="text-weight-bold">
+      <div class="row items-center q-gutter-sm q-pa-sm">
+        <q-btn-toggle v-model="presence" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: 'الكل', value: 'all' }, { label: 'موجود', value: 'present' }, { label: 'غائب', value: 'absent' }]" />
+        <span class="small muted">{{ presentCount }} موجود · {{ absentCount }} غائب</span>
+      </div>
     <!-- Level 1: one row per computer. A present one opens to its SIMs; an absent one has nothing to open. -->
     <div v-for="st in shownStations" :key="st.station_uuid" class="card q-pa-none">
       <button type="button" class="station-row" :class="{ 'station-open': opened === st.station_uuid }" :disabled="isAbsent(st)" @click="toggle(st)">
@@ -106,6 +131,7 @@
 
     <div v-if="tree && !tree.stations.length" class="card text-center muted">لا كمبيوترات مسجّلة</div>
     <div v-else-if="tree && !shownStations.length" class="card text-center muted">لا شيء بهذا الفلتر</div>
+    </q-expansion-item>
 
     <q-dialog v-model="details">
       <q-card v-if="picked" style="min-width: 300px; max-width: 420px">
@@ -207,6 +233,13 @@ function toggle (st) {
 }
 // Connected = the modem answers and holds a SIM (ready or with a warning); otherwise not.
 const isConnected = (m) => !!m.sim && m.level !== 'down'
+// The table: every SIM of a computer still in use; "connected" = its computer present and its modem connected.
+const tableFilter = ref('connected')
+const allRows = computed(() => current.value.flatMap((st) => st.modems.filter((m) => m.sim && m.level !== 'old').map((m) => ({ st, m }))))
+const connectedRows = computed(() => allRows.value.filter((r) => !isAbsent(r.st) && isConnected(r.m)))
+const tableRows = computed(() => tableFilter.value === 'connected' ? connectedRows.value : allRows.value)
+const statusText = (r) => onboardingText(r.m.sim) || (isAbsent(r.st) ? 'الكمبيوتر غائب' : r.m.reasons[0]?.text) || 'جاهزة'
+const statusClass = (r) => onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : r.m.reasons.length || isAbsent(r.st) ? (r.m.level === 'down' ? 'text-negative' : 'text-deep-orange') : 'text-positive'
 const shownModems = (st) => live(st).filter((m) =>
   simFilter.value === 'all' || (simFilter.value === 'connected' ? isConnected(m) : !isConnected(m)))
 // Balance: one total the SIM can execute now, with how old the reading is. Old = past the
@@ -383,4 +416,10 @@ onMounted(load)
 .modem { width: 100%; border: 0; border-top: 1px solid #EEF0F4; background: transparent; padding: 10px 14px; text-align: right; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .op-row { padding: 10px 14px; border-top: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+.table-wrap { overflow-x: auto; }
+.sims { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sims th { text-align: right; font-weight: 600; color: #5B6170; padding: 8px 10px; border-bottom: 1px solid #E3E6EC; white-space: nowrap; }
+.sims td { padding: 8px 10px; border-top: 1px solid #EEF0F4; vertical-align: top; }
+.sims tbody tr { cursor: pointer; }
+.sims tbody tr:hover { background: #F6F7F9; }
 </style>
