@@ -37,6 +37,10 @@ export const ownerSend = (phone, amount, distributorAccount, idempotencyKey, sim
   body: { phone, amount, distributor_account: distributorAccount, idempotency_key: idempotencyKey, ...(simUuid ? { sim_uuid: simUuid } : {}) }
 })
 export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
+// Offers from the owner's page: the same flow as the shops', under the owner's switch, no wallet.
+export const ownerOffers = (phone) => owner('offers/lookup', { method: 'POST', body: { phone } })
+export const ownerOfferSend = (phone, offer, idempotencyKey) => owner('665/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey } })
+export const ownerOfferStatus = (idempotencyKey) => owner('665/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // The money switch, kept in Flexy Core (owner only). Off = every send refuses.
 export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })

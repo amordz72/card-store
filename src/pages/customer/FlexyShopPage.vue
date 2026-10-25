@@ -35,33 +35,8 @@
           :disable="!canSend" @click="confirmSend" />
       </template>
       <div v-else-if="!access.offers.value" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
-      <template v-else>
-        <!-- The line's group (kept, or discovered without money), then its offers: name and price -->
-        <div v-if="!phoneOk" class="card text-center muted q-pa-lg">اكتب رقم الزبون لتظهر عروضه.</div>
-        <div v-else-if="loading" class="card column items-center q-gutter-sm q-pa-lg">
-          <q-spinner color="primary" size="32px" />
-          <div class="small muted">جارٍ معرفة نوع خط الزبون… قد يأخذ حتى دقيقة.</div>
-        </div>
-        <div v-else-if="offersError" class="card column items-center q-gutter-sm q-pa-lg">
-          <div class="small text-negative text-center">{{ offersError }}</div>
-          <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="loadOffers" />
-        </div>
-        <div v-else-if="families.length" class="card q-pa-none">
-          <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
-            group="families" header-class="family" expand-separator>
-            <div v-for="o in f.offers" :key="o.label" class="offer-row" role="button" tabindex="0"
-              @click="confirmOffer(o)" @keyup.enter="confirmOffer(o)">
-              <span class="text-weight-bold">{{ o.label }}</span>
-              <span class="row items-center no-wrap q-gutter-xs">
-                <q-btn v-if="DETAILS[o.label]" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
-                  @click.stop="showDetails(o)" />
-                <span class="price">{{ money(o.amount) }}</span>
-              </span>
-            </div>
-          </q-expansion-item>
-        </div>
-        <div v-else-if="looked" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
-      </template>
+      <FlexyOffers v-else :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="access.maxAmount.value"
+        :lookup="lookupOffers" :send="sendOffer" @sent="afterOffer" />
 
       <div class="row items-center justify-between q-mt-md">
         <div class="text-weight-bold">آخر العمليات</div>
@@ -89,7 +64,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Dialog } from 'quasar'
 import { useCustomerStore } from 'stores/customer'
 import { useBuyer } from 'src/composables/useBuyer'
@@ -97,6 +72,7 @@ import { useRun } from 'src/composables/useRun'
 import { useFlexyAccess } from 'src/composables/useFlexyAccess'
 import * as api from 'src/api/customer'
 import { money } from 'src/api/format'
+import FlexyOffers from 'src/components/FlexyOffers.vue'
 
 // Light on purpose (owner rule: fast on weak networks): one request to send, small pages of
 // operations, the last ones kept on the phone, and a refresh only while something is running.
@@ -210,95 +186,16 @@ function confirmSend () {
   })
 }
 
-// What the customer gets for each offer (shown from «i»). The price is the number in the name.
-const DETAILS = {
-  'Sama Mix 50': '', 'Sama Mix 100': '500Mo — يوم واحد', 'Sama Mix 500': '5Go — 15 يومًا', 'Sama Mix 1000': '15Go — 30 يومًا',
-  'Sama Mix 1500': '30Go — 30 يومًا', 'Sama Mix 2000': '50Go — 30 يومًا',
-  'Sama Talk 500': '500Mo — 15 يومًا', 'Sama Talk 1000': '2Go — 30 يومًا', 'Sama Talk 1500': '3Go — 30 يومًا',
-  'Sama Talk 2000': '4Go — 30 يومًا',
-  'Sama Net 500': '10Go — 15 يومًا', 'Sama Net 1000': '30Go — 30 يومًا', 'Sama Net 1500': '60Go — 30 يومًا',
-  'Sama Net 2000': '90Go — 30 يومًا',
-  'PixX 50': '500Mo — يوم واحد', 'PixX 100': '1Go — يوم واحد', 'PixX 500': '5Go — 15 يومًا',
-  'PixX 1000': '13Go — 30 يومًا', 'PixX 2000': '30Go'
-}
-const loading = ref(false)
-const looked = ref(false)
-const offersError = ref('')
-const offers = ref([])
-let offersFor = ''
-let lookupRun = 0
-// Families in the catalog's order (Mix, Talk, Net…), prices rising inside each one
-const families = computed(() => {
-  const out = []
-  for (const o of offers.value.filter((x) => x.amount <= access.maxAmount.value)) {
-    let f = out.find((x) => x.name === o.family)
-    if (!f) out.push(f = { name: o.family, offers: [] })
-    f.offers.push(o)
-  }
-  for (const f of out) f.offers.sort((a, b) => a.amount - b.amount)
-  return out
-})
-
-// One request; while the core discovers the line, ask again every 3 s (at most 90 s)
-async function loadOffers () {
-  const p = digits.value
-  const mine = ++lookupRun
-  offers.value = []
-  offersError.value = ''
-  looked.value = false
-  loading.value = true
-  try {
-    let r = await api.flexyOffers(customer.token, p)
-    for (let i = 0; r.status === 'discovering' && i < 30 && mine === lookupRun; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-      r = await api.flexyOffers(customer.token, p)
-    }
-    if (mine !== lookupRun) return
-    if (r.status === 'ready') {
-      offersFor = p
-      offers.value = r.offers
-      looked.value = true
-    } else {
-      offersError.value = r.status === 'discovering' ? 'لم تردّ الشبكة. أعد المحاولة.' : 'تعذّر معرفة نوع خط الزبون الآن.'
-    }
-  } catch (e) {
-    if (mine === lookupRun) offersError.value = e?.message || 'تعذّر جلب العروض الآن.'
-  } finally {
-    if (mine === lookupRun) loading.value = false
-  }
-}
-// «عروض» opens the offers of the number written; a new number loads its own
-watch([tab, digits], () => {
-  if (tab.value !== 'offer' || !access.offers.value) return
-  if (!phoneOk.value) { lookupRun++; loading.value = false; offers.value = []; looked.value = false; return }
-  if (digits.value !== offersFor || !looked.value) loadOffers()
-})
-
-function showDetails (o) {
-  Dialog.create({ title: o.label, message: DETAILS[o.label], ok: 'حسنًا', position: 'bottom' })
-}
-
-function confirmOffer (o) {
-  const p = digits.value
-  if (p !== offersFor) { loadOffers(); return }
-  Dialog.create({
-    title: 'تأكيد العرض',
-    html: true,
-    message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
-      <div style="text-align:center"><b>${o.label}</b>${DETAILS[o.label] ? ' — ' + DETAILS[o.label] : ''}</div>
-      <div style="text-align:center">السعر: <b>${money(o.amount)}</b></div>
-      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>`,
-    cancel: 'رجوع',
-    ok: 'نعم، أرسل'
-  }).onOk(async () => {
-    const r = await run(() => api.flexyOffer(customer.token, p, o.label, crypto.randomUUID()))
-    if (!r) return
-    buyer.refresh()
-    phone.value = ''
-    await loadFirst().catch(() => null)
-    delay = 3000
-    schedule()
-  })
+const lookupOffers = (p) => api.flexyOffers(customer.token, p)
+// One id per press: a retry after a lost answer is the same request, never a second send
+const sendOffer = (p, label) => api.flexyOffer(customer.token, p, label, crypto.randomUUID())
+// An offer went out: same follow-up as ordinary credit
+async function afterOffer () {
+  buyer.refresh()
+  phone.value = ''
+  await loadFirst().catch(() => null)
+  delay = 3000
+  schedule()
 }
 
 onMounted(async () => {
@@ -319,9 +216,5 @@ onUnmounted(() => clearTimeout(timer))
 .op-row:last-child { border-bottom: 0; }
 .details { margin-top: 6px; padding: 8px; border: 1px solid #E4E6EC; border-radius: 8px; background: #F8F9FB; }
 .reply { white-space: normal; word-break: break-word; }
-.offer-row { border-top: 1px solid #ECEEF3; padding: 10px 14px;
-  cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
-:deep(.family) { font-weight: 700; }
-.price { font-weight: 700; white-space: nowrap; }
 :deep(.phone) { font-size: 1.4rem; letter-spacing: 1px; }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <q-page class="page">
     <div class="card small">
-      إرسال رصيد Mobilis حقيقي عبر أرسلي <b>630</b>، من حسابك أنت فقط. كل ضغطة «أرسل» = عملية واحدة، ولا إعادة محاولة تلقائية.
+      إرسال Mobilis حقيقي من حسابك أنت فقط: رصيد عادي عبر أرسلي <b>630</b>، أو عرض عبر Sama <b>665</b>. كل ضغطة «أرسل» = عملية واحدة، ولا إعادة محاولة تلقائية.
     </div>
 
     <div class="card row items-center q-gutter-sm">
@@ -11,6 +11,19 @@
       <q-spinner v-if="switchBusy" size="16px" />
     </div>
 
+    <q-tabs v-model="tab" dense class="tabs" active-color="primary" indicator-color="primary" no-caps :class="{ 'disabled': locked }">
+      <q-tab name="630" label="رصيد عادي" :disable="locked" />
+      <q-tab name="offer" label="عروض" :disable="locked" />
+    </q-tabs>
+
+    <template v-if="tab === 'offer'">
+      <div class="card">
+        <q-input v-model="offerPhone" dense outlined label="رقم موبيليس (06…)" inputmode="tel" autocomplete="off" :disable="locked" />
+      </div>
+      <FlexyOffers v-if="!op" :phone="offerDigits" :phone-ok="offerPhoneOk" :lookup="lookupOffers" :send="sendOffer" @sent="afterOffer" />
+    </template>
+
+    <template v-else>
     <div class="card grid-2">
       <q-input v-model="phone" dense outlined label="رقم موبيليس (06…)" inputmode="tel" autocomplete="off" :disable="locked" />
       <q-input v-model.number="amount" dense outlined type="number" label="المبلغ (دج)" :disable="locked" />
@@ -47,6 +60,8 @@
       </div>
     </div>
 
+    </template>
+
     <div v-if="op" class="card">
       <div class="text-weight-bold" :class="LABELS[op.status]?.cls">{{ LABELS[op.status]?.text || op.status }}</div>
       <div class="small q-mt-xs">{{ MONEY[op.money] }}</div>
@@ -65,6 +80,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
+import FlexyOffers from 'src/components/FlexyOffers.vue'
 
 const $q = useQuasar()
 
@@ -94,7 +110,10 @@ const ERRORS = {
   TARGET_CHANGED: 'تغيّرت الشريحة المختارة منذ التحقق. اضغط «تحقق» مرة أخرى.',
   IDEMPOTENCY_CONFLICT: 'نفس العملية بطلب مختلف. ابدأ عملية جديدة.',
   STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى Station Connect. لم يُرسل شيء.',
-  SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.'
+  SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
+  APP_SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
+  OFFER_NOT_ON_SAMA: 'هذا العرض لا يُنفَّذ من Sama.',
+  '665_NO_SAMA_READY': 'لا توجد شريحة Sama متصلة وفارغة الآن.'
 }
 
 // Why a SIM/account can or cannot run the send (Flexy Core, core/selection.ts REASONS).
@@ -119,6 +138,7 @@ const REASONS = {
 const reasonText = (r) => (r ? REASONS[r] || r : '—')
 const reasonClass = (r) => (r === 'ELIGIBLE' ? 'text-positive' : r === 'OFFER_NOT_SUPPORTED_ON_SIM_TYPE' ? 'muted' : 'text-negative')
 
+const tab = ref('630')
 const phone = ref('')
 const amount = ref(100)
 const busy = ref('')
@@ -211,12 +231,41 @@ async function send () {
   if (op.value?.status === 'running') follow()
 }
 
+// Offers: the shared component asks Flexy Core through the owner's routes.
+const offerPhone = ref('')
+const offerDigits = computed(() => {
+  let d = offerPhone.value.replace(/\D/g, '')
+  if (/^213\d{9}$/.test(d)) d = '0' + d.slice(3)
+  return d
+})
+const offerPhoneOk = computed(() => /^06\d{8}$/.test(offerDigits.value))
+async function lookupOffers (p) {
+  const res = await flexy.ownerOffers(p)
+  if (res.status !== 200) throw new Error(ERRORS[res.body?.error] || res.body?.error || 'تعذّر جلب العروض.')
+  return res.body
+}
+async function sendOffer (p, label) {
+  // One key per confirmed offer, kept so a reload goes on following it
+  key.value = 'own665_' + crypto.randomUUID().replace(/-/g, '')
+  remember(key.value)
+  const res = await flexy.ownerOfferSend(p, label, key.value)
+  show(res)
+  if (res.status >= 400) throw new Error(error.value || 'لم يُقبل الطلب.')
+  return res.body
+}
+function afterOffer () {
+  if (op.value?.status === 'running') follow()
+}
+
+// 630 and offers are followed the same way; the key says which one it is.
+const statusOf = (k) => (k.startsWith('own665_') ? flexy.ownerOfferStatus(k) : flexy.ownerStatus(k))
+
 async function follow () {
   if (!key.value || following.value) return
   following.value = true
   try {
     for (let i = 0; i < POLL_MAX; i++) {
-      const res = await flexy.ownerStatus(key.value)
+      const res = await statusOf(key.value)
       show(res)
       if (res.status !== 200 || op.value?.status !== 'running') break
       await new Promise((resolve) => { timer = setTimeout(resolve, POLL_MS) })
@@ -238,12 +287,13 @@ onMounted(() => {
   // Back after a reload: keep following the last operation instead of losing it.
   let last = ''
   try { last = localStorage.getItem(LAST_KEY) || '' } catch { last = '' }
-  if (last) { key.value = last; follow() }
+  if (last) { key.value = last; if (last.startsWith('own665_')) tab.value = 'offer'; follow() }
 })
 onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
 <style scoped>
+.tabs { background: #E4E6EC; border-radius: 12px; }
 .sim-row { border-top: 1px solid #ECEEF2; padding: 6px 0; }
 .sim-row.chosen { background: #F1FAF3; border-radius: 6px; padding: 6px; }
 </style>
