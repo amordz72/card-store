@@ -1,3 +1,5 @@
+import { supabase } from 'boot/supabase'
+import { StoreError } from './errors'
 import { rpc } from './rpc'
 
 // Customer API: token-based, independent of the admin's Supabase session.
@@ -78,6 +80,27 @@ export async function idoomLineInfo (token, line) {
   const rows = await rpc('store_idoom_line_info', { p_token: token, p_line: line })
   return rows?.[0] || null
 }
+
+// Flexy for shops (v1.33): the shop sees amounts, statuses and network replies, never its rate or charge.
+// Sending goes through the Edge function store-flexy: it takes the charge and calls Flexy Core server-side.
+export async function flexyStatus (token) {
+  const rows = await rpc('store_flexy_status', { p_token: token })
+  return rows?.[0] || { enabled: false, open: false, max_amount: 0, offers: false }
+}
+export const flexyJobs = (token, limit, before) => rpc('store_flexy_jobs', { p_token: token, p_limit: limit, p_before: before ?? null })
+async function shop (path, body) {
+  const { data, error } = await supabase.functions.invoke('store-flexy/shop/' + path, { method: 'POST', body })
+  if (!error) return data
+  let code = 'NETWORK'
+  const res = error.context
+  if (res && typeof res.json === 'function') {
+    const b = await res.json().catch(() => null)
+    code = b?.error || 'UNKNOWN'
+  }
+  throw new StoreError(code, error)
+}
+export const flexySend = (token, phone, amount, requestId) => shop('send', { token, phone, amount, request_id: requestId })
+export const flexyRefresh = (token) => shop('refresh', { token })
 
 // Game top-up by player id (v1.25): the card comes from stock and is never shown; an operator tops up by hand
 export async function gameStatus (token) {
