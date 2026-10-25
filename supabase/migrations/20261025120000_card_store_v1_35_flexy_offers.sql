@@ -3,8 +3,8 @@
 -- * store_flexy_create accepts kind 'offer': the shop's offers rate, the offer's name kept as
 --   offer_code and offer_label. The price is the number at the end of the name ("Sama Mix 100"):
 --   the database refuses any amount that is not that number, so a browser cannot pay 100 for 2000.
--- * The open-jobs lists (shop refresh, minute sweep) now say each job's kind and offer, so a job
---   re-sent after a lost answer is sent again as what it is, never as ordinary credit.
+-- * The open-jobs lists (shop refresh, minute sweep) now say each job's kind and offer (_v2), so a
+--   job re-sent after a lost answer is sent again as what it is, never as ordinary credit.
 
 create or replace function private.store_flexy_create_impl(p_token text, p_kind text, p_phone text, p_amount int,
                                                            p_offer_code text, p_offer_label text, p_request_id uuid)
@@ -75,13 +75,9 @@ begin
 end;
 $$;
 
--- Open jobs with their kind and offer (return type changes: drop and create again).
-drop function public.store_flexy_sweep_jobs(text);
-drop function private.store_flexy_sweep_jobs_impl(text);
-drop function public.store_flexy_open_jobs(text);
-drop function private.store_flexy_open_jobs_impl(text);
-
-create function private.store_flexy_open_jobs_impl(p_customer_token text)
+-- Open jobs with their kind and offer: new functions (_v2) beside the old ones, so nothing is
+-- dropped (store-flexy calls only the _v2 ones; the old ones stay unused).
+create or replace function private.store_flexy_open_jobs_v2_impl(p_customer_token text)
 returns table (job_id bigint, core_key text, status text, phone text, amount int, created_at timestamptz,
                kind text, offer_label text)
 language plpgsql security definer set search_path = '' as $$
@@ -94,12 +90,12 @@ begin
   limit 50;
 end;
 $$;
-create function public.store_flexy_open_jobs(p_customer_token text default null)
+create or replace function public.store_flexy_open_jobs_v2(p_customer_token text default null)
 returns table (job_id bigint, core_key text, status text, phone text, amount int, created_at timestamptz,
                kind text, offer_label text)
-language sql as $$ select * from private.store_flexy_open_jobs_impl(p_customer_token) $$;
+language sql as $$ select * from private.store_flexy_open_jobs_v2_impl(p_customer_token) $$;
 
-create function private.store_flexy_sweep_jobs_impl(p_secret text)
+create or replace function private.store_flexy_sweep_jobs_v2_impl(p_secret text)
 returns table (job_id bigint, core_key text, status text, phone text, amount int, created_at timestamptz,
                kind text, offer_label text)
 language plpgsql security definer set search_path = '' as $$
@@ -109,19 +105,19 @@ begin
   if v_secret is null or p_secret is null or p_secret <> v_secret then
     raise exception 'NOT_ALLOWED' using errcode = 'insufficient_privilege';
   end if;
-  return query select * from private.store_flexy_open_jobs_impl(null);
+  return query select * from private.store_flexy_open_jobs_v2_impl(null);
 end;
 $$;
-create function public.store_flexy_sweep_jobs(p_secret text)
+create or replace function public.store_flexy_sweep_jobs_v2(p_secret text)
 returns table (job_id bigint, core_key text, status text, phone text, amount int, created_at timestamptz,
                kind text, offer_label text)
-language sql as $$ select * from private.store_flexy_sweep_jobs_impl(p_secret) $$;
+language sql as $$ select * from private.store_flexy_sweep_jobs_v2_impl(p_secret) $$;
 
-revoke all on function private.store_flexy_open_jobs_impl(text) from public, anon, authenticated;
-revoke all on function public.store_flexy_open_jobs(text) from public, anon, authenticated;
-revoke all on function private.store_flexy_sweep_jobs_impl(text) from public, anon, authenticated;
-revoke all on function public.store_flexy_sweep_jobs(text) from public, anon, authenticated;
-grant execute on function private.store_flexy_open_jobs_impl(text) to service_role;
-grant execute on function public.store_flexy_open_jobs(text) to service_role;
-grant execute on function private.store_flexy_sweep_jobs_impl(text) to service_role;
-grant execute on function public.store_flexy_sweep_jobs(text) to service_role;
+revoke all on function private.store_flexy_open_jobs_v2_impl(text) from public, anon, authenticated;
+revoke all on function public.store_flexy_open_jobs_v2(text) from public, anon, authenticated;
+revoke all on function private.store_flexy_sweep_jobs_v2_impl(text) from public, anon, authenticated;
+revoke all on function public.store_flexy_sweep_jobs_v2(text) from public, anon, authenticated;
+grant execute on function private.store_flexy_open_jobs_v2_impl(text) to service_role;
+grant execute on function public.store_flexy_open_jobs_v2(text) to service_role;
+grant execute on function private.store_flexy_sweep_jobs_v2_impl(text) to service_role;
+grant execute on function public.store_flexy_sweep_jobs_v2(text) to service_role;

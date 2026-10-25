@@ -176,7 +176,7 @@ select pg_temp.check('offer: charged at the offers rate (5%)', (select charged =
   and offer_code = 'Sama Mix 100' from store.flexy_jobs where id = :jo)
   and (select balance = :b0 - 95 from store.customers where id = :cu));
 select pg_temp.check('open list says kind and offer', (select kind = 'offer' and offer_label = 'Sama Mix 100'
-  from public.store_flexy_open_jobs(null) where job_id = :jo));
+  from public.store_flexy_open_jobs_v2(null) where job_id = :jo));
 reset role;
 
 select name, detail from c_results where not ok;

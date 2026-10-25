@@ -189,7 +189,7 @@ async function handleShop(req: Request, route: string): Promise<Response> {
   }
 
   if (route === "/shop/refresh") {
-    const open = await serviceRpc("store_flexy_open_jobs", { p_customer_token: token });
+    const open = await serviceRpc("store_flexy_open_jobs_v2", { p_customer_token: token });
     const jobs = await open.json().catch(() => null);
     if (!open.ok || !Array.isArray(jobs)) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
     await Promise.all((jobs as Job[]).map(followUp));
@@ -254,7 +254,7 @@ function discoveryView(b: { operation?: { status?: string; offers?: unknown; out
 async function sweep(req: Request): Promise<Response> {
   if (!SERVICE_KEY || !FLEXY_KEY) return json(req, 500, { ok: false, error: "FLEXY_NOT_CONFIGURED" });
   const body = await req.json().catch(() => null);
-  const open = await serviceRpc("store_flexy_sweep_jobs", { p_secret: typeof body?.secret === "string" ? body.secret : "" });
+  const open = await serviceRpc("store_flexy_sweep_jobs_v2", { p_secret: typeof body?.secret === "string" ? body.secret : "" });
   const jobs = await open.json().catch(() => null);
   if (!open.ok || !Array.isArray(jobs)) return json(req, 403, { ok: false, error: "NOT_ALLOWED" });
   await Promise.all((jobs as Job[]).map(followUp));
