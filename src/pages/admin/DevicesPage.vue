@@ -7,33 +7,50 @@
         <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy" @click="load" />
       </div>
       <!-- What is connected now, counted for the owner (owner 2026-10-25): zero shows red -->
+      <!-- A type's tile filters the SIMs table (funnel icon); the computers tile only counts -->
       <div v-if="tree" class="sum">
-        <div v-for="t in summary" :key="t.label" class="tile" :class="{ zero: !t.n }"><div class="n">{{ t.n }}</div><div class="small">{{ t.label }}</div></div>
+        <component :is="t.type ? 'button' : 'div'" v-for="t in summary" :key="t.label" :type="t.type ? 'button' : undefined" class="tile"
+          :class="{ zero: !t.n, picked: t.type && typeFilter === t.type }" @click="t.type && pickType(t.type)">
+          <q-icon v-if="t.type" name="filter_alt" size="14px" class="funnel" />
+          <div class="n">{{ t.n }}</div><div class="small">{{ t.label }}</div>
+        </component>
       </div>
-      <div v-if="tree" class="small muted">متصلة الآن · آخر تحديث {{ clock(tree.checked_at) }} · غائب بعد {{ tree.limits.absentMinutes }} دقيقة · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
+      <div v-if="tree" class="small muted">المتصل الآن<template v-if="typeFilter"> · <button type="button" class="link" @click="typeFilter = null">مفلتر: {{ typeName(typeFilter) }} ✕</button></template> · آخر تحديث {{ clock(tree.checked_at) }} · غائب بعد {{ tree.limits.absentMinutes }} دقيقة · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
-    <!-- Every SIM in one table, one row each, nothing to open to read it (owner 2026-10-25).
-         Connected first; a row opens the SIM's settings only, and closing keeps your place. -->
+    <!-- SIMs (owner 2026-10-25, agreed on a picture): the computer first, then active or not inside it.
+         Active = its computer present and its modem connected. Gone 7+ days = «قديمة» at the end. -->
     <div v-if="tree" class="card q-pa-none">
-      <div class="row items-center q-gutter-sm q-pa-sm">
-        <q-btn-toggle v-model="tableFilter" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: 'المتصلة', value: 'connected' }, { label: 'الكل', value: 'all' }]" />
-        <span class="small muted">{{ connectedRows.length }} متصلة · {{ allRows.length }} في الكل</span>
+      <div class="section-title q-pa-sm">الشرائح</div>
+      <div class="row q-gutter-xs q-px-sm">
+        <q-btn v-for="c in stationChips" :key="c.value" dense unelevated rounded no-caps size="md" :label="c.label"
+          :color="simStation === c.value ? 'primary' : 'white'" :text-color="simStation === c.value ? 'white' : c.muted ? 'grey-6' : 'dark'"
+          class="chip" @click="simStation = c.value" />
+      </div>
+      <div class="sub">
+        <q-btn-toggle v-model="simActive" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: `النشطة (${simRows.active.length})`, value: true }, { label: `غير النشطة (${simRows.inactive.length})`, value: false }]" />
       </div>
       <div class="table-wrap">
         <table class="sims">
-          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الكمبيوتر</th><th>الرصيد</th><th>الحالة</th></tr></thead>
+          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th></tr></thead>
           <tbody>
-            <tr v-for="r in tableRows" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
-              <td><span class="text-weight-bold">{{ r.m.sim.code || 'جديدة' }}</span><div v-if="r.m.sim.label" class="small muted">{{ r.m.sim.label }}</div><div class="small muted">{{ r.m.sim.sim_type_name }}</div></td>
+            <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
+              <td><span class="text-weight-bold">{{ r.m.sim.code || 'جديدة' }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
               <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
-              <td>{{ r.st.code || '—' }}<div class="small muted"><bdi class="ltr">{{ r.m.ip || '—' }}</bdi></div></td>
+              <td>{{ r.st.code || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
-              <td><q-badge :color="LEVEL[r.m.level].color" :label="LEVEL[r.m.level].label" /><div class="small" :class="statusClass(r)">{{ statusText(r) }}</div></td>
+              <td><q-badge :color="r.old ? 'grey-6' : LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : LEVEL[r.m.level].label" />
+                <div v-if="statusText(r)" class="small" :class="statusClass(r)">{{ statusText(r) }}</div></td>
             </tr>
-            <tr v-if="!tableRows.length"><td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر</td></tr>
+            <tr v-if="!shownSims.length">
+              <td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر
+                <q-btn v-if="typeFilter || simStation !== 'all'" flat dense no-caps size="sm" color="primary" label="إلغاء الفلاتر" @click="clearFilters" /></td>
+            </tr>
+            <tr v-if="!simActive && simRows.old.length" class="static">
+              <td colspan="5"><button type="button" class="link" @click="showOldSims = !showOldSims">قديمة ({{ simRows.old.length }}) {{ showOldSims ? '▴' : '▾' }}</button></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -42,10 +59,9 @@
     <!-- Computers: connected first, one row each, the Agent's update and gateway buttons in the row -->
     <div v-if="tree" class="card q-pa-none">
       <div class="section-title q-pa-sm">الكمبيوترات</div>
-      <div class="row items-center q-gutter-sm q-px-sm q-pb-sm">
-        <q-btn-toggle v-model="stationFilter" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: 'المتصلة', value: 'present' }, { label: 'الكل', value: 'all' }]" />
-        <span class="small muted">{{ presentCount }} متصل · {{ absentCount }} غائب</span>
+      <div class="sub">
+        <q-btn-toggle v-model="stationActive" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: `النشطة (${presentCount})`, value: true }, { label: `غير النشطة (${current.length - presentCount})`, value: false }]" />
       </div>
       <div class="table-wrap">
         <table class="sims">
@@ -80,6 +96,9 @@
               </td>
             </tr>
             <tr v-if="!stationRows.length"><td colspan="5" class="text-center muted">لا كمبيوترات بهذا الفلتر</td></tr>
+            <tr v-if="!stationActive && gone.length" class="static">
+              <td colspan="5"><button type="button" class="link" @click="showOldStations = !showOldStations">قديمة ({{ gone.length }}) {{ showOldStations ? '▴' : '▾' }}</button></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -169,27 +188,49 @@ const gone = computed(() => (tree.value?.stations || []).filter((s) => s.level =
 const live = (st) => st.modems.filter((m) => m.level !== 'old')
 const isAbsent = (st) => !!st.absent_minutes
 const presentCount = computed(() => current.value.filter((s) => !isAbsent(s)).length)
-const absentCount = computed(() => current.value.filter(isAbsent).length + gone.value.length)
 // Connected = the modem answers and holds a SIM (ready or with a warning); otherwise not.
 const isConnected = (m) => !!m.sim && m.level !== 'down'
-// Computers table: connected first; «الكل» adds the absent ones (and those gone for long).
-const stationFilter = ref('present')
-const stationRows = computed(() => stationFilter.value === 'present'
+// Computers table: active (present) first; «غير النشطة» = absent; gone 7+ days only under «قديمة».
+const stationActive = ref(true)
+const showOldStations = ref(false)
+const stationRows = computed(() => stationActive.value
   ? current.value.filter((st) => !isAbsent(st))
-  : [...current.value, ...gone.value])
-// The summary: connected computers, and connected SIMs of each type.
+  : [...current.value.filter(isAbsent), ...(showOldStations.value ? gone.value : [])])
+
+// SIMs: the computer first, then active or not inside it; a type tile narrows it further.
+// Filters stay as chosen across the 30-second refresh.
 const SUMMARY_TYPES = [['mobilis-arsselli', 'أرسلي'], ['mobilis-sama', 'Sama'], ['djezzy-flexy', 'جيزي'], ['ooredoo-flexy', 'أوريدو']]
+const typeName = (type) => SUMMARY_TYPES.find(([t]) => t === type)?.[1] || type
+const typeFilter = ref(null)
+const simStation = ref('all')
+const simActive = ref(true)
+const showOldSims = ref(false)
+const pickType = (type) => { typeFilter.value = typeFilter.value === type ? null : type }
+function clearFilters () { typeFilter.value = null; simStation.value = 'all' }
+const stationChips = computed(() => [
+  { value: 'all', label: 'الكل' },
+  ...current.value.filter((st) => !isAbsent(st)).map((st) => ({ value: st.station_uuid, label: st.code || 'كمبيوتر' })),
+  ...current.value.filter(isAbsent).map((st) => ({ value: st.station_uuid, label: (st.code || 'كمبيوتر') + ' (غائب)', muted: true }))
+])
+// Every SIM with its computer; old = its modem or its computer gone for longer than old_days.
+const everySim = computed(() => [...current.value, ...gone.value].flatMap((st) =>
+  st.modems.filter((m) => m.sim).map((m) => ({ st, m, old: st.level === 'old' || m.level === 'old' }))))
+const isActive = (r) => !r.old && !isAbsent(r.st) && isConnected(r.m)
+const simRows = computed(() => {
+  const rows = everySim.value.filter((r) =>
+    (simStation.value === 'all' || r.st.station_uuid === simStation.value) && (!typeFilter.value || r.m.sim.sim_type === typeFilter.value))
+  return { active: rows.filter(isActive), inactive: rows.filter((r) => !r.old && !isActive(r)), old: rows.filter((r) => r.old) }
+})
+const shownSims = computed(() => simActive.value
+  ? simRows.value.active
+  : [...simRows.value.inactive, ...(showOldSims.value ? simRows.value.old : [])])
+// The summary counts every active SIM of each type, whatever the filters (owner 2026-10-25).
 const summary = computed(() => [
   { label: 'كمبيوتر', n: presentCount.value },
-  ...SUMMARY_TYPES.map(([type, label]) => ({ label, n: connectedRows.value.filter((r) => r.m.sim.sim_type === type).length }))
+  ...SUMMARY_TYPES.map(([type, label]) => ({ type, label, n: everySim.value.filter((r) => isActive(r) && r.m.sim.sim_type === type).length }))
 ])
-// The table: every SIM of a computer still in use; "connected" = its computer present and its modem connected.
-const tableFilter = ref('connected')
-const allRows = computed(() => current.value.flatMap((st) => st.modems.filter((m) => m.sim && m.level !== 'old').map((m) => ({ st, m }))))
-const connectedRows = computed(() => allRows.value.filter((r) => !isAbsent(r.st) && isConnected(r.m)))
-const tableRows = computed(() => tableFilter.value === 'connected' ? connectedRows.value : allRows.value)
-const statusText = (r) => onboardingText(r.m.sim) || (isAbsent(r.st) ? 'الكمبيوتر غائب' : r.m.reasons[0]?.text) || 'جاهزة'
-const statusClass = (r) => onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : r.m.reasons.length || isAbsent(r.st) ? (r.m.level === 'down' ? 'text-negative' : 'text-deep-orange') : 'text-positive'
+const statusText = (r) => onboardingText(r.m.sim) || (r.old ? '' : isAbsent(r.st) ? 'الكمبيوتر غائب' : r.m.reasons[0]?.text) || ''
+const statusClass = (r) => onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : r.m.level === 'down' ? 'text-negative' : 'text-deep-orange'
 // Balance: one total the SIM can execute now, with how old the reading is. Old = past the
 // core's refresh window (6 h), when a send would first ask for a fresh 632.
 const BALANCE_FRESH_MS = 6 * 3600 * 1000
@@ -363,6 +404,14 @@ onMounted(load)
 .sims td { white-space: nowrap; }
 .sims tbody tr.static { cursor: default; }
 .sum { display: flex; gap: 6px; }
+button.tile { border: 0; font: inherit; cursor: pointer; }
+.tile { position: relative; }
+.tile .funnel { position: absolute; top: 5px; left: 5px; color: #9AA0AC; }
+.tile.picked { outline: 2px solid var(--q-primary); }
+.tile.picked .funnel { color: var(--q-primary); }
+.sub { margin: 8px; padding: 8px; background: #F4F6FA; border-radius: 8px; }
+.chip { border: 1px solid #D5D9E0; }
+.link { border: 0; background: transparent; padding: 0; font: inherit; color: var(--q-primary); cursor: pointer; }
 .tile { flex: 1 1 0; min-width: 0; background: #F1F8F3; border-radius: 10px; padding: 8px 4px; text-align: center; color: #5B6170; }
 .tile .n { font-size: 22px; font-weight: 700; color: #1E8E3E; }
 .tile.zero { background: #FDECEA; color: #C62828; }

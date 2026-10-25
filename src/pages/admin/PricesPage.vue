@@ -71,7 +71,7 @@
                       <span class="small">{{ pctOfSell(r, myProfit(r)) }}% من سعر البيع{{ r.share != null ? ' · ' + round2(100 - r.share) + '% من الربح' : '' }}</span>
                     </div>
                   </div>
-                  <div class="small" style="color:#4338CA">القاعدة: {{ RULE_TEXT[r.mode](r) }}</div>
+                  <div class="small" style="color:#C2410C">القاعدة: {{ RULE_TEXT[r.mode](r) }}</div>
                   <div v-if="r.mode === 'share' && r.value > 100" class="small q-pa-sm rounded-borders warn-loss">
                     ربح الزبون أكبر من الربح الكلي ({{ money(r.base_price - r.cost) }}).
                   </div>
@@ -276,13 +276,13 @@ onMounted(load)
 .own-dot.on { background: #4F46E5; color: #fff; }
 .sum-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 12px; border-radius: 10px; }
 .sum-line b { font-size: 16px; }
-.sum-line.total { background: #EEF0FF; color: #3730A3; }
+.sum-line.total { background: #FFF1E8; color: #9A3412; }
 .sum-line.cust { background: #EAF7EE; }
 .sum-line.me { background: #E6F6F9; }
-.rule-field :deep(.q-field__control) { background: #EEF0FF; }
+.rule-field :deep(.q-field__control) { background: #FFF1E8; }
 .rule-field :deep(.q-field__control:before) { border: 2px solid #4F46E5; }
 .warn-loss { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
 .warn-high { background: #FFFBEB; color: #92400E; border: 1px solid #FCD34D; }
-.banner-default { background: #EEF0FF; color: #3730A3; border: 1px solid #C7D2FE; }
+.banner-default { background: #FFF1E8; color: #9A3412; border: 1px solid #C7D2FE; }
 .banner-own { background: #FFFBEB; color: #92400E; border: 1px solid #FCD34D; }
 </style>

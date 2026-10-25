@@ -6,7 +6,7 @@
       </q-item-section>
       <q-item-section>
         <q-item-label class="text-weight-medium">{{ op.product_name }}{{ op.qty > 1 ? ' × ' + op.qty : '' }}</q-item-label>
-        <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:#EEF0FF;color:#3730A3">{{ op.customer_name }}</span></q-item-label>
+        <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:#FFF1E8;color:#9A3412">{{ op.customer_name }}</span></q-item-label>
         <q-item-label caption>{{ dateTime(op.created_at) }} · رقم {{ op.order_id }}</q-item-label>
       </q-item-section>
       <q-item-section side top class="items-end q-gutter-xs">

@@ -21,7 +21,7 @@ export default defineConfig(() => ({
     lang: 'ar',
     iconSet: 'material-icons',
     config: {
-      brand: { primary: '#4338CA', secondary: '#3730A3', positive: '#15803D', negative: '#B91C1C', warning: '#B45309', info: '#0E7490' },
+      brand: { primary: '#C2410C', secondary: '#16A34A', positive: '#15803D', negative: '#B91C1C', warning: '#B45309', info: '#0E7490' },
       notify: { position: 'top', timeout: 3500 }
     },
     plugins: ['Notify', 'Dialog', 'Loading', 'LocalStorage']

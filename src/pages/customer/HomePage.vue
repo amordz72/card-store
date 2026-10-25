@@ -12,8 +12,8 @@
 
     <BannerCarousel :banners="banners" />
 
-    <div v-if="announcement" class="card" style="background:#EEF0FF;border-color:#C7CAF5">
-      <div class="small text-weight-bold" style="color:#3730A3">إعلان</div>
+    <div v-if="announcement" class="card" style="background:#FFF1E8;border-color:#C7CAF5">
+      <div class="small text-weight-bold" style="color:#9A3412">إعلان</div>
       <div class="text-subtitle1 text-weight-medium" style="white-space:pre-line">{{ announcement }}</div>
     </div>
 

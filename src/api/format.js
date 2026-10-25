@@ -59,7 +59,7 @@ export const KINDS = {
   self: { label: 'شحن ذاتي', color: '#B45309' },
   purchase: { label: 'شراء', color: '#374151' },
   purchase_refund: { label: 'استرجاع شراء', color: '#0E7490' },
-  shop_topup: { label: 'شحن المحل', color: '#4338CA' },
+  shop_topup: { label: 'شحن المحل', color: '#C2410C' },
   shop_topup_refund: { label: 'استرداد شحن المحل', color: '#0E7490' }
 }
 

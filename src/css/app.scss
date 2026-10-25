@@ -1,6 +1,6 @@
 body {
   font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
-  background: #F4F5F8;
+  background: #FFFFFF;
   color: #1B1F2A;
 }
 
@@ -53,3 +53,9 @@ body {
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .section-title { font-size: 13px; font-weight: 600; color: #5B6170; }
 .out-of-stock { opacity: 0.6; }
+
+/* Owner 2026-10-25: orange buttons (primary), light green as the second colour, white open areas,
+   and rounded buttons instead of square ones. */
+.q-btn:not(.q-btn--round):not(.q-btn--flat) { border-radius: 999px; }
+.q-btn-toggle { border-radius: 999px; overflow: hidden; }
+.card { box-shadow: 0 1px 3px rgba(27, 31, 42, 0.06); }
