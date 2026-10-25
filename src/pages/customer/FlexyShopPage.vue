@@ -54,6 +54,7 @@ function writeCache (list) {
 const rows = ref(readCache())
 const ops = computed(() => rows.value.map((j) => ({
   id: j.job_id, title: j.kind === 'offer' ? j.offer_label : money(j.amount), phone: j.phone,
+  kind: j.kind === 'offer' ? 'offer' : '630', amount: j.amount, offer: j.offer_label,
   badge: view(j), at: j.created_at, reply: j.network_reply
 })))
 const hasMore = ref(false)
@@ -100,10 +101,15 @@ function schedule () {
   }, delay)
 }
 
-// One id per press: a retry after a lost answer is the same request, never a second send
-const send = (p, v) => api.flexySend(customer.token, p, v, crypto.randomUUID())
+// The key comes from FlexySend: one per press, kept while the answer is lost (no answer, or no
+// body from the server), so pressing again re-asks the same request and the shop is charged once.
+const lostAnswer = (e) => {
+  if (['NETWORK', 'UNKNOWN'].includes(e?.code)) e.lost = true
+  throw e
+}
+const send = (p, v, { key }) => api.flexySend(customer.token, p, v, key).catch(lostAnswer)
 const lookupOffers = (p) => api.flexyOffers(customer.token, p)
-const sendOffer = (p, label) => api.flexyOffer(customer.token, p, label, crypto.randomUUID())
+const sendOffer = (p, label, key) => api.flexyOffer(customer.token, p, label, key).catch(lostAnswer)
 
 // Something went out (credit or offer): the balance changed, follow it in «آخر العمليات»
 async function afterSend () {

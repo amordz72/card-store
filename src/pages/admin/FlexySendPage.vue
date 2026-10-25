@@ -60,6 +60,16 @@ const REASONS = {
   SIM_BUSY: 'الشريحة مشغولة الآن',
   NO_EXECUTOR: 'لا توجد شريحة'
 }
+// No answer (network, or a gateway error without a body): the request may have been taken. FlexySend
+// keeps its key, so pressing again re-asks the same operation instead of sending a second one.
+function refused (res) {
+  const e = new Error(errorText(res.body))
+  if (res.status === 0 || (res.status >= 500 && !res.body?.error)) {
+    e.lost = true
+    e.message = 'لم يصل الرد. اضغط «إرسال» مرة ثانية لتعرف ما حدث: لن يُرسل مرتين.'
+  }
+  return e
+}
 const errorText = (b) => b?.error === 'STATION_NOT_READY'
   ? 'لا شريحة جاهزة الآن: ' + (REASONS[b.refresh?.reason || b.reason] || b.reason || '—') + '. لم يُرسل شيء.'
   : ERRORS[b?.error] || b?.error || 'لم يُقبل الطلب.'
@@ -88,13 +98,13 @@ function flip (on) {
 // so the same press is asked again with the same key until a SIM is ready: one operation at most.
 const REFRESH_MS = 5000
 const REFRESH_MAX = 36
-async function send (p, v, { wait }) {
-  const key = 'owner_' + crypto.randomUUID().replace(/-/g, '')
+async function send (p, v, { wait, key: pressKey }) {
+  const key = 'owner_' + pressKey.replace(/-/g, '')
   for (let i = 0; i < REFRESH_MAX; i++) {
     const res = await flexy.ownerSend(p, v, key)
     // Sent, or refused after it was recorded (it shows in «آخر العمليات» with its status)
     if (res.body?.operation) return res.body
-    if (res.status !== 409 || res.body?.error !== 'STATION_NOT_READY' || res.body?.refresh?.state !== 'waiting') throw new Error(errorText(res.body))
+    if (res.status !== 409 || res.body?.error !== 'STATION_NOT_READY' || res.body?.refresh?.state !== 'waiting') throw refused(res)
     wait('الرصيد قديم: يُحدَّث الآن (632، استعلام بلا مال)، ثم يُرسل وحده…')
     await new Promise((resolve) => setTimeout(resolve, REFRESH_MS))
   }
@@ -106,9 +116,9 @@ async function lookupOffers (p) {
   if (res.status !== 200) throw new Error(errorText(res.body))
   return res.body
 }
-async function sendOffer (p, label) {
-  const res = await flexy.ownerOfferSend(p, label, 'own665_' + crypto.randomUUID().replace(/-/g, ''))
-  if (res.status >= 400 && !res.body?.operation) throw new Error(errorText(res.body))
+async function sendOffer (p, label, key) {
+  const res = await flexy.ownerOfferSend(p, label, 'own665_' + key.replace(/-/g, ''))
+  if ((res.status === 0 || res.status >= 400) && !res.body?.operation) throw refused(res)
   return res.body
 }
 
@@ -124,6 +134,7 @@ const BADGES = {
 const rows = ref([])
 const ops = computed(() => rows.value.map((o) => ({
   id: o.idempotency_key, title: o.offer || money(o.amount), phone: o.phone,
+  kind: o.operation_key === OFFER_KEY ? 'offer' : '630', amount: o.amount, offer: o.offer,
   badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply
 })))
 const hasMore = ref(false)

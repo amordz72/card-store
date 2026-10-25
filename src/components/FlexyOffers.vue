@@ -13,8 +13,8 @@
     <div v-else-if="families.length" class="card q-pa-none">
       <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
         group="families" header-class="family" expand-separator>
-        <div v-for="o in f.offers" :key="o.label" class="offer-row" role="button" tabindex="0"
-          @click="confirm(o)" @keyup.enter="confirm(o)">
+        <div v-for="o in f.offers" :key="o.label" class="offer-row" :class="{ busy }" role="button" tabindex="0"
+          :aria-disabled="busy" @click="confirm(o)" @keyup.enter="confirm(o)">
           <span class="text-weight-bold">{{ o.label }}</span>
           <span class="row items-center no-wrap q-gutter-xs">
             <q-btn v-if="DETAILS[o.label]" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
@@ -31,7 +31,8 @@
 <script setup>
 // The offers of one number, shared by the shop page and the owner's page (one UI, two callers):
 // `lookup(phone)` answers { status: 'ready' | 'discovering' | …, offers: [{ label, family, amount, available? }] },
-// `send(phone, label)` sends one offer and resolves to something truthy when it was accepted for sending.
+// `send(phone, label)` sends one offer and resolves to something truthy when it was accepted for sending;
+// `repeatOf(phone, { offer })` names the last operation when it was this same offer to this number.
 import { computed, ref, watch } from 'vue'
 import { Dialog } from 'quasar'
 import { useRun } from 'src/composables/useRun'
@@ -43,10 +44,11 @@ const props = defineProps({
   active: { type: Boolean, default: true },
   maxAmount: { type: Number, default: Infinity },
   lookup: { type: Function, required: true },
-  send: { type: Function, required: true }
+  send: { type: Function, required: true },
+  repeatOf: { type: Function, default: () => null }
 })
 const emit = defineEmits(['sent'])
-const { run } = useRun()
+const { busy, run } = useRun()
 
 // What the customer gets for each offer (shown from «i»). The price is the number in the name.
 const DETAILS = {
@@ -120,19 +122,27 @@ function details (o) {
   Dialog.create({ title: o.label, message: DETAILS[o.label], ok: 'حسنًا', position: 'bottom' })
 }
 
+// One offer at a time: a tap while one is being sent opens nothing
+let asking = false
 function confirm (o) {
   const p = props.phone
+  if (busy.value || asking) return
   if (p !== loadedFor) { load(); return }
+  const last = props.repeatOf(p, { offer: o.label })
+  asking = true
   Dialog.create({
-    title: 'تأكيد العرض',
+    title: last ? 'نفس آخر عملية' : 'تأكيد العرض',
     html: true,
     message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
       <div style="text-align:center"><b>${o.label}</b>${DETAILS[o.label] ? ' — ' + DETAILS[o.label] : ''}</div>
       <div style="text-align:center">السعر: <b>${money(o.amount)}</b></div>
-      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>`,
+      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${last
+        ? `<div style="margin-top:8px;padding:8px;border-radius:8px;background:#FFF3E0;color:#BF360C;text-align:center">
+            آخر عملية كانت نفس العرض لنفس الرقم (${last.badge.label}).<br><b>أرسل مرة ثانية؟</b></div>`
+        : ''}`,
     cancel: 'رجوع',
-    ok: 'نعم، أرسل'
-  }).onOk(async () => {
+    ok: last ? 'نعم، أرسل مرة ثانية' : 'نعم، أرسل'
+  }).onDismiss(() => { asking = false }).onOk(async () => {
     const r = await run(() => props.send(p, o.label))
     if (r) emit('sent', { phone: p, offer: o, result: r })
   })
@@ -144,4 +154,5 @@ function confirm (o) {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
 :deep(.family) { font-weight: 700; }
 .price { font-weight: 700; white-space: nowrap; }
+.offer-row.busy { opacity: 0.5; cursor: default; }
 </style>
