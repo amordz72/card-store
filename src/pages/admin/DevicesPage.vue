@@ -78,6 +78,7 @@
             <span class="muted"> · </span>
             <span :class="m.sim.msisdn_source ? '' : 'text-deep-orange'">{{ numberText(m.sim) }}</span>
           </span>
+          <span v-if="m.sim && onboardingText(m.sim)" class="small" :class="onboardingClass(m.sim)">{{ onboardingText(m.sim) }}</span>
           <span v-if="m.reasons.length" class="small" :class="m.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ m.reasons[0].text }}<bdi v-if="m.reasons.length > 1" class="ltr q-ml-xs"> (+{{ m.reasons.length - 1 }})</bdi></span>
         </span>
         <q-badge :color="LEVEL[m.level].color" :label="LEVEL[m.level].label" />
@@ -126,6 +127,12 @@
             <span class="muted">ICCID</span><bdi class="ltr">…{{ picked.m.sim.iccid_tail || '—' }}</bdi>
             <span class="muted">الرقم</span><span><bdi class="ltr">…{{ picked.m.sim.msisdn_tail || '—' }}</bdi> · {{ numberText(picked.m.sim) }}</span>
             <span class="muted">الرصيد</span><span :class="balanceClass(picked.m.sim)">{{ balanceText(picked.m.sim) }}<span v-if="picked.m.sim.balance_checked_at" class="muted"> · قُرئ {{ clock(picked.m.sim.balance_checked_at) }}</span></span>
+            <template v-if="onboardingText(picked.m.sim)">
+              <span class="muted">الاكتشاف الآلي</span><span :class="onboardingClass(picked.m.sim)">{{ onboardingText(picked.m.sim) }}</span>
+            </template>
+            <template v-if="noteOf(picked.m.sim)">
+              <span class="muted">ملاحظة</span><span>{{ noteOf(picked.m.sim) }}</span>
+            </template>
           </template>
           <template v-else>
             <span class="muted">الشريحة</span><span>لا شريحة</span>
@@ -134,8 +141,24 @@
           <span class="muted">آخر محاولة</span><span>{{ picked.m.ussd.lastAttemptAt ? clock(picked.m.ussd.lastAttemptAt) : 'لا يوجد' }}</span>
           <span class="muted">مهل متتالية</span><span>{{ picked.m.ussd.timeoutsInRow }}</span>
         </q-card-section>
+        <template v-if="picked.m.sim">
+          <q-separator />
+          <!-- The SIM's settings: a name beside the fixed code, a free note, and the PIN (never shown) -->
+          <q-card-section class="column q-gutter-sm">
+            <div class="text-weight-bold">إعدادات الشريحة</div>
+            <q-input v-model="form.label" dense outlined maxlength="80" label="اسم خاص" :hint="'يظهر بجانب ' + (picked.m.sim.code || 'الاسم الثابت')" />
+            <q-input v-model="form.note" dense outlined autogrow maxlength="500" label="ملاحظة" />
+            <q-input v-model="form.pin" dense outlined type="password" inputmode="numeric" maxlength="8" autocomplete="off"
+              :label="picked.m.sim.pin_present ? 'PIN جديد (اتركه فارغًا لإبقاء المحفوظ)' : 'PIN'" :error="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" error-message="4 إلى 8 أرقام" />
+            <div v-if="form.error" class="small text-negative">{{ form.error }}</div>
+            <div v-if="form.saved" class="small text-positive">حُفظ</div>
+          </q-card-section>
+        </template>
         <q-card-section class="small muted q-pt-none">الشبكة والإشارة وحالة الشريحة تظهر بعد تحديث الـAgent.</q-card-section>
-        <q-card-actions align="right"><q-btn flat no-caps label="إغلاق" v-close-popup /></q-card-actions>
+        <q-card-actions align="right">
+          <q-btn v-if="picked.m.sim" unelevated no-caps color="primary" label="حفظ" :loading="form.busy" :disable="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" @click="saveSettings" />
+          <q-btn flat no-caps label="إغلاق" v-close-popup />
+        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -291,11 +314,58 @@ async function load () {
   }
 }
 
+// New SIM onboarding (Flexy Core, owner decision 2026-10-25): number → type → first balance → approved.
+const ALERTS = {
+  NUMBER_NOT_FOUND: 'لم يُكتشف الرقم بعد 3 محاولات',
+  PIN_REJECTED: 'الشبكة رفضت الـPIN: أدخل PIN جديدًا',
+  TYPE_NOT_CONFIRMED: 'رد الشبكة لا يطابق النوع: حدّد النوع بنفسك',
+  BALANCE_NOT_CONFIRMED: 'لم يُؤكَّد أول رصيد'
+}
+const onboardingOf = (sim) => (tree.value?.onboarding || []).find((o) => o.sim_uuid === sim.sim_uuid) || null
+const noteOf = (sim) => onboardingOf(sim)?.note || ''
+function onboardingText (sim) {
+  const o = onboardingOf(sim)
+  if (!o?.stage) return ''
+  if (o.stage === 'number') return `يُكتشف الرقم (محاولة ${o.number_tries || 1} من 3)`
+  if (o.stage === 'pin_wait') return 'ينتظر PIN منك قبل سؤال الرصيد'
+  if (o.stage === 'balance') return 'يُسأل أول رصيد'
+  if (o.stage === 'approved') return 'اعتُمدت آليًا بعد أول رصيد'
+  if (o.stage === 'balance_only') return 'الرصيد ' + (o.probe_amount != null ? money(o.probe_amount) : 'مقروء') + ' (بلا اعتماد)'
+  if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code)
+  return ''
+}
+const onboardingClass = (sim) => {
+  const stage = onboardingOf(sim)?.stage
+  return stage === 'alert' ? 'text-negative' : stage === 'approved' ? 'text-positive' : 'text-deep-orange'
+}
+
 const details = ref(false)
 const picked = ref(null)
+const form = ref({ label: '', note: '', pin: '', busy: false, error: '', saved: false })
 function open (st, m) {
   picked.value = { st, m }
+  form.value = { label: m.sim?.label || '', note: m.sim ? noteOf(m.sim) : '', pin: '', busy: false, error: '', saved: false }
   details.value = true
+}
+async function saveSettings () {
+  const sim = picked.value?.m.sim
+  if (!sim || form.value.busy) return
+  form.value.busy = true
+  form.value.error = ''
+  form.value.saved = false
+  try {
+    const fields = { label: form.value.label, note: form.value.note }
+    if (form.value.pin) fields.pin = form.value.pin
+    const res = await flexy.saveSimSettings(sim.sim_uuid, fields)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+    form.value.pin = ''
+    form.value.saved = true
+    await load()
+  } catch (e) {
+    form.value.error = 'لم يُحفظ (' + (e.message || 'FLEXY_CORE') + ')'
+  } finally {
+    form.value.busy = false
+  }
 }
 
 // Only while the page is open, and not in a hidden tab
