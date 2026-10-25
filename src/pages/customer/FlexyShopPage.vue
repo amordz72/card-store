@@ -16,9 +16,10 @@
       </q-tabs>
 
       <div class="card column q-gutter-sm">
-        <q-input v-model="phone" dense outlined label="رقم الزبون (موبيليس)" inputmode="tel" maxlength="16"
-          placeholder="06XX XX XX XX" input-class="ltr text-center phone" />
-        <div v-if="phone && !phoneOk" class="small text-negative">رقم موبيليس يبدأ بـ 06 (10 أرقام).</div>
+        <q-input :model-value="phone" dense outlined label="رقم الزبون" inputmode="tel" maxlength="16"
+          placeholder="0X XX XX XX XX" input-class="ltr text-center phone" @update:model-value="typed">
+          <template v-if="carrier" #append><span class="carrier" :class="carrier.cls">{{ carrier.name }}</span></template>
+        </q-input>
       </div>
 
       <template v-if="tab === '630'">
@@ -32,9 +33,10 @@
         </div>
         <div class="small muted">إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا.</div>
         <q-btn unelevated color="primary" size="lg" icon="send" label="إرسال" :loading="busy"
-          :disable="!canSend" @click="confirmSend" />
+          :disable="!canSend" @click="pressSend" />
       </template>
       <div v-else-if="!access.offers.value" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
+      <div v-else-if="phoneFull && !phoneOk" class="card text-center muted q-pa-lg">قريبًا: عروض هذا المتعامل غير متوفرة بعد.</div>
       <FlexyOffers v-else :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="access.maxAmount.value"
         :lookup="lookupOffers" :send="sendOffer" @sent="afterOffer" />
 
@@ -65,7 +67,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { Dialog } from 'quasar'
+import { Dialog, Notify } from 'quasar'
 import { useCustomerStore } from 'stores/customer'
 import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
@@ -84,7 +86,7 @@ const { busy, run } = useRun()
 const PAGE = 10
 const tab = ref('630')
 const phone = ref('')
-const amount = ref(1000)
+const amount = ref(null)
 const other = ref(null)
 const opened = ref(null)
 
@@ -93,11 +95,20 @@ const digits = computed(() => {
   if (/^213\d{9}$/.test(d)) d = '0' + d.slice(3)
   return d
 })
+// Any Algerian mobile can be typed; only Mobilis is sent today, the others hear «قريبًا» on «إرسال»
+const phoneFull = computed(() => /^0[567]\d{8}$/.test(digits.value))
 const phoneOk = computed(() => /^06\d{8}$/.test(digits.value))
-const amounts = computed(() => [100, 200, 500, 1000, 2000, 5000].filter((a) => a <= access.maxAmount.value))
+const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
+const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]] : null))
+const amounts = computed(() => [40, 50, 100, 200, 500, 1000, 2000, 5000].filter((a) => a <= access.maxAmount.value))
 const value = computed(() => amount.value || Number(other.value) || 0)
-const canSend = computed(() => access.open.value && phoneOk.value && value.value >= 40 && value.value <= access.maxAmount.value)
+const canSend = computed(() => access.open.value && phoneFull.value && value.value >= 40 && value.value <= access.maxAmount.value)
 const spaced = (d) => (d || '').replace(/^(\d{4})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4')
+// Shown in pairs while typing (06 67 06 89 43): a wrong digit is seen before sending
+function typed (v) {
+  const s = String(v || '')
+  phone.value = /^[\d\s]*$/.test(s) ? s.replace(/\D/g, '').slice(0, 10).replace(/(\d{2})(?=\d)/g, '$1 ') : s
+}
 const when = (t) => new Date(t).toLocaleString('ar-DZ')
 function pick (a) { amount.value = a; other.value = null }
 
@@ -163,6 +174,11 @@ function schedule () {
   }, delay)
 }
 
+function pressSend () {
+  if (!phoneOk.value) return Notify.create({ message: 'قريبًا: الإرسال إلى هذا المتعامل غير متوفر بعد.', timeout: 2500 })
+  confirmSend()
+}
+
 function confirmSend () {
   const v = value.value
   const p = digits.value
@@ -209,7 +225,11 @@ onUnmounted(() => clearTimeout(timer))
 
 <style scoped>
 .tabs { background: #E4E6EC; border-radius: 12px; }
-.amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.carrier { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; color: #fff; }
+.carrier.mobilis { background: #4CAF50; }
+.carrier.djezzy { background: #E53935; }
+.carrier.ooredoo { background: #E30613; }
 .chip { min-height: 40px; font-weight: 700; border-radius: 10px; }
 .op-row { width: 100%; border: 0; background: transparent; text-align: right; padding: 10px 14px; border-bottom: 1px solid #ECEEF3;
   display: flex; flex-direction: column; gap: 4px; font: inherit; color: inherit; cursor: pointer; }
