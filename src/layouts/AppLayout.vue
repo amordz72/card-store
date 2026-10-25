@@ -31,6 +31,11 @@
                 <q-item-section>فليكسي المحلات تحتاج حكمك</q-item-section>
                 <q-item-section side><q-badge :color="flexyReview ? 'negative' : 'grey-5'" :label="flexyReview" /></q-item-section>
               </q-item>
+              <q-item v-close-popup clickable to="/flexy/devices">
+                <q-item-section avatar><q-icon name="router" /></q-item-section>
+                <q-item-section>موديمات أو كمبيوترات معطّلة</q-item-section>
+                <q-item-section side><q-badge :color="devicesDown ? 'negative' : 'grey-5'" :label="devicesDown" /></q-item-section>
+              </q-item>
               <q-item v-close-popup clickable to="/game">
                 <q-item-section avatar><q-icon name="sports_esports" /></q-item-section>
                 <q-item-section>شحن ألعاب في الانتظار</q-item-section>
@@ -151,7 +156,7 @@ const MENU = [
     ]
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
-  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()
@@ -186,7 +191,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { openReports, idoomReview, gameWaiting, flexyReview, bellTotal, refreshBell } = useBell()
+const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, bellTotal, refreshBell } = useBell()
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)

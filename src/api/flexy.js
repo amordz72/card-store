@@ -46,6 +46,8 @@ export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
 // The shops' switch in Flexy Core (apps.630.send_enabled), read with ownerSwitch().
 export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: { apps_send_enabled: on } })
+// Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).
+export const ownerDevices = () => owner('devices', { method: 'GET' })
 
 export const capabilities = () => call('capabilities', { method: 'GET' })
 export const validate = (phone, amount, distributorAccount) => call('validate', {
