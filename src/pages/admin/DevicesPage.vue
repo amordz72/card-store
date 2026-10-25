@@ -24,6 +24,8 @@
           <q-badge :color="LEVEL[st.level].color" :label="LEVEL[st.level].label" />
         </div>
         <div class="small muted">{{ st.computer_name }} · Agent {{ st.agent_version || '—' }} · {{ st.absent_minutes ? 'آخر ظهور ' + clock(st.last_seen_at) : 'متصل' }}</div>
+        <!-- Moving station by station to the core's gateway (step 2) -->
+        <div v-if="st.gateway" class="small">البوابة: <q-badge :color="st.gateway === 'core' ? 'primary' : 'grey-6'" :label="st.gateway === 'core' ? 'النواة' : 'القديمة'" /></div>
         <div v-for="r in st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
       </div>
 
