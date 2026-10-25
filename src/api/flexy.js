@@ -52,6 +52,8 @@ export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: {
 export const ownerDevices = () => owner('devices', { method: 'GET' })
 // A SIM's PIN, name and note (owner only). The PIN is never sent back; fields left out are not changed.
 export const saveSimSettings = (simUuid, fields) => owner('sims/settings', { method: 'POST', body: { sim_uuid: simUuid, ...fields } })
+// An approved SIM's balance read once more: one balance code, no money (Flexy Core 0018).
+export const readSimBalance = (simUuid) => owner('sims/read-balance', { method: 'POST', body: { sim_uuid: simUuid } })
 // Agent updates: what each computer runs and what main on GitHub holds, and its last request;
 // ask one computer to pull main (its version as shown) or move gateway (its updater applies it
 // and rolls back by itself); withdraw a request not yet taken.
