@@ -9,12 +9,19 @@
           @update:model-value="flip" />
         <q-spinner v-if="switchBusy" size="16px" />
       </div>
+      <!-- «أرسل من هاتفي» (owner 2026-10-26): offers and discovery on the admin phone, his choice only -->
+      <div v-if="phoneSim" class="card row items-center q-gutter-sm">
+        <q-toggle v-model="viaPhone" color="primary" :disable="!phoneSim.live" label="العروض من هاتفي" />
+        <q-badge :color="phoneSim.live ? 'positive' : 'grey-6'" class="q-pa-xs">{{ phoneSim.live ? 'متصل' : 'غير متصل' }}</q-badge>
+        <span class="small muted" dir="ltr">{{ phoneSim.msisdn || '' }}</span>
+        <span v-if="phoneSim.balance_amount != null" class="small">{{ money(phoneSim.balance_amount) }}</span>
+      </div>
     </FlexySend>
   </q-page>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
@@ -44,9 +51,14 @@ const ERRORS = {
   STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى الخادم. لم يُرسل شيء.',
   SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
   APP_SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
-  OFFER_NOT_ON_SAMA: 'هذا العرض لا يُنفَّذ من Sama.',
+  OFFER_NOT_ON_SAMA: 'هذا العرض لا يُنفَّذ من Sama (ولا من هاتف الإدارة).',
   '665_NO_SAMA_READY': 'لا توجد شريحة Sama متصلة وفارغة الآن.',
-  '665_SAMA_PIN_UNCONFIRMED': 'شريحة Sama لم تقبل الـPIN في آخر محاولة: تحقق من الـPIN واحفظه من جديد في «المحطات والشرائح».'
+  '665_SAMA_PIN_UNCONFIRMED': 'شريحة Sama لم تقبل الـPIN في آخر محاولة: تحقق من الـPIN واحفظه من جديد في «المحطات والشرائح».',
+  '665_PHONE_NOT_LINKED': 'هاتف الإدارة غير مربوط بعد.',
+  '665_PHONE_OFFLINE': 'هاتف الإدارة غير متصل الآن. لم يُرسل شيء.',
+  '665_PHONE_NO_PIN': 'احفظ PIN شريحة الهاتف في «المحطات والشرائح».',
+  '665_PHONE_BUSY': 'هاتف الإدارة مشغول بعملية أخرى. لم يُرسل شيء.',
+  '665_PHONE_BALANCE_SHORT': 'رصيد شريحة الهاتف لا يكفي لهذا العرض.'
 }
 // Why no SIM can run the send now (Flexy Core, core/selection.ts REASONS)
 const REASONS = {
@@ -116,13 +128,26 @@ async function send (p, v, { wait, key: pressKey }) {
   throw new Error('لم يُحدَّث الرصيد في 3 دقائق. لم يُرسل شيء.')
 }
 
+// The admin phone, when one is linked: its SIM, and whether offers go to it (kept on this phone)
+const phoneSim = ref(null)
+const VIA_KEY = 'flexy-via-phone'
+const viaPhone = ref((() => { try { return localStorage.getItem(VIA_KEY) === '1' } catch { return false } })())
+watch(viaPhone, (v) => { try { localStorage.setItem(VIA_KEY, v ? '1' : '0') } catch { /* private mode */ } })
+const via = () => (viaPhone.value && phoneSim.value?.live ? 'phone' : null)
+async function loadPhone () {
+  const res = await flexy.ownerPhone()
+  const p = res.status === 200 ? (res.body.phones || [])[0] : null
+  const sim = p?.sims?.[0]
+  phoneSim.value = sim ? { ...sim, live: Boolean(p.live && sim.live) } : null
+}
+
 async function lookupOffers (p, { retry = false } = {}) {
-  const res = await flexy.ownerOffers(p, retry)
+  const res = await flexy.ownerOffers(p, retry, via())
   if (res.status !== 200) throw new Error(errorText(res.body))
   return res.body
 }
 async function sendOffer (p, label, key) {
-  const res = await flexy.ownerOfferSend(p, label, 'own665_' + key.replace(/-/g, ''))
+  const res = await flexy.ownerOfferSend(p, label, 'own665_' + key.replace(/-/g, ''), via())
   if ((res.status === 0 || res.status >= 400) && !res.body?.operation) throw refused(res)
   return res.body
 }
@@ -205,6 +230,7 @@ async function afterSend () {
 
 onMounted(async () => {
   loadSwitch()
+  loadPhone().catch(() => null)
   await loadFirst().catch(() => null)
   schedule()
 })

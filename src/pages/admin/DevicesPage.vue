@@ -1,5 +1,14 @@
 <template>
   <q-page class="page">
+    <!-- The admin phone (owner 2026-10-26): Rech-Doom on his phone asks to be linked; he approves it here -->
+    <div v-for="p in pendingPhones" :key="p.station_uuid" class="card row items-center q-gutter-sm">
+      <q-icon name="smartphone" color="primary" size="24px" />
+      <div class="col">
+        <div class="text-weight-bold">هاتف ينتظر الاعتماد: {{ p.computer_name }}</div>
+        <div class="small muted">يصبح «هاتف الإدارة»: يرسل فقط ما ترسله أنت بـ«العروض من هاتفي»، والبرنامج لا يختاره وحده.</div>
+      </div>
+      <q-btn unelevated no-caps color="primary" label="اعتماد" :loading="busy" @click="approvePhone(p)" />
+    </div>
     <!-- One request to Flexy Core; refreshed every 30 seconds while this page is open and visible -->
     <div class="card column q-gutter-sm">
       <div class="row items-center q-gutter-sm">
@@ -321,7 +330,32 @@ function askGateway (st, gateway) {
 }
 const cancel = (u) => send(() => flexy.cancelUpdate(u.deployment_id))
 
+// A phone app waiting to be linked as the admin phone (Flexy Core 0033)
+const pendingPhones = ref([])
+async function loadPhones () {
+  const res = await flexy.ownerPhone()
+  pendingPhones.value = res.status === 200 ? (res.body.pending || []) : []
+}
+function approvePhone (p) {
+  Dialog.create({
+    title: 'اعتماد هاتف الإدارة',
+    message: 'هذا هاتفك أنت؟ بعد الاعتماد ينفّذ العروض التي ترسلها له فقط.',
+    cancel: 'لا', ok: 'نعم، اعتمد'
+  }).onOk(async () => {
+    busy.value = true
+    try {
+      const res = await flexy.approvePhone(p.station_uuid, 'هاتف الإدارة')
+      if (res.status !== 200) throw new Error(res.body?.error || 'FLEXY_CORE')
+      pendingPhones.value = res.body.pending || []
+    } catch (e) {
+      Dialog.create({ title: 'لم يُعتمد', message: e.message || 'FLEXY_CORE', ok: 'حسنًا' })
+    } finally { busy.value = false }
+    load()
+  })
+}
+
 async function load () {
+  loadPhones().catch(() => null)
   if (busy.value) return
   busy.value = true
   try {
