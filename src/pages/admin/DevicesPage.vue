@@ -153,7 +153,10 @@
             <div v-if="reading.text" class="small" :class="reading.ok ? 'text-positive' : 'text-negative'">{{ reading.text }}</div>
           </q-card-section>
         </template>
-        <q-card-section class="small muted q-pt-none">الشبكة والإشارة وحالة الشريحة تظهر بعد تحديث الـAgent.</q-card-section>
+        <template v-if="picked.m.sim">
+          <q-separator />
+          <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" /></q-card-section>
+        </template>
         <q-card-actions align="right">
           <q-btn v-if="picked.m.sim?.approved" outline no-caps color="primary" label="اقرأ الرصيد" :loading="reading.busy" @click="readBalance" />
           <q-btn v-if="picked.m.sim" unelevated no-caps color="primary" label="حفظ" :loading="form.busy" :disable="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" @click="saveSettings" />
@@ -170,6 +173,7 @@ import { Dialog } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
+import ModemPanel from 'src/components/ModemPanel.vue'
 
 // Read only: Flexy Core answers from what the stations already report. No USSD, no money.
 const LEVEL = {
