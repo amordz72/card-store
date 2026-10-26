@@ -55,7 +55,8 @@ const rows = ref(readCache())
 const ops = computed(() => rows.value.map((j) => ({
   id: j.job_id, title: j.kind === 'offer' ? j.offer_label : money(j.amount), phone: j.phone,
   kind: j.kind === 'offer' ? 'offer' : '630', amount: j.amount, offer: j.offer_label,
-  badge: view(j), at: j.created_at, reply: j.network_reply
+  badge: view(j), at: j.created_at, reply: j.network_reply,
+  running: ['queued', 'sent'].includes(j.status), stopped: j.status === 'not_sent'
 })))
 const hasMore = ref(false)
 const loadingMore = ref(false)

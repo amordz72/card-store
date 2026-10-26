@@ -69,6 +69,7 @@ const error = ref('')
 const offers = ref([])
 let loadedFor = ''
 let runId = 0
+const group = ref('')
 
 // Families in the catalog's order (Mix, Talk, Net…), prices rising inside each one
 const families = computed(() => {
@@ -105,6 +106,13 @@ async function load ({ retry = false } = {}) {
       loadedFor = p
       offers.value = r.offers || []
       looked.value = true
+      group.value = r.group || ''
+    } else if (r?.status === 'no_offers') {
+      // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
+      loadedFor = p
+      offers.value = []
+      looked.value = true
+      group.value = ''
     } else {
       error.value = r?.status === 'discovering' ? 'لم تردّ الشبكة. أعد المحاولة.' : (r?.message || 'تعذّر معرفة نوع خط الزبون الآن.')
     }
@@ -124,6 +132,16 @@ watch(() => [props.active, props.phone, props.phoneOk], () => {
   if (shownFor === props.phone && (looked.value || error.value)) return
   load()
 }, { immediate: true })
+
+// After an offer of this number stopped: read its offers again. True when the line's group changed
+// (the sale stopped before buying and the core kept the new group): the new offers are now shown.
+async function recheck (p) {
+  if (p !== props.phone || !props.phoneOk) return false
+  const before = group.value
+  await load()
+  return Boolean(before && group.value && before !== group.value)
+}
+defineExpose({ recheck })
 
 function details (o) {
   Dialog.create({ title: o.label, message: DETAILS[o.label], ok: 'حسنًا', position: 'bottom' })
