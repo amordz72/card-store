@@ -100,6 +100,8 @@
             <q-btn flat dense size="sm" color="primary" icon="key" label="رمز جديد" :disable="busy" @click="newToken(p)" />
             <q-toggle :model-value="p.active" :label="p.active ? 'مفعّل' : 'معطّل'" color="positive" :disable="busy"
               @update:model-value="(v) => setActive(p, v)" />
+            <q-btn v-if="!p.active" flat dense round size="sm" color="negative" icon="delete" :disable="busy"
+              aria-label="حذف الهاتف" @click="removePhone(p)" />
           </div>
         </template>
         <q-input v-model="executorName" dense outlined label="اسم الهاتف" />
@@ -289,6 +291,18 @@ async function shareToken () {
 async function setActive (p, active) {
   if (await run(() => api.executorSetActive(p.id, active).then(() => true),
     { success: active ? `فُعّل ${p.name}.` : `عُطّل ${p.name}. أوقف الاستقبال فيه أيضًا.` })) load()
+}
+
+// Only a disabled phone; the old phone's token stops for good and its past jobs stay as they are
+function removePhone (p) {
+  Dialog.create({
+    title: `حذف ${p.name}؟`,
+    message: 'يختفي من القائمة ولا يستقبل أي مهمة بعد اليوم، ولا يمكن إرجاعه. العمليات السابقة تبقى كما هي.',
+    cancel: 'رجوع',
+    ok: { label: 'حذف', color: 'negative' }
+  }).onOk(async () => {
+    if (await run(() => api.executorDelete(p.id).then(() => true), { success: `حُذف ${p.name}.` })) load()
+  })
 }
 
 onMounted(async () => {
