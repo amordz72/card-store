@@ -178,7 +178,9 @@ const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.it
 // Whoever has «تعبئة إيدوم» (the owner, enabled customers) gets it in place of «حسابي», still in the side menu
 const nav = computed(() => [
   { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
-  hasFlexy.value ? { to: '/flexy/shop', label: 'فليكسي', icon: 'send_to_mobile' }
+  // «فليكسي» second from the right for the owner too (owner 2026-10-26: one bar for both)
+  session.isAdmin ? { to: '/flexy/send', label: 'فليكسي', icon: 'send_to_mobile' }
+    : hasFlexy.value ? { to: '/flexy/shop', label: 'فليكسي', icon: 'send_to_mobile' }
     : hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }
     : game.isOperator.value ? { to: '/game', label: 'شحن الألعاب', icon: 'sports_esports' }
       : { to: '/account', label: 'حسابي', icon: 'person' },
