@@ -177,11 +177,12 @@ const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.it
 // Right to left: two free slots for frequent services (e.g. flexy later), «الرئيسية» in the centre, then cards and operations
 // Whoever has «تعبئة إيدوم» (the owner, enabled customers) gets it in place of «حسابي», still in the side menu
 const nav = computed(() => [
-  { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
-  // «فليكسي» second from the right for the owner too (owner 2026-10-26: one bar for both)
+  // Owner 2026-10-26, from the right: «فليكسي» in the transfers' place (transfers stay in the side
+  // menu), then «تعبئة إيدوم», the home in the middle, the cards and the operations. One bar for both.
   session.isAdmin ? { to: '/flexy/send', label: 'فليكسي', icon: 'send_to_mobile' }
     : hasFlexy.value ? { to: '/flexy/shop', label: 'فليكسي', icon: 'send_to_mobile' }
-    : hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }
+      : { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
+  hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }
     : game.isOperator.value ? { to: '/game', label: 'شحن الألعاب', icon: 'sports_esports' }
       : { to: '/account', label: 'حسابي', icon: 'person' },
   { to: '/', label: 'الرئيسية', icon: 'home', exact: true, home: true },
