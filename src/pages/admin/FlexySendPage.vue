@@ -19,6 +19,7 @@ import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import FlexySend from 'src/components/FlexySend.vue'
+import { explain } from 'src/api/flexyExplain'
 
 // The owner's side of the shared send screen (FlexySend): real Mobilis from his own SIMs through
 // Flexy Core, under his money switch, no wallet. Flexy Core checks and chooses the SIM itself at
@@ -136,7 +137,9 @@ const rows = ref([])
 const ops = computed(() => rows.value.map((o) => ({
   id: o.idempotency_key, title: o.offer || money(o.amount), phone: o.phone,
   kind: o.operation_key === OFFER_KEY ? 'offer' : '630', amount: o.amount, offer: o.offer,
-  badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply
+  badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply,
+  running: ['queued', 'running'].includes(o.status), explain: explain(o.outcome_code, o.status),
+  doneAt: o.updated_at, sims: o.sims || []
 })))
 const hasMore = ref(false)
 const loadingMore = ref(false)
@@ -172,22 +175,27 @@ async function refreshNow () {
   } catch { /* offline: keep what is shown */ } finally { refreshing.value = false }
 }
 
-// While something runs: 3 s, then a little longer each time, up to 30 s. Nothing runs: no requests.
+// While something runs: every 2 s for 3 minutes (the row turns into its result in place, owner
+// 2026-10-26), then a little longer each time, up to 30 s. Nothing runs: no requests.
+const FAST_MS = 2000
+const FAST_FOR_MS = 180000
 let timer = null
-let delay = 3000
+let delay = FAST_MS
+let since = Date.now()
 function schedule () {
   clearTimeout(timer)
-  if (!running.value) { delay = 3000; return }
+  if (!running.value) { delay = FAST_MS; since = Date.now(); return }
   timer = setTimeout(async () => {
     await refreshNow()
-    delay = Math.min(Math.round(delay * 1.6), 30000)
+    if (Date.now() - since > FAST_FOR_MS) delay = Math.min(Math.round(delay * 1.6), 30000)
     schedule()
   }, delay)
 }
 
 async function afterSend () {
   await loadFirst().catch(() => null)
-  delay = 3000
+  delay = FAST_MS
+  since = Date.now()
   schedule()
 }
 

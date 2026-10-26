@@ -43,14 +43,30 @@
         <button v-for="j in rows" :key="j.id" type="button" class="op-row" :aria-expanded="opened === j.id"
           @click="opened = opened === j.id ? null : j.id">
           <div class="row items-center no-wrap q-gutter-sm">
-            <span class="col text-weight-bold">{{ j.title }}</span>
-            <q-badge :color="j.badge.color" class="q-pa-xs">{{ j.badge.label }}</q-badge>
+            <div class="col column">
+              <span class="text-weight-bold">{{ j.title }}</span>
+              <span class="small muted">{{ j.kind === 'offer' ? 'عرض' : 'رصيد عادي' }} · <bdi dir="ltr">{{ spaced(j.phone) }}</bdi></span>
+            </div>
+            <span v-if="j.running" class="row items-center no-wrap q-gutter-xs text-primary small">
+              <q-spinner size="20px" /><span>جارٍ…</span>
+            </span>
+            <q-badge v-else :color="j.badge.color" class="q-pa-xs">{{ j.badge.label }}</q-badge>
           </div>
-          <div class="small muted ltr text-right">{{ spaced(j.phone) }}</div>
           <div v-if="opened === j.id" class="details column q-gutter-xs">
-            <div class="small">التاريخ: <bdi dir="ltr">{{ when(j.at) }}</bdi></div>
-            <div class="small">رد الشبكة:</div>
-            <div class="small muted ltr text-right reply">{{ j.reply || '—' }}</div>
+            <div class="small text-weight-bold">{{ j.explain || j.badge.label }}</div>
+            <div class="small">أُرسلت: <bdi dir="ltr">{{ algeriaTime(j.at) }}</bdi></div>
+            <div v-if="!j.running && j.doneAt && j.doneAt !== j.at" class="small">انتهت: <bdi dir="ltr">{{ algeriaTime(j.doneAt) }}</bdi></div>
+            <template v-if="j.reply">
+              <div class="small">رد الشبكة:</div>
+              <div class="small muted ltr text-right reply">{{ j.reply }}</div>
+            </template>
+            <!-- The owner only: which SIM ran it, and the ones it left (owner 2026-10-26) -->
+            <template v-if="j.sims && j.sims.length">
+              <div class="small">الشريحة: <bdi dir="ltr">{{ simLine(j.sims[j.sims.length - 1]) }}</bdi></div>
+              <div v-for="(w, i) in j.sims.slice(0, -1)" :key="i" class="small moved">
+                تحوّلت من <bdi dir="ltr">{{ simLine(w) }}</bdi>: {{ movedWhy(j.sims[i + 1].moved_because) }}
+              </div>
+            </template>
           </div>
         </button>
         <div v-if="!rows.length" class="text-center muted q-pa-lg">لا توجد عمليات بعد</div>
@@ -68,7 +84,10 @@
 //     accepted for sending (it may call wait(text) while the server gets ready); it throws an Error with an
 //     Arabic message, marked `lost` when no answer came (the request may have been taken).
 //   lookup(phone) / sendOffer(phone, label, key): as FlexyOffers.
-//   rows: [{ id, title, phone, kind: '630' | 'offer', amount, offer, badge: { label, color }, at, reply }], newest first.
+//   rows: [{ id, title, phone, kind: '630' | 'offer', amount, offer, badge: { label, color }, at, reply,
+//     running, explain, doneAt, sims? }], newest first. A running row shows a spinner and turns into its
+//     badge in place; a tapped row says what happened (explain), in Algeria time. `sims` (the owner's page
+//     only): each SIM it went to, the last one ran it (owner 2026-10-26).
 //
 // Two guards before money leaves (owner 2026-10-25):
 //   * one key per press, kept while its answer is lost: pressing again re-asks the same request, never a
@@ -80,6 +99,7 @@ import { Dialog, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
 import FlexyOffers from 'src/components/FlexyOffers.vue'
+import { algeriaTime, movedWhy, simLine } from 'src/api/flexyExplain'
 
 const props = defineProps({
   open: { type: Boolean, required: true },
@@ -118,7 +138,7 @@ const amounts = computed(() => [40, 50, 100, 200, 500, 1000, 2000, 5000].filter(
 const value = computed(() => amount.value || Number(other.value) || 0)
 const canSend = computed(() => props.open && phoneFull.value && value.value >= 40 && value.value <= props.maxAmount)
 const spaced = (d) => (d || '').replace(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5')
-const when = (t) => new Date(t).toLocaleString('ar-DZ')
+const when = (t) => algeriaTime(t)
 function pick (a) { amount.value = a; other.value = null }
 
 // Shown in pairs while typing (06 67 06 89 43): a wrong digit is seen before sending
@@ -195,6 +215,7 @@ function sentOffer (e) {
 .op-row { width: 100%; border: 0; background: transparent; text-align: right; padding: 10px 14px; border-bottom: 1px solid #ECEEF3;
   display: flex; flex-direction: column; gap: 4px; font: inherit; color: inherit; cursor: pointer; }
 .op-row:last-child { border-bottom: 0; }
+.moved { color: #BF360C; }
 .details { margin-top: 6px; padding: 8px; border: 1px solid #E4E6EC; border-radius: 8px; background: #F8F9FB; }
 .reply { white-space: normal; word-break: break-word; }
 :deep(.phone) { font-size: 1.4rem; letter-spacing: 1px; }
