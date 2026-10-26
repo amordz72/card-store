@@ -37,7 +37,8 @@ export const ownerSend = (phone, amount, idempotencyKey) => owner('630/send', {
 })
 export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Offers from the owner's page: the same flow as the shops', under the owner's switch, no wallet.
-export const ownerOffers = (phone) => owner('offers/lookup', { method: 'POST', body: { phone } })
+// retry: «أعد المحاولة» after a discovery that ended; otherwise a running one is followed (Flexy Core 0030)
+export const ownerOffers = (phone, retry = false) => owner('offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}) } })
 export const ownerOfferSend = (phone, offer, idempotencyKey) => owner('665/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey } })
 export const ownerOfferStatus = (idempotencyKey) => owner('665/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // «آخر العمليات» of the owner's page: newest 630s and offers, older than `before` (created_at).

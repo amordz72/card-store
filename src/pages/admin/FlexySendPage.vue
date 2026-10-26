@@ -1,6 +1,6 @@
 <template>
   <q-page class="page">
-    <FlexySend :open="switchOn === true && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
+    <FlexySend remember="owner" :open="switchOn === true && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :send-offer="sendOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <div class="card row items-center q-gutter-sm">
@@ -113,8 +113,8 @@ async function send (p, v, { wait, key: pressKey }) {
   throw new Error('لم يُحدَّث الرصيد في 3 دقائق. لم يُرسل شيء.')
 }
 
-async function lookupOffers (p) {
-  const res = await flexy.ownerOffers(p)
+async function lookupOffers (p, { retry = false } = {}) {
+  const res = await flexy.ownerOffers(p, retry)
   if (res.status !== 200) throw new Error(errorText(res.body))
   return res.body
 }
