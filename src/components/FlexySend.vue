@@ -31,7 +31,7 @@
     </template>
     <div v-else-if="!offers" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
     <div v-else-if="phoneFull && !phoneOk" class="card text-center muted q-pa-lg">قريبًا: عروض هذا المتعامل غير متوفرة بعد.</div>
-    <FlexyOffers v-else :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="maxAmount"
+    <FlexyOffers v-else ref="offersRef" :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="maxAmount"
       :lookup="lookup" :send="sendOffer" :repeat-of="repeatOf" @sent="sentOffer" />
 
     <div>
@@ -40,7 +40,7 @@
         <q-btn flat dense icon="refresh" aria-label="تحديث" :loading="refreshing" @click="emit('refresh')" />
       </div>
       <div class="card q-pa-none q-mt-sm">
-        <button v-for="j in rows" :key="j.id" type="button" class="op-row" :aria-expanded="opened === j.id"
+        <button v-for="j in shown" :key="j.id" type="button" class="op-row" :aria-expanded="opened === j.id"
           @click="opened = opened === j.id ? null : j.id">
           <div class="row items-center no-wrap q-gutter-sm">
             <div class="col column">
@@ -69,7 +69,7 @@
             </template>
           </div>
         </button>
-        <div v-if="!rows.length" class="text-center muted q-pa-lg">لا توجد عمليات بعد</div>
+        <div v-if="!shown.length" class="text-center muted q-pa-lg">لا توجد عمليات بعد</div>
       </div>
       <q-btn v-if="hasMore" flat no-caps color="primary" label="عرض المزيد" :loading="loadingMore" @click="emit('more')" />
     </div>
@@ -85,7 +85,8 @@
 //     Arabic message, marked `lost` when no answer came (the request may have been taken).
 //   lookup(phone) / sendOffer(phone, label, key): as FlexyOffers.
 //   rows: [{ id, title, phone, kind: '630' | 'offer', amount, offer, badge: { label, color }, at, reply,
-//     running, explain, doneAt, sims? }], newest first. A running row shows a spinner and turns into its
+//     running, stopped, lineChanged?, explain, doneAt, sims? }], newest first. `stopped`: ended with nothing
+//     sent (not_sent); `lineChanged` (owner's rows): stopped because the line's group changed. A running row shows a spinner and turns into its
 //     badge in place; a tapped row says what happened (explain), in Algeria time. `sims` (the owner's page
 //     only): each SIM it went to, the last one ran it (owner 2026-10-26).
 //
@@ -159,6 +160,36 @@ const canSend = computed(() => props.open && phoneFull.value && value.value >= 4
 const spaced = (d) => (d || '').replace(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5')
 const when = (t) => algeriaTime(t)
 function pick (a) { amount.value = a; other.value = null }
+
+// An offer stopped because the customer's line changed group (owner 2026-10-26): nothing was bought,
+// so no row in «آخر العمليات»; a short note at the top, and the number's new offers are shown.
+// `lineChanged` comes with the owner's rows; for the others a stopped offer whose number's group is
+// now different is the same case. The hidden rows are kept on this phone.
+const offersRef = ref(null)
+const HIDDEN_MAX = 50
+const hiddenKey = props.remember ? 'flexy-hidden:' + props.remember : ''
+function keptHidden () {
+  try { return new Set(JSON.parse(localStorage.getItem(hiddenKey) || '[]')) } catch { return new Set() }
+}
+const hidden = ref(hiddenKey ? keptHidden() : new Set())
+function hide (id) {
+  hidden.value = new Set([...hidden.value, id].slice(-HIDDEN_MAX))
+  if (hiddenKey) try { localStorage.setItem(hiddenKey, JSON.stringify([...hidden.value])) } catch { /* private mode */ }
+}
+const shown = computed(() => props.rows.filter((j) => !j.lineChanged && !hidden.value.has(j.id)))
+const lastStatus = new Map()
+watch(() => props.rows, async (list) => {
+  for (const j of list) {
+    const was = lastStatus.get(j.id)
+    lastStatus.set(j.id, j.running ? 'running' : j.badge?.label)
+    if (j.kind !== 'offer' || j.running || was !== 'running' || !j.stopped) continue
+    const changed = j.lineChanged || (offersRef.value ? await offersRef.value.recheck(j.phone) : false)
+    if (j.lineChanged && offersRef.value) await offersRef.value.recheck(j.phone)
+    if (!changed) continue
+    hide(j.id)
+    Notify.create({ message: 'لم يُنفَّذ العرض: لهذا الرقم عروض جديدة', position: 'top', timeout: 4000, color: 'deep-orange' })
+  }
+}, { deep: true })
 
 // Shown in pairs while typing (06 67 06 89 43): a wrong digit is seen before sending
 function typed (v) {

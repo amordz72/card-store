@@ -142,6 +142,7 @@ const ops = computed(() => rows.value.map((o) => ({
   kind: [OFFER_KEY, ARSSELLI_OFFER_KEY].includes(o.operation_key) ? 'offer' : '630', amount: o.amount, offer: o.offer,
   badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply,
   running: ['queued', 'running'].includes(o.status), explain: explain(o.outcome_code, o.status),
+  stopped: o.status === 'not_sent', lineChanged: o.outcome_code === '665_LINE_GROUP_CHANGED',
   doneAt: o.updated_at, sims: o.sims || []
 })))
 const hasMore = ref(false)
