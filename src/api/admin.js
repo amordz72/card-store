@@ -53,6 +53,18 @@ export const orders = (f) => rpc('store_admin_orders', {
   p_scope: f.scope || null
 })
 
+// v1.37: «العمليات» as one list, cards and the shops' Flexy together (type: phone|net|game|flexy|offer)
+export const ops = (f) => rpc('store_admin_ops', {
+  p_scope: f.scope || null,
+  p_customer_id: f.customerId || null,
+  p_type: f.type || null,
+  p_from: f.from || null,
+  p_to: f.to || null,
+  p_query: f.query || null,
+  p_limit: f.limit,
+  p_offset: f.offset
+})
+
 export const orderCodes = (orderId) => rpc('store_admin_order_codes', { p_order_id: orderId })
 
 // Card reports from customers (v1.20). status: null (all) | 'open' | 'accepted' | 'rejected'
