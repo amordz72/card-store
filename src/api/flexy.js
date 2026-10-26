@@ -38,8 +38,14 @@ export const ownerSend = (phone, amount, idempotencyKey) => owner('630/send', {
 export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Offers from the owner's page: the same flow as the shops', under the owner's switch, no wallet.
 // retry: «أعد المحاولة» after a discovery that ended; otherwise a running one is followed (Flexy Core 0030)
-export const ownerOffers = (phone, retry = false) => owner('offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}) } })
-export const ownerOfferSend = (phone, offer, idempotencyKey) => owner('665/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey } })
+// via 'phone': «أرسل من هاتفي», the owner's admin phone (Flexy Core 0033), his choice only
+export const ownerOffers = (phone, retry = false, via = null) =>
+  owner('offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}), ...(via ? { via } : {}) } })
+export const ownerOfferSend = (phone, offer, idempotencyKey, via = null) =>
+  owner('665/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey, ...(via ? { via } : {}) } })
+// The admin phone: linked phones and their SIM, and a phone app waiting for approval; approve one
+export const ownerPhone = () => owner('phone', { method: 'GET' })
+export const approvePhone = (stationUuid, label) => owner('phone', { method: 'POST', body: { approve: stationUuid, label } })
 export const ownerOfferStatus = (idempotencyKey) => owner('665/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // «آخر العمليات» of the owner's page: newest 630s and offers, older than `before` (created_at).
 export const ownerOperations = (limit, before) =>
