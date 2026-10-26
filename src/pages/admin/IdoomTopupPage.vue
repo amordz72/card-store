@@ -86,6 +86,8 @@
           <div class="small muted">أو امسح هذا الرمز بكاميرا الهاتف الآخر لتنزيل التطبيق مباشرة.</div>
         </div>
         <div v-if="apk" class="small muted">النسخة <bdi dir="ltr">{{ apk.version }}</bdi> · <bdi>{{ when(apk.built_at) }}</bdi></div>
+        <!-- 0.8.0 is signed with a new key (the 0.7.x key was lost): older installs must be removed once -->
+        <div class="small muted">من النسخة 0.8.0 تغيّر مفتاح التوقيع: احذف Rech-Doom القديم مرة واحدة قبل التثبيت.</div>
         <q-btn outline color="primary" icon="share" label="مشاركة رابط الموقع" @click="share(OFFICIAL_SITE, 'متجر البطاقات')" />
         <template v-if="phones.length">
           <div class="text-weight-bold q-mt-sm">الهواتف المربوطة</div>
