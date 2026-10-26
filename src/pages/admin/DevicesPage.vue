@@ -91,6 +91,7 @@
                 </template>
                 <template v-else-if="updates && !isAbsent(st)">
                   <q-btn v-if="newInMain(st)" outline dense no-caps size="sm" color="primary" :label="'حدّث إلى ' + newInMain(st).main_version" :loading="busy" @click="askRelease(st)" />
+                  <span v-else-if="mainOf(st)?.main_error && offline(mainOf(st).main_error)" class="small muted">لا يصل إلى GitHub الآن، يعيد المحاولة كل دقيقة</span>
                   <span v-else-if="mainOf(st)?.main_error" class="small text-deep-orange">لا يمكن التحديث: {{ MAIN_ERRORS[mainOf(st).main_error] || mainOf(st).main_error }}</span>
                   <span v-else-if="mainOf(st)" class="small muted">على آخر main</span>
                   <div>
@@ -100,7 +101,7 @@
                 </template>
                 <span v-else class="small muted">—</span>
                 <div v-if="last(st) && !active(st)" class="small" :class="last(st).status === 'succeeded' ? 'text-positive' : last(st).status === 'cancelled' ? 'muted' : 'text-deep-orange'">
-                  آخر تحديث: {{ UPDATE_STATUS[last(st).status] }}<span v-if="last(st).error"> ({{ last(st).error }})</span>
+                  آخر تحديث: {{ UPDATE_STATUS[last(st).status] }}<span v-if="last(st).error"> ({{ offline(last(st).error) ? 'لم يصل الكمبيوتر إلى GitHub' : last(st).error }})</span>
                 </div>
               </td>
             </tr>
@@ -295,6 +296,9 @@ const MAIN_ERRORS = {
   GIT_NOT_AGENT_REPOSITORY: 'المجلد ليس نسخة من المستودع',
   GIT_REMOTE_VERSION_UNREADABLE: 'تعذّرت قراءة الإصدار من main'
 }
+// The updater sends «GIT_FETCH_FAILED:» + git's own first line: a computer that cannot reach GitHub
+// at the moment is not a fault, it fetches again every minute by itself.
+const offline = (e) => /GIT_FETCH_FAILED|unable to access|Failed to connect|Could not resolve/i.test(e || '')
 const last = (st) => (updates.value?.stations || []).find((x) => x.station_uuid === st.station_uuid) || null
 const active = (st) => { const u = last(st); return u && (u.status === 'pending' || u.status === 'claimed') ? u : null }
 function updateLabel (u) {
