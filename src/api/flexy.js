@@ -50,6 +50,9 @@ export const ownerOfferStatus = (idempotencyKey) => owner('665/' + encodeURIComp
 // «آخر العمليات» of the owner's page: newest 630s and offers, older than `before` (created_at).
 export const ownerOperations = (limit, before) =>
   owner('operations?limit=' + limit + (before ? '&before=' + encodeURIComponent(before) : ''), { method: 'GET' })
+// An app's operations by its keys, with the SIM that ran each (owner only; card-store's shop jobs)
+export const ownerAppOperations = (app, keys) =>
+  owner('app-operations?app=' + encodeURIComponent(app) + '&keys=' + keys.map(encodeURIComponent).join(','), { method: 'GET' })
 // The money switch, kept in Flexy Core (owner only). Off = every send refuses.
 export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })

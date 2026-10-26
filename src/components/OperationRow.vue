@@ -7,6 +7,7 @@
       <q-item-section>
         <q-item-label class="text-weight-medium">{{ title }}</q-item-label>
         <q-item-label v-if="op.phone" caption><bdi dir="ltr">{{ op.phone }}</bdi></q-item-label>
+        <q-item-label v-if="lastSim" caption>الشريحة: <bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
         <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:#FFF1E8;color:#9A3412">{{ op.customer_name }}</span></q-item-label>
         <q-item-label caption>{{ dateTime(op.created_at) }}<span v-if="op.source !== 'core'"> · رقم {{ op.op_id }}</span></q-item-label>
       </q-item-section>
@@ -34,7 +35,6 @@
         <div class="muted ltr text-right" style="white-space:pre-wrap">{{ op.network_reply }}</div>
       </template>
       <template v-if="op.sims && op.sims.length">
-        <div>الشريحة: <bdi dir="ltr">{{ simLine(op.sims[op.sims.length - 1]) }}</bdi></div>
         <div v-for="(w, i) in op.sims.slice(0, -1)" :key="i" class="muted">
           تحوّلت من <bdi dir="ltr">{{ simLine(w) }}</bdi>: {{ movedWhy(op.sims[i + 1].moved_because) }}
         </div>
@@ -77,6 +77,9 @@ const badge = computed(() => {
   if (isCard.value) return props.op.status === 'done' ? { label: 'ناجحة', color: '#15803D' } : { label: 'مسترجعة', color: '#6B7280' }
   return FLEXY[props.op.status] || { label: 'جارية', color: '#2563EB' }
 })
+
+// The owner only: the SIM that ran a Flexy row (its own, or a shop's from Flexy Core)
+const lastSim = computed(() => (props.op.sims?.length ? props.op.sims[props.op.sims.length - 1] : null))
 
 const opened = ref(false)
 function tap () {

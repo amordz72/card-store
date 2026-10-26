@@ -69,5 +69,16 @@ select pg_temp.check('customer: type offer', (select count(*) = (select count(*)
 select pg_temp.check('customer: a bad session is refused', pg_temp.err('select * from public.store_ops(''nope'', null, null, null, null, 10, 0)') <> 'NO_ERROR');
 reset role;
 
+-- ===== v1.38: the keys of shop Flexy rows, owner only =====
+set role authenticated;
+select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
+select pg_temp.check('keys: the owner reads a job''s core key', (select count(*) = 1 and bool_and(core_key like 'cs\_%')
+  from public.store_admin_flexy_keys(array[:jid]::bigint[])));
+select pg_temp.check('keys: none for no ids', (select count(*) = 0 from public.store_admin_flexy_keys('{}')));
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
+select pg_temp.check('keys: anon refused', pg_temp.err('select * from public.store_admin_flexy_keys(array[1]::bigint[])') like 'permission denied%');
+reset role;
 select name, detail from o_results where not ok;
 select ok, count(*) from o_results group by ok;
