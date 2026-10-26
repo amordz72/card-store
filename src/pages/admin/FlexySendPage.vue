@@ -9,6 +9,14 @@
           @update:model-value="flip" />
         <q-spinner v-if="switchBusy" size="16px" />
       </div>
+      <!-- «عروض سما» (owner 2026-10-27): kept in Flexy Core for every send, his and the shops'.
+           Under 500 DA Arsselli goes first, from 500 Sama; off = Arsselli only. -->
+      <div class="card row items-center q-gutter-sm">
+        <q-toggle :model-value="samaOn" :disable="samaOn === null || samaBusy" color="primary"
+          :label="samaOn ? 'عروض سما مفعّلة' : 'عروض سما ملغاة: العروض من أرسلي فقط'" @update:model-value="flipSama" />
+        <q-spinner v-if="samaBusy" size="16px" />
+        <div class="col-12 small muted">أقل من 500 دج: أرسلي أولًا وسما عند الضرورة. 500 فما فوق: سما أولًا وأرسلي عند الضرورة.</div>
+      </div>
       <!-- «أرسل من هاتفي» (owner 2026-10-26): offers and discovery on the admin phone, his choice only -->
       <div v-if="phoneSim" class="card row items-center q-gutter-sm">
         <q-toggle v-model="viaPhone" color="primary" label="العروض من هاتفي" />
@@ -57,6 +65,7 @@ const ERRORS = {
   SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
   APP_SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
   OFFER_NOT_ON_SAMA: 'هذا العرض لا يُنفَّذ من Sama (ولا من هاتف الإدارة).',
+  OFFER_SAMA_DISABLED: 'عروض سما ملغاة، وهذا العرض لا يُرسل إلا من سما. فعّلها من الزر أعلى الصفحة.',
   '665_NO_SAMA_READY': 'لا توجد شريحة Sama متصلة وفارغة الآن.',
   '665_SAMA_PIN_UNCONFIRMED': 'شريحة Sama لم تقبل الـPIN في آخر محاولة: تحقق من الـPIN واحفظه من جديد في «المحطات والشرائح».',
   '665_PHONE_NOT_LINKED': 'هاتف الإدارة غير مربوط بعد.',
@@ -101,11 +110,18 @@ const switchOn = ref(null)
 const forcedOff = ref(false)
 const switchBusy = ref(false)
 function showSwitch (res) {
-  if (res.status === 200) { switchOn.value = res.body.send_enabled; forcedOff.value = res.body.forced_off } else $q.notify({ type: 'negative', message: errorText(res.body) })
+  if (res.status === 200) { switchOn.value = res.body.send_enabled; forcedOff.value = res.body.forced_off; samaOn.value = res.body.sama_offers_enabled !== false } else $q.notify({ type: 'negative', message: errorText(res.body) })
 }
 async function loadSwitch () {
   switchBusy.value = true
   try { showSwitch(await flexy.ownerSwitch()) } finally { switchBusy.value = false }
+}
+// «عروض سما»: read with the money switch, flipped alone.
+const samaOn = ref(null)
+const samaBusy = ref(false)
+async function flipSama (on) {
+  samaBusy.value = true
+  try { showSwitch(await flexy.setSamaOffersSwitch(on)) } finally { samaBusy.value = false }
 }
 function flip (on) {
   const apply = async () => {

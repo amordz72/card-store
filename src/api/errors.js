@@ -80,6 +80,7 @@ const MESSAGES = {
   FLEXY_RATE_MISSING: 'الفليكسي غير جاهز لحسابك بعد. اطلب من المحل.',
   FLEXY_OFFERS_NOT_READY: 'العروض ستتوفر قريبًا.',
   FLEXY_OFFER_INVALID: 'هذا العرض غير معروف. أعد الاستكشاف.',
+  OFFER_SAMA_DISABLED: 'هذا العرض غير متوفر الآن.',
   FLEXY_UNAVAILABLE: 'الخدمة غير متاحة الآن. حاول بعد قليل.',
   APP_SEND_DISABLED: 'الفليكسي متوقف الآن. حاول بعد قليل.',
   PHONE_NOT_MOBILIS: 'الرقم ليس موبيليس. أدخل رقمًا يبدأ بـ 06.',
