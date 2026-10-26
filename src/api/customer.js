@@ -36,6 +36,17 @@ export const orders = (token, f) => rpc('store_orders', {
   p_offset: f.offset
 })
 
+// v1.37: the customer's cards and Flexy in one list
+export const ops = (token, f) => rpc('store_ops', {
+  p_token: token,
+  p_type: f.type || null,
+  p_from: f.from || null,
+  p_to: f.to || null,
+  p_query: f.query || null,
+  p_limit: f.limit,
+  p_offset: f.offset
+})
+
 // v2 adds code_id and the report state of each card (v1.20)
 export const orderCodes = (token, orderId) => rpc('store_order_codes_v2', { p_token: token, p_order_id: orderId })
 // «مساعدة»: report a card that did not work. reason: 'used' | 'not_found' | 'rejected' | 'other'

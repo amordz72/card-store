@@ -1,39 +1,86 @@
 <template>
   <div style="border-top:1px solid #EEF0F5">
-    <q-item clickable class="q-px-sm" @click="$emit('open')">
+    <q-item clickable class="q-px-sm" @click="tap">
       <q-item-section avatar>
         <div class="brand-tile" style="width:44px;height:44px;font-size:10px;line-height:1.1" :style="{ background: brandColor(op.brand) }">{{ op.brand }}</div>
       </q-item-section>
       <q-item-section>
-        <q-item-label class="text-weight-medium">{{ op.product_name }}{{ op.qty > 1 ? ' × ' + op.qty : '' }}</q-item-label>
+        <q-item-label class="text-weight-medium">{{ title }}</q-item-label>
+        <q-item-label v-if="op.phone" caption><bdi dir="ltr">{{ op.phone }}</bdi></q-item-label>
         <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:#FFF1E8;color:#9A3412">{{ op.customer_name }}</span></q-item-label>
-        <q-item-label caption>{{ dateTime(op.created_at) }} · رقم {{ op.order_id }}</q-item-label>
+        <q-item-label caption>{{ dateTime(op.created_at) }}<span v-if="op.source !== 'core'"> · رقم {{ op.op_id }}</span></q-item-label>
       </q-item-section>
       <q-item-section side top class="items-end q-gutter-xs">
         <span class="text-weight-bold text-dark">{{ money(op.base_amount) }}</span>
-        <span class="badge" :style="{ background: op.status === 'done' ? '#15803D' : '#6B7280' }">{{ op.status === 'done' ? 'ناجحة' : 'مسترجعة' }}</span>
+        <span class="badge" :style="{ background: badge.color }">{{ badge.label }}</span>
       </q-item-section>
     </q-item>
-    <div class="grid-3 q-px-md q-pb-sm small muted">
+    <div v-if="isCard" class="grid-3 q-px-md q-pb-sm small muted">
       <span>{{ isShop ? 'سعر الشراء' : 'المقتطع' }}<br><b style="color:#B45309">{{ mask(money(op.charged_amount)) }}</b></span>
       <span v-if="isShop">ربحي<br><b :class="profitClass">{{ mask(profitText) }}</b></span>
       <span v-else>{{ admin ? 'ربح الزبون' : 'ربحك' }}<br><b :class="op.base_amount - op.charged_amount >= 0 ? 'amount-info' : 'amount-neg'">{{ mask(signed(op.base_amount - op.charged_amount)) }}</b></span>
       <span>الرصيد بعد<br><b class="text-dark">{{ mask(money(op.balance_after)) }}</b></span>
       <span v-if="admin && !isShop">ربحي<br><b :class="profitClass">{{ profitText }}</b></span>
     </div>
+    <div v-else-if="op.source === 'flexy'" class="grid-3 q-px-md q-pb-sm small muted">
+      <span>المقتطع<br><b style="color:#B45309">{{ mask(money(op.charged_amount)) }}</b></span>
+      <span>الرصيد بعد<br><b class="text-dark">{{ mask(money(op.balance_after)) }}</b></span>
+    </div>
+    <!-- A Flexy row opens in place: what happened, the network's reply, and (owner's own) the SIM -->
+    <div v-if="opened" class="q-px-md q-pb-sm column q-gutter-xs small">
+      <div class="text-weight-bold">{{ explain(op.outcome_code, op.status) }}</div>
+      <template v-if="op.network_reply">
+        <div>رد الشبكة:</div>
+        <div class="muted ltr text-right" style="white-space:pre-wrap">{{ op.network_reply }}</div>
+      </template>
+      <template v-if="op.sims && op.sims.length">
+        <div>الشريحة: <bdi dir="ltr">{{ simLine(op.sims[op.sims.length - 1]) }}</bdi></div>
+        <div v-for="(w, i) in op.sims.slice(0, -1)" :key="i" class="muted">
+          تحوّلت من <bdi dir="ltr">{{ simLine(w) }}</bdi>: {{ movedWhy(op.sims[i + 1].moved_because) }}
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { money, dateTime, brandColor } from 'src/api/format'
+import { explain, movedWhy, simLine } from 'src/api/flexyExplain'
 
 const props = defineProps({ op: { type: Object, required: true }, admin: Boolean, shop: Boolean, hide: Boolean })
-defineEmits(['open'])
+const emit = defineEmits(['open'])
 const mask = (s) => (props.hide ? '••••' : s)
+const isCard = computed(() => (props.op.source || 'card') === 'card')
 const isShop = computed(() => props.shop || !!props.op.is_shop)
 const signed = (n) => (n < 0 ? '−' : '') + money(Math.abs(n))
 // Shop orders: selling price − purchase cost. Customer orders (admin view): amount charged − purchase cost.
 const profitText = computed(() => (props.op.profit == null ? 'غير معروف' : signed(Number(props.op.profit))))
 const profitClass = computed(() => (props.op.profit == null ? '' : props.op.profit >= 0 ? 'amount-info' : 'amount-neg'))
+
+const title = computed(() => {
+  const o = props.op
+  if (isCard.value) return o.product_name + (o.qty > 1 ? ' × ' + o.qty : '')
+  return o.category === 'offer' ? 'عرض ' + (o.offer_label || '') : 'فليكسي'
+})
+
+// Cards: done or refunded. Flexy (the shop's job, or the owner's in Flexy Core): the send's state.
+const FLEXY = {
+  success: { label: 'ناجحة', color: '#15803D' },
+  accepted: { label: 'قبلتها الشبكة', color: '#15803D' },
+  failed: { label: 'فاشلة', color: '#B91C1C' },
+  rejected: { label: 'رفضتها الشبكة', color: '#B91C1C' },
+  not_sent: { label: 'لم تُرسل', color: '#6B7280' },
+  review: { label: 'قيد المراجعة', color: '#C2410C' }
+}
+const badge = computed(() => {
+  if (isCard.value) return props.op.status === 'done' ? { label: 'ناجحة', color: '#15803D' } : { label: 'مسترجعة', color: '#6B7280' }
+  return FLEXY[props.op.status] || { label: 'جارية', color: '#2563EB' }
+})
+
+const opened = ref(false)
+function tap () {
+  if (isCard.value) emit('open')
+  else opened.value = !opened.value
+}
 </script>

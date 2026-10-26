@@ -1,16 +1,13 @@
 <template>
   <q-page class="page">
-    <div class="row q-gutter-sm">
-      <q-btn v-for="s in SCOPES" :key="s.id" rounded no-caps :unelevated="f.scope === s.id" :outline="f.scope !== s.id"
-        :color="f.scope === s.id ? 'primary' : 'grey-8'" :label="s.label" @click="f.scope = s.id" />
-    </div>
-    <OpsFilters v-model="f" :customers="f.scope === 'shop' ? null : customers" />
+    <OpsFilters v-model="f" scopes :customers="customers" />
     <div class="card q-pa-none" style="overflow:hidden">
-      <OperationRow v-for="op in rows" :key="op.order_id" :op="op" admin @open="openCodes(op)" />
-      <div v-if="!busy && !rows.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
+      <OperationRow v-for="op in rows" :key="op.key" :op="op" admin @open="openCodes(op)" />
+      <div v-if="!loading && !rows.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
     </div>
-    <LoadMoreBar :total="total" :shown="rows.length" :size="size" :loading="loadingMore" @more="more" />
-    <q-inner-loading :showing="busy && !loadingMore" />
+    <div v-if="coreFailed" class="text-center small text-deep-orange q-pa-sm">تعذّرت قراءة عمليات الفليكسي الخاصة بك من النواة الآن.</div>
+    <LoadMoreBar :total="total" :shown="rows.length" :size="size" :has-more="hasMore" :loading="loadingMore" @more="more" />
+    <q-inner-loading :showing="loading" />
     <CodesDialog v-model="codesOpen" :title="codesTitle" :subtitle="codesSub" :codes="codes" :order-id="lastOrderId"
       :mark-copied="markCopied" />
   </q-page>
@@ -19,26 +16,67 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useRun } from 'src/composables/useRun'
-import { useLoadMore } from 'src/composables/useLoadMore'
+import { useOpsFeed, offsetSource } from 'src/composables/useOpsFeed'
+import { useSavedFilter, rangeDates } from 'src/composables/useSavedFilter'
 import { copyText } from 'src/composables/useCopy'
 import { askCardFailed } from 'src/composables/useCardFailed'
 import * as api from 'src/api/admin'
+import * as flexy from 'src/api/flexy'
 import OpsFilters from 'components/OpsFilters.vue'
 import OperationRow from 'components/OperationRow.vue'
 import LoadMoreBar from 'components/LoadMoreBar.vue'
 import CodesDialog from 'components/CodesDialog.vue'
 
-const { busy, run } = useRun()
+const { run } = useRun()
 const customers = ref([])
-const SCOPES = [{ id: 'shop', label: 'مشترياتي' }, { id: 'customers', label: 'الزبائن' }, { id: null, label: 'الكل' }]
-const f = ref({ scope: 'shop', customerId: null, category: null, from: '', to: '', query: '' })
-const { rows, total, loadingMore, reset, more, size } =
-  useLoadMore((limit, offset) => run(() => api.orders({ ...f.value, limit, offset })), { key: 'order_id' })
-// «مشترياتي» are the owner's own purchases, so a customer filter makes no sense there
+// One list like Hani Rohek (owner 2026-10-26): «الكل/أنا/زبائني»، النوع، الزبون، التاريخ، kept as last left
+const f = useSavedFilter('card-store:ops-filter:admin',
+  { scope: 'shop', customerId: null, type: null, range: 'all', from: '', to: '', query: '' }, { skip: ['query'] })
+
+const cardKey = (r) => ({ ...r, key: r.source + ':' + r.op_id })
+const dbSource = () => offsetSource((limit, offset) => run(() => api.ops({ ...f.value, ...rangeDates(f.value), limit, offset })), cardKey)
+
+// The owner's own Flexy sends live in Flexy Core («إرسال فليكسي»): read page by page and filtered
+// here by type, dates and search, since that list has no filters of its own.
+const OFFER_KEYS = ['mobilis.sama.offer.665', 'mobilis.arsselli.offer.696']
+const coreFailed = ref(false)
+function coreSource () {
+  const { from, to } = rangeDates(f.value)
+  const day = (t) => new Date(t).toLocaleDateString('en-CA')
+  const q = (f.value.query || '').trim()
+  const keep = (o) => (!f.value.type || f.value.type === o.category) && (!to || day(o.created_at) <= to) &&
+    (!q || (o.phone || '').includes(q) || (o.offer_label || '').toLowerCase().includes(q.toLowerCase()))
+  return async (limit, before) => {
+    const n = Math.min(limit, 50)
+    const res = await flexy.ownerOperations(n, before).catch(() => null)
+    if (!res || res.status !== 200) { coreFailed.value = true; return undefined }
+    const list = res.body.operations || []
+    const last = list[list.length - 1]
+    const older = from && last && day(last.created_at) < from
+    const rows = list.filter((o) => !from || day(o.created_at) >= from).map((o) => ({
+      key: 'core:' + o.idempotency_key, source: 'core', op_id: o.idempotency_key, brand: 'Mobilis', is_shop: true,
+      category: OFFER_KEYS.includes(o.operation_key) ? 'offer' : 'flexy', offer_label: o.offer, phone: o.phone,
+      base_amount: o.amount, status: o.status, network_reply: o.network_reply, outcome_code: o.outcome_code,
+      sims: o.sims || [], created_at: o.created_at
+    })).filter(keep)
+    return { rows, state: last?.created_at ?? before, done: list.length < n || Boolean(older) }
+  }
+}
+
+function sources () {
+  coreFailed.value = false
+  const v = f.value
+  const withCore = v.scope !== 'customers' && !v.customerId && (!v.type || v.type === 'flexy' || v.type === 'offer')
+  return withCore ? [dbSource(), coreSource()] : [dbSource()]
+}
+const { rows, total, hasMore, loading, loadingMore, reset, more, size } = useOpsFeed(sources, { size: 20 })
+// «أنا» are the owner's own operations, so a customer filter makes no sense there
 watch(() => f.value.scope, (s) => { if (s === 'shop') f.value.customerId = null })
 watch(f, () => reset(), { deep: true })
 onMounted(async () => {
   customers.value = (await run(() => api.customers())) || []
+  // a saved customer that no longer exists is dropped
+  if (f.value.customerId && !customers.value.some((c) => c.customer_id === f.value.customerId)) f.value.customerId = null
   reset()
 })
 
@@ -69,17 +107,17 @@ function codeItem (c, copiedAt) {
 }
 
 async function openCodes (op) {
-  lastOrderId.value = op.order_id
+  lastOrderId.value = op.op_id
   const [data, copies] = await Promise.all([
-    run(() => api.orderCodes(op.order_id)),
-    api.orderCopies(op.order_id).catch(() => [])
+    run(() => api.orderCodes(op.op_id)),
+    api.orderCopies(op.op_id).catch(() => [])
   ])
   if (!data) return
   const copiedAt = new Map(copies.map((x) => [x.code_id, x.copied_at]))
   markCopied.value = op.is_shop ? api.markCopied : null
   const refunded = op.status !== 'done'
   codesTitle.value = refunded ? 'عملية مسترجعة' : 'أكواد العملية'
-  codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.order_id}` + (op.is_shop ? ' — من حساب المحل' : ' — الأكواد مخفية؛ «كشف» يُسجَّل')
+  codesSub.value = `${op.product_name} × ${op.qty} · رقم ${op.op_id}` + (op.is_shop ? ' — من حساب المحل' : ' — الأكواد مخفية؛ «كشف» يُسجَّل')
   // the shop's own codes come back in full; customers' codes are masked with a logged reveal
   codes.value = op.is_shop
     ? data.map((c) => ({ id: c.code_id, code: c.masked_code, serial: c.serial, status: c.status, copiedAt: copiedAt.get(c.code_id) || null, actionLabel: 'نسخ', action: refunded ? null : () => copyText(c.masked_code),
