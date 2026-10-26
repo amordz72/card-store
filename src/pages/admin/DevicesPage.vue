@@ -9,6 +9,13 @@
       </div>
       <q-btn unelevated no-caps color="primary" label="اعتماد" :loading="busy" @click="approvePhone(p)" />
     </div>
+    <!-- The admin phone running without its protection (Rech-Doom 0.8.2 health): it can look «offline» while in use -->
+    <div v-for="p in unprotectedPhones" :key="'u' + p.station_uuid" class="card row items-center q-gutter-sm">
+      <q-icon name="warning" color="negative" size="24px" />
+      <div class="col small text-negative">
+        <b>{{ p.label }}</b> يعمل بلا حماية من التجميد: افتح Rech-Doom مرة ووافق على «تجاهل تحسين البطارية»، وإلا بدا الهاتف «غير متصل» وأنت تستعمله.
+      </div>
+    </div>
     <!-- One request to Flexy Core; refreshed every 30 seconds while this page is open and visible -->
     <div class="card column q-gutter-sm">
       <div class="row items-center q-gutter-sm">
@@ -336,9 +343,12 @@ const cancel = (u) => send(() => flexy.cancelUpdate(u.deployment_id))
 
 // A phone app waiting to be linked as the admin phone (Flexy Core 0033)
 const pendingPhones = ref([])
+const unprotectedPhones = ref([])
 async function loadPhones () {
   const res = await flexy.ownerPhone()
   pendingPhones.value = res.status === 200 ? (res.body.pending || []) : []
+  unprotectedPhones.value = res.status === 200
+    ? (res.body.phones || []).filter((p) => p.live && p.health && p.health.protected === false) : []
 }
 function approvePhone (p) {
   Dialog.create({
