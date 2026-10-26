@@ -56,7 +56,7 @@
         <q-item-label header class="text-weight-bold text-dark">{{ subtitle }}</q-item-label>
         <template v-for="g in menu" :key="g.label">
           <q-item-label v-if="g.label" header class="q-pb-xs">{{ g.label }}</q-item-label>
-          <q-item v-for="i in g.items" :key="i.to" :to="i.to" :exact="i.exact" clickable active-class="menu-active" :inset-level="i.sub ? 0.4 : 0">
+          <q-item v-for="i in g.items" :key="i.to || i.href" :to="i.to" :href="i.href" :target="i.href ? '_blank' : undefined" :exact="i.exact" clickable active-class="menu-active" :inset-level="i.sub ? 0.4 : 0">
             <q-item-section avatar><q-icon :name="i.icon" /></q-item-section>
             <q-item-section>{{ i.label }}</q-item-section>
           </q-item>
@@ -156,7 +156,7 @@ const MENU = [
     ]
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
-  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy', icon: 'menu_book' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()
