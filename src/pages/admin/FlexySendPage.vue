@@ -11,8 +11,13 @@
       </div>
       <!-- «أرسل من هاتفي» (owner 2026-10-26): offers and discovery on the admin phone, his choice only -->
       <div v-if="phoneSim" class="card row items-center q-gutter-sm">
-        <q-toggle v-model="viaPhone" color="primary" :disable="!phoneSim.live" label="العروض من هاتفي" />
-        <q-badge :color="phoneSim.live ? 'positive' : 'grey-6'" class="q-pa-xs">{{ phoneSim.live ? 'متصل' : 'غير متصل' }}</q-badge>
+        <q-toggle v-model="viaPhone" color="primary" label="العروض من هاتفي" />
+        <q-badge :color="phoneSim.live ? 'positive' : (viaPhone ? 'negative' : 'grey-6')" class="q-pa-xs">
+          {{ phoneSim.live ? 'متصل' : (viaPhone ? 'غير متصل: لن يُرسل شيء' : 'غير متصل') }}</q-badge>
+        <span class="small muted">آخر اتصال منذ {{ phoneAgo }}</span>
+        <!-- Rech-Doom 0.8.2 reports its protection; without it Android freezes the app behind the browser -->
+        <div v-if="phoneSim.health && phoneSim.health.protected === false" class="col-12 small text-negative">
+          🔴 تطبيق Rech-Doom يعمل بلا حماية من التجميد: افتحه مرة ووافق على «تجاهل تحسين البطارية».</div>
         <span class="small muted" dir="ltr">{{ phoneSim.msisdn || '' }}</span>
         <span v-if="phoneSim.balance_amount != null" class="small">{{ money(phoneSim.balance_amount) }}</span>
       </div>
@@ -133,13 +138,27 @@ const phoneSim = ref(null)
 const VIA_KEY = 'flexy-via-phone'
 const viaPhone = ref((() => { try { return localStorage.getItem(VIA_KEY) === '1' } catch { return false } })())
 watch(viaPhone, (v) => { try { localStorage.setItem(VIA_KEY, v ? '1' : '0') } catch { /* private mode */ } })
-const via = () => (viaPhone.value && phoneSim.value?.live ? 'phone' : null)
+// The switch alone decides. It used to also require the phone to look «live» here, and when it did not
+// (2026-10-26 21:51 UTC) a Revolution 1200 went out from sama-4 instead: the owner's choice fell back to a
+// modem in silence. Now «from my phone» is always sent as is; the core refuses when the phone is offline
+// (665_PHONE_OFFLINE) and nothing is sent. Never a fallback.
+const via = () => (viaPhone.value ? 'phone' : null)
 async function loadPhone () {
   const res = await flexy.ownerPhone()
   const p = res.status === 200 ? (res.body.phones || [])[0] : null
   const sim = p?.sims?.[0]
-  phoneSim.value = sim ? { ...sim, live: Boolean(p.live && sim.live) } : null
+  phoneSim.value = sim ? { ...sim, live: Boolean(p.live && sim.live), last_seen_at: p.last_seen_at, health: p.health || null } : null
+  phoneTick.value = Date.now()
 }
+// Read once at open, the state went stale and a send fell back to a modem (2026-10-26): now every 10 s
+const phoneTick = ref(Date.now())
+const phoneAgo = computed(() => {
+  const t = phoneSim.value?.last_seen_at ? new Date(phoneSim.value.last_seen_at).getTime() : null
+  if (!t) return '—'
+  const s = Math.max(0, Math.round((phoneTick.value - t) / 1000))
+  return s < 60 ? `${s} ث` : `${Math.round(s / 60)} د`
+})
+let phoneTimer = null
 
 async function lookupOffers (p, { retry = false } = {}) {
   const res = await flexy.ownerOffers(p, retry, via())
@@ -231,8 +250,9 @@ async function afterSend () {
 onMounted(async () => {
   loadSwitch()
   loadPhone().catch(() => null)
+  phoneTimer = setInterval(() => { if (document.visibilityState === 'visible') loadPhone().catch(() => null) }, 10_000)
   await loadFirst().catch(() => null)
   schedule()
 })
-onUnmounted(() => clearTimeout(timer))
+onUnmounted(() => { clearTimeout(timer); clearInterval(phoneTimer) })
 </script>
