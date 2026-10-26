@@ -94,7 +94,7 @@
 //     second send. A definite answer (sent or refused) frees it.
 //   * the last operation of this shop (or of the owner) to the same number with the same amount or offer
 //     asks «أرسل مرة ثانية؟» first. Nothing is blocked.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
@@ -112,13 +112,32 @@ const props = defineProps({
   rows: { type: Array, required: true },
   hasMore: { type: Boolean, default: false },
   loadingMore: { type: Boolean, default: false },
-  refreshing: { type: Boolean, default: false }
+  refreshing: { type: Boolean, default: false },
+  // Keeps the typed number on this phone under this name (owner / shop), see «The number stays» below
+  remember: { type: String, default: '' }
 })
 const emit = defineEmits(['sent', 'refresh', 'more'])
 const { busy, run } = useRun()
 
 const tab = ref('630')
-const phone = ref('')
+// The number stays (owner 2026-10-26): leaving the page, «تحديث الآن» or closing the browser keeps it;
+// a successful send clears it, and so do 30 minutes without touching it.
+const PHONE_KEEP_MS = 30 * 60_000
+const phoneKey = props.remember ? 'flexy-phone:' + props.remember : ''
+function keptPhone () {
+  try {
+    const k = JSON.parse(localStorage.getItem(phoneKey) || 'null')
+    return k && typeof k.v === 'string' && Date.now() - k.at < PHONE_KEEP_MS ? k.v : ''
+  } catch { return '' }
+}
+const phone = ref(phoneKey ? keptPhone() : '')
+watch(phone, (v) => {
+  if (!phoneKey) return
+  try {
+    if (v) localStorage.setItem(phoneKey, JSON.stringify({ v, at: Date.now() }))
+    else localStorage.removeItem(phoneKey)
+  } catch { /* private mode: it lives with the page only */ }
+})
 const amount = ref(null)
 const other = ref(null)
 const opened = ref(null)

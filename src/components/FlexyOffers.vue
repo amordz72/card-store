@@ -8,7 +8,7 @@
     </div>
     <div v-else-if="error" class="card column items-center q-gutter-sm q-pa-lg">
       <div class="small text-negative text-center">{{ error }}</div>
-      <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="load" />
+      <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="load({ retry: true })" />
     </div>
     <div v-else-if="families.length" class="card q-pa-none">
       <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
@@ -82,16 +82,20 @@ const families = computed(() => {
   return out
 })
 
-// One request; while the core discovers the line, ask again every 3 s (at most 90 s)
-async function load () {
+// One request; while the core discovers the line, ask again every 3 s (at most 90 s).
+// `retry` («أعد المحاولة») asks the core for a new discovery when the last one ended.
+let loadingFor = ''
+let shownFor = ''
+async function load ({ retry = false } = {}) {
   const p = props.phone
   const mine = ++runId
+  loadingFor = p
   offers.value = []
   error.value = ''
   looked.value = false
   loading.value = true
   try {
-    let r = await props.lookup(p)
+    let r = await props.lookup(p, { retry })
     for (let i = 0; r?.status === 'discovering' && i < 30 && mine === runId; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000))
       r = await props.lookup(p)
@@ -107,15 +111,18 @@ async function load () {
   } catch (e) {
     if (mine === runId) error.value = e?.message || 'تعذّر جلب العروض الآن.'
   } finally {
-    if (mine === runId) loading.value = false
+    if (mine === runId) { loading.value = false; loadingFor = ''; shownFor = p }
   }
 }
 
-// Opening the tab, or a new number, loads that number's offers
+// Opening the tab, or a new number, loads that number's offers. Back on the tab with the same number
+// (owner 2026-10-26): a wait still running goes on, an answer or an error stays (its own button retries).
 watch(() => [props.active, props.phone, props.phoneOk], () => {
   if (!props.active) return
-  if (!props.phoneOk) { runId++; loading.value = false; offers.value = []; looked.value = false; return }
-  if (props.phone !== loadedFor || !looked.value) load()
+  if (!props.phoneOk) { runId++; loading.value = false; loadingFor = ''; shownFor = ''; offers.value = []; looked.value = false; error.value = ''; return }
+  if (loading.value && loadingFor === props.phone) return
+  if (shownFor === props.phone && (looked.value || error.value)) return
+  load()
 }, { immediate: true })
 
 function details (o) {
