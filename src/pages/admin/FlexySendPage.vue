@@ -11,8 +11,9 @@
       </div>
       <!-- «أرسل من هاتفي» (owner 2026-10-26): offers and discovery on the admin phone, his choice only -->
       <div v-if="phoneSim" class="card row items-center q-gutter-sm">
-        <q-toggle v-model="viaPhone" color="primary" :disable="!phoneSim.live" label="العروض من هاتفي" />
-        <q-badge :color="phoneSim.live ? 'positive' : 'grey-6'" class="q-pa-xs">{{ phoneSim.live ? 'متصل' : 'غير متصل' }}</q-badge>
+        <q-toggle v-model="viaPhone" color="primary" label="العروض من هاتفي" />
+        <q-badge :color="phoneSim.live ? 'positive' : (viaPhone ? 'negative' : 'grey-6')" class="q-pa-xs">
+          {{ phoneSim.live ? 'متصل' : (viaPhone ? 'غير متصل: لن يُرسل شيء' : 'غير متصل') }}</q-badge>
         <span class="small muted" dir="ltr">{{ phoneSim.msisdn || '' }}</span>
         <span v-if="phoneSim.balance_amount != null" class="small">{{ money(phoneSim.balance_amount) }}</span>
       </div>
@@ -133,7 +134,11 @@ const phoneSim = ref(null)
 const VIA_KEY = 'flexy-via-phone'
 const viaPhone = ref((() => { try { return localStorage.getItem(VIA_KEY) === '1' } catch { return false } })())
 watch(viaPhone, (v) => { try { localStorage.setItem(VIA_KEY, v ? '1' : '0') } catch { /* private mode */ } })
-const via = () => (viaPhone.value && phoneSim.value?.live ? 'phone' : null)
+// The switch alone decides. It used to also require the phone to look «live» here, and when it did not
+// (2026-10-26 21:51 UTC) a Revolution 1200 went out from sama-4 instead: the owner's choice fell back to a
+// modem in silence. Now «from my phone» is always sent as is; the core refuses when the phone is offline
+// (665_PHONE_OFFLINE) and nothing is sent. Never a fallback.
+const via = () => (viaPhone.value ? 'phone' : null)
 async function loadPhone () {
   const res = await flexy.ownerPhone()
   const p = res.status === 200 ? (res.body.phones || [])[0] : null
