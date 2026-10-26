@@ -29,6 +29,9 @@ const $q = useQuasar()
 const PAGE = 10
 const MAX_AMOUNT = 50000
 const OFFER_KEY = 'mobilis.sama.offer.665'
+// An offer the Sama menu never shows (Sama Mix 50, Revolution 100 and 500) goes from an Arsselli SIM
+// by its amount (*696*1*, Flexy Core 0032): an offer for the page, followed like a 630 (owner 2026-10-26)
+const ARSSELLI_OFFER_KEY = 'mobilis.arsselli.offer.696'
 
 const ERRORS = {
   OWNER_REQUIRED: 'هذا الحساب ليس المالك، أو انتهت الجلسة.',
@@ -136,7 +139,7 @@ const BADGES = {
 const rows = ref([])
 const ops = computed(() => rows.value.map((o) => ({
   id: o.idempotency_key, title: o.offer || money(o.amount), phone: o.phone,
-  kind: o.operation_key === OFFER_KEY ? 'offer' : '630', amount: o.amount, offer: o.offer,
+  kind: [OFFER_KEY, ARSSELLI_OFFER_KEY].includes(o.operation_key) ? 'offer' : '630', amount: o.amount, offer: o.offer,
   badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply,
   running: ['queued', 'running'].includes(o.status), explain: explain(o.outcome_code, o.status),
   doneAt: o.updated_at, sims: o.sims || []
