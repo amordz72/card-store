@@ -65,6 +65,9 @@ export const ops = (f) => rpc('store_admin_ops', {
   p_offset: f.offset
 })
 
+// v1.38: the Flexy Core keys of shop Flexy rows, to read the SIM that ran each (owner only)
+export const flexyKeys = (jobIds) => rpc('store_admin_flexy_keys', { p_job_ids: jobIds })
+
 export const orderCodes = (orderId) => rpc('store_admin_order_codes', { p_order_id: orderId })
 
 // Card reports from customers (v1.20). status: null (all) | 'open' | 'accepted' | 'rejected'

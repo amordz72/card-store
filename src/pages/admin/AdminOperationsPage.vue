@@ -2,7 +2,7 @@
   <q-page class="page">
     <OpsFilters v-model="f" scopes :customers="customers" />
     <div class="card q-pa-none" style="overflow:hidden">
-      <OperationRow v-for="op in rows" :key="op.key" :op="op" admin @open="openCodes(op)" />
+      <OperationRow v-for="op in rows" :key="op.key" :op="withSims(op)" admin @open="openCodes(op)" />
       <div v-if="!loading && !rows.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
     </div>
     <div v-if="coreFailed" class="text-center small text-deep-orange q-pa-sm">تعذّرت قراءة عمليات الفليكسي الخاصة بك من النواة الآن.</div>
@@ -70,6 +70,24 @@ function sources () {
   return withCore ? [dbSource(), coreSource()] : [dbSource()]
 }
 const { rows, total, hasMore, loading, loadingMore, reset, more, size } = useOpsFeed(sources, { size: 20 })
+// The SIM that ran each shop Flexy row (owner 2026-10-26, SHOP-OPS-SIM-AND-BALANCE step 1): the rows'
+// keys from the store, then Flexy Core says each one's SIMs. Read once per row; a failure leaves it out.
+const simsOf = ref({})
+const withSims = (op) => (op.source === 'flexy' && simsOf.value[op.op_id]
+  ? { ...op, sims: simsOf.value[op.op_id].sims, outcome_code: simsOf.value[op.op_id].outcome_code }
+  : op)
+watch(rows, async (list) => {
+  const ids = list.filter((r) => r.source === 'flexy' && !(r.op_id in simsOf.value)).map((r) => r.op_id).slice(0, 50)
+  if (!ids.length) return
+  for (const id of ids) simsOf.value[id] = null
+  const keys = await api.flexyKeys(ids).catch(() => [])
+  if (!keys?.length) return
+  const res = await flexy.ownerAppOperations('card-store', keys.map((k) => k.core_key)).catch(() => null)
+  if (res?.status !== 200) return
+  const byKey = new Map((res.body.operations || []).map((o) => [o.idempotency_key, o]))
+  for (const k of keys) if (byKey.has(k.core_key)) simsOf.value[k.job_id] = byKey.get(k.core_key)
+})
+
 // «أنا» are the owner's own operations, so a customer filter makes no sense there
 watch(() => f.value.scope, (s) => { if (s === 'shop') f.value.customerId = null })
 watch(f, () => reset(), { deep: true })
