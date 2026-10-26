@@ -158,7 +158,7 @@
           <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" /></q-card-section>
         </template>
         <q-card-actions align="right">
-          <q-btn v-if="picked.m.sim?.approved" outline no-caps color="primary" label="اقرأ الرصيد" :loading="reading.busy" @click="readBalance" />
+          <q-btn v-if="picked.m.sim?.approved || canRetryFirstBalance(picked.m.sim)" outline no-caps color="primary" label="اقرأ الرصيد" :loading="reading.busy" @click="readBalance" />
           <q-btn v-if="picked.m.sim" unelevated no-caps color="primary" label="حفظ" :loading="form.busy" :disable="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" @click="saveSettings" />
           <q-btn flat no-caps label="إغلاق" v-close-popup />
         </q-card-actions>
@@ -343,11 +343,18 @@ const ALERTS = {
   NUMBER_NOT_FOUND: 'لم يُكتشف الرقم بعد 3 محاولات',
   PIN_REJECTED: 'الشبكة رفضت الـPIN: أدخل PIN جديدًا',
   TYPE_NOT_CONFIRMED: 'رد الشبكة لا يطابق النوع: حدّد النوع بنفسك',
-  BALANCE_NOT_CONFIRMED: 'لم يُؤكَّد أول رصيد',
+  BALANCE_NOT_CONFIRMED: 'لم يُؤكَّد أول رصيد: اضغط «اقرأ الرصيد» أو احفظ الـPIN من جديد',
   BALANCE_READ_FAILED: 'تعذّرت قراءة الرصيد: افحص الموديم ثم اضغط «اقرأ الرصيد»',
   LAST_632_UNCONFIRMED: 'آخر طلب رصيد (632) لم يتأكد: تحقق من الـPIN واحفظه من جديد قبل طلب آخر'
 }
 const onboardingOf = (sim) => (tree.value?.onboarding || []).find((o) => o.sim_uuid === sim.sim_uuid) || null
+// A SIM not approved yet that stopped on its first balance: the button asks once more (flexy-core 0028).
+// A PIN refused is not among them: a new PIN does that.
+const RETRY_ALERTS = ['BALANCE_NOT_CONFIRMED', 'TYPE_NOT_CONFIRMED', 'LAST_632_UNCONFIRMED']
+const canRetryFirstBalance = (sim) => {
+  const o = sim && onboardingOf(sim)
+  return !!o && o.stage === 'alert' && RETRY_ALERTS.includes(o.alert_code)
+}
 const noteOf = (sim) => onboardingOf(sim)?.note || ''
 function onboardingText (sim) {
   const o = onboardingOf(sim)
