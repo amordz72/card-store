@@ -8,6 +8,7 @@
         <q-item-label class="text-weight-medium">{{ title }}</q-item-label>
         <q-item-label v-if="op.phone" caption><bdi dir="ltr">{{ op.phone }}</bdi></q-item-label>
         <q-item-label v-if="lastSim" caption>الشريحة: <bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
+        <q-item-label v-if="before" caption>رصيد الشريحة قبل: {{ before }}</q-item-label>
         <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:#FFF1E8;color:#9A3412">{{ op.customer_name }}</span></q-item-label>
         <q-item-label caption>{{ dateTime(op.created_at) }}<span v-if="op.source !== 'core'"> · رقم {{ op.op_id }}</span></q-item-label>
       </q-item-section>
@@ -46,7 +47,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { money, dateTime, brandColor } from 'src/api/format'
-import { explain, movedWhy, simLine } from 'src/api/flexyExplain'
+import { algeriaTime, explain, movedWhy, simLine } from 'src/api/flexyExplain'
 
 const props = defineProps({ op: { type: Object, required: true }, admin: Boolean, shop: Boolean, hide: Boolean })
 const emit = defineEmits(['open'])
@@ -80,6 +81,16 @@ const badge = computed(() => {
 
 // The owner only: the SIM that ran a Flexy row (its own, or a shop's from Flexy Core)
 const lastSim = computed(() => (props.op.sims?.length ? props.op.sims[props.op.sims.length - 1] : null))
+
+// The owner only: the SIM's estimated balance before it (SHOP-OPS-SIM-AND-BALANCE step 2): the last
+// real reading minus what ran since. Arsselli names the account.
+const before = computed(() => {
+  const b = props.op.balance_before
+  if (!b) return null
+  if (b.amount == null) return 'غير معروف: لم يُقرأ رصيدها بعد'
+  return money(b.amount) + ' (تقديري' + (b.account ? '، الحساب ' + b.account : '') +
+    (b.reading_at ? '، آخر قراءة ' + algeriaTime(b.reading_at) : '') + (b.ambiguous ? '، فيه عملية غير محسومة' : '') + ')'
+})
 
 const opened = ref(false)
 function tap () {

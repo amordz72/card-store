@@ -57,7 +57,7 @@ function coreSource () {
       key: 'core:' + o.idempotency_key, source: 'core', op_id: o.idempotency_key, brand: 'Mobilis', is_shop: true,
       category: OFFER_KEYS.includes(o.operation_key) ? 'offer' : 'flexy', offer_label: o.offer, phone: o.phone,
       base_amount: o.amount, status: o.status, network_reply: o.network_reply, outcome_code: o.outcome_code,
-      sims: o.sims || [], created_at: o.created_at
+      sims: o.sims || [], balance_before: o.balance_before || null, created_at: o.created_at
     })).filter(keep)
     return { rows, state: last?.created_at ?? before, done: list.length < n || Boolean(older) }
   }
@@ -74,7 +74,7 @@ const { rows, total, hasMore, loading, loadingMore, reset, more, size } = useOps
 // keys from the store, then Flexy Core says each one's SIMs. Read once per row; a failure leaves it out.
 const simsOf = ref({})
 const withSims = (op) => (op.source === 'flexy' && simsOf.value[op.op_id]
-  ? { ...op, sims: simsOf.value[op.op_id].sims, outcome_code: simsOf.value[op.op_id].outcome_code }
+  ? { ...op, sims: simsOf.value[op.op_id].sims, outcome_code: simsOf.value[op.op_id].outcome_code, balance_before: simsOf.value[op.op_id].balance_before }
   : op)
 watch(rows, async (list) => {
   const ids = list.filter((r) => r.source === 'flexy' && !(r.op_id in simsOf.value)).map((r) => r.op_id).slice(0, 50)
