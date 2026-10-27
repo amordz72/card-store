@@ -59,7 +59,9 @@ const DETAILS = {
   'Sama Net 500': '10Go — 15 يومًا', 'Sama Net 1000': '30Go — 30 يومًا', 'Sama Net 1500': '60Go — 30 يومًا',
   'Sama Net 2000': '90Go — 30 يومًا',
   'PixX 50': '500Mo — يوم واحد', 'PixX 100': '1Go — يوم واحد', 'PixX 500': '5Go — 15 يومًا',
-  'PixX 1000': '13Go — 30 يومًا', 'PixX 2000': '30Go'
+  'PixX 1000': '13Go — 30 يومًا', 'PixX 2000': '30Go',
+  // Djezzy (owner's market screenshots 2026-10-27, «حسب السوق»)
+  'LEGEND 50': '24 ساعة · 60 دقيقة نحو جيزي · 10 دقائق نحو الكل'
 }
 const spaced = (d) => (d || '').replace(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5')
 

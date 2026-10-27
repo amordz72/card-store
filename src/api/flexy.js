@@ -43,6 +43,11 @@ export const ownerSend760 = (phone, amount, idempotencyKey) => owner('760/send',
   method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
 })
 export const ownerStatus760 = (idempotencyKey) => owner('760/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
+// Djezzy OFFERS (Flexy Core 0051, owner 2026-10-27): the line's family (LEGEND / IZZY) read once, no money,
+// then one offer by name; «en cours de traitement» = accepted, the SIM's balance drop settles it.
+export const ownerOffers760 = (phone, retry = false) => owner('760/offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}) } })
+export const ownerOfferSend760 = (phone, offer, idempotencyKey) => owner('760/offer/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey } })
+export const ownerOfferStatus760 = (idempotencyKey) => owner('760/offer/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Ooredoo ordinary credit (*590*, Flexy Core 0050, owner 2026-10-27): its own path, its own switch
 // (ooredoo_send_enabled). Confirm 1/2, then «Recharge de l'abonne … realisee avec succes» = success.
 export const ownerSend590 = (phone, amount, idempotencyKey) => owner('590/send', {

@@ -118,7 +118,9 @@ const props = defineProps({
   remember: { type: String, default: '' },
   // Prefixes whose ordinary credit this screen may send (owner 2026-10-27: his page adds 07, Djezzy);
   // the others hear «قريبًا» on «إرسال». Offers stay Mobilis only.
-  creditPrefixes: { type: Array, default: () => ['06'] }
+  creditPrefixes: { type: Array, default: () => ['06'] },
+  // Prefixes whose OFFERS this screen may show (owner 2026-10-27: his page adds 07, Djezzy LEGEND/IZZY)
+  offerPrefixes: { type: Array, default: () => ['06'] }
 })
 const emit = defineEmits(['sent', 'refresh', 'more'])
 const { busy, run } = useRun()
@@ -154,7 +156,7 @@ const digits = computed(() => {
 })
 // Any Algerian mobile can be typed; only Mobilis is sent today, the others hear «قريبًا» on «إرسال»
 const phoneFull = computed(() => /^0[567]\d{8}$/.test(digits.value))
-const phoneOk = computed(() => /^06\d{8}$/.test(digits.value))
+const phoneOk = computed(() => phoneFull.value && props.offerPrefixes.includes(digits.value.slice(0, 2)))
 const creditOk = computed(() => phoneFull.value && props.creditPrefixes.includes(digits.value.slice(0, 2)))
 const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
 const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]] : null))
