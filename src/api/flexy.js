@@ -70,6 +70,10 @@ export const ownerSimAlertsSeen = () => owner('sim-alerts', { method: 'POST', bo
 // all = every SIM on the computers; else one SIM. Each computer carries it out at its next listening (≈ 1 minute).
 // A new station computer approved (Flexy Core, owner 2026-10-27); the admin phone keeps ownerPhone's route.
 export const ownerApproveComputer = (stationUuid) => owner('stations/approve', { method: 'POST', body: { station_uuid: stationUuid } })
+// A new station computer with no key in any file (Flexy Core 0041): the GitHub key saved once (never
+// read back), then the computer let in by the number it shows, a code typed on it, or a one-time installer.
+export const ownerPairing = () => owner('stations/pairing', { method: 'GET' })
+export const ownerPairingAction = (body) => owner('stations/pairing', { method: 'POST', body })
 export const ownerSmsWipes = () => owner('sims/wipe', { method: 'GET' })
 export const ownerSmsWipe = (simUuid) => owner('sims/wipe', { method: 'POST', body: simUuid ? { sim_uuid: simUuid, confirm: true } : { all: true, confirm: true } })
 // Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).

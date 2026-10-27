@@ -95,6 +95,7 @@
       </div>
     </div>
 
+    <AddComputer @approved="load" />
     <!-- Computers: connected first, one row each, the Agent's update and gateway buttons in the row -->
     <div v-if="tree" class="card q-pa-none">
       <div class="section-title q-pa-sm">الكمبيوترات</div>
@@ -111,7 +112,7 @@
                 <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div></td>
               <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'غائب' : '✅ متصل'" />
                 <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
-                <!-- A new computer installed with install-station.bat (owner 2026-10-27); the phone has its own approval above -->
+                <!-- A new computer not let in from «إضافة كمبيوتر» (owner 2026-10-27); the phone has its own approval above -->
                 <q-btn v-if="!st.approved && !isPhone(st)" unelevated dense no-caps color="primary" class="q-mt-xs" label="اعتماد الكمبيوتر"
                   :loading="busy" @click="approveComputer(st)" /></td>
               <td>{{ isAbsent(st) ? '—' : simSummary(st) }}</td>
@@ -221,6 +222,7 @@ import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 import ModemPanel from 'src/components/ModemPanel.vue'
+import AddComputer from 'src/components/AddComputer.vue'
 
 // Read only: Flexy Core answers from what the stations already report. No USSD, no money.
 const LEVEL = {
