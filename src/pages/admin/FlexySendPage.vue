@@ -28,6 +28,10 @@
         </div>
       </div>
       <!-- «أرسل من هاتفي» (owner 2026-10-26): offers and discovery on the admin phone, his choice only -->
+      <div v-if="phoneMode" class="column items-center q-gutter-xs q-py-sm">
+        <q-icon name="smartphone" size="44px" color="primary" />
+        <div class="text-weight-bold">فليكسي الهاتف</div>
+      </div>
       <div v-if="phoneMode && phoneSim" class="card row items-center q-gutter-sm">
         <span class="name">شريحة الهاتف</span>
         <q-badge :color="phoneSim.live ? 'positive' : 'negative'" class="q-pa-xs">
