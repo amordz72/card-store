@@ -65,6 +65,18 @@
           <q-btn outline no-caps color="primary" icon="download" label="ملف التثبيت" :loading="busy === 'bat'" @click="download(false)" />
           <q-btn outline no-caps color="deep-orange" icon="bolt" label="ملف سريع (مرة واحدة)" :loading="busy === 'quick'" @click="download(true)" />
         </div>
+        <!-- Git and Node carried once by cable (owner 2026-10-27): the installer uses them if they sit next to it,
+             else downloads them; no internet then = it waits and goes on by itself -->
+        <div class="small column q-gutter-xs help">
+          <div class="text-weight-bold">حزمة Git وNode (مرة واحدة على الهاتف، لتثبيت بلا انتظار):</div>
+          <div>
+            <a :href="GIT_DOWNLOAD" target="_blank" rel="noopener noreferrer">Git لـWindows ↗</a> (64-bit Git for Windows Setup، ‏Git-…-64-bit.exe)
+            · <a :href="NODE_DOWNLOAD" target="_blank" rel="noopener noreferrer">Node.js ↗</a> (LTS 22، ‏Windows Installer ‏.msi، ‏x64)
+          </div>
+          <div class="muted">في تطبيق الملفات بالهاتف: حدّد الملفين ← ضغط (Compress) ← سمّه <b class="ltr">station-tools.zip</b>.
+            انقله مع <b class="ltr">install-station.bat</b> إلى سطح مكتب الكمبيوتر: يثبّت منه بلا تنزيل، ولا حاجة لفكّه.
+            بلا الحزمة ينزّلهما من الإنترنت، وبلا إنترنت ينتظر ويكمل وحده.</div>
+        </div>
         <div class="small muted">
           ملف التثبيت واحد لكل الكمبيوترات ولا سرّ فيه: شغّله، ثم اضغط هنا الرقم الذي يظهر على شاشته.
           الملف السريع يدخل وحده بلا رقم، مرة واحدة خلال {{ settings.invite_minutes }} دقيقة؛ ملف أحدث يُميت السابق.
@@ -93,6 +105,9 @@ const emit = defineEmits(['approved'])
 // GitHub's fine-grained key page; the query fills the name, owner, a year and Contents: read when GitHub supports it
 const GITHUB_NEW_KEY = 'https://github.com/settings/personal-access-tokens/new?name=stations&description=Read+station-connect+for+new+station+computers&target_name=amordz72&expires_in=365&contents=read'
 const GITHUB_KEYS = 'https://github.com/settings/personal-access-tokens'
+// Official download pages for the owner's one-time Git / Node pack
+const GIT_DOWNLOAD = 'https://git-scm.com/downloads/win'
+const NODE_DOWNLOAD = 'https://nodejs.org/en/download'
 
 const KEY_LEVEL = {
   ok: { label: 'محفوظ وسليم', cls: 'text-positive' },
