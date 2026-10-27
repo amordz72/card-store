@@ -24,6 +24,21 @@
       </div>
       <div v-for="a in simAlerts" :key="a.sim_uuid + a.code" class="small">{{ a.text }}</div>
     </div>
+    <!-- Never a full message store (Flexy Core 0040): «تصفير» empties every modem's store once the server saved each message -->
+    <div class="card column q-gutter-xs">
+      <div class="row items-center q-gutter-sm">
+        <div class="col text-weight-bold">مخزن الرسائل</div>
+        <q-btn outline no-caps color="negative" label="تصفير كل الشرائح" :loading="wipeBusy" @click="askWipe(null)" />
+      </div>
+      <div class="small muted">كل رسالة تُحفظ في السيرفر أولًا ثم تُحذف من الشريحة. لا شيء يُحذف قرب عملية مالية.</div>
+      <div v-for="w in wipes.filter((x) => x.pending || x.last_error)" :key="w.sim_uuid" class="small"
+        :class="w.last_error && (!w.last_clean_at || w.last_error_at > w.last_clean_at) ? 'text-negative' : 'text-deep-orange'">
+        {{ w.label || w.sim_code || 'شريحة' }}:
+        <span v-if="w.pending">في الانتظار (الكمبيوتر ينفّذ خلال دقيقة)</span>
+        <span v-else-if="w.last_error">فشل الحذف: {{ w.last_error }}</span>
+        <span v-if="w.store"> · {{ w.store.used }}/{{ w.store.max }}</span>
+      </div>
+    </div>
     <!-- One request to Flexy Core; refreshed every 30 seconds while this page is open and visible -->
     <div class="card column q-gutter-sm">
       <div class="row items-center q-gutter-sm">
@@ -187,6 +202,7 @@
                starting point of the phone's cumulative, which the send from the phone is checked against -->
           <q-btn v-if="picked.m.sim?.approved || canRetryFirstBalance(picked.m.sim) || (picked.m.sim && isPhone(picked.st))" outline no-caps color="primary"
             :label="picked.m.sim && isPhone(picked.st) ? 'اكتشاف الرصيد' : 'اقرأ الرصيد'" :loading="reading.busy" @click="readBalance" />
+          <q-btn v-if="picked.m.sim && !isPhone(picked.st)" flat no-caps color="negative" label="أفرغ المخزن" :loading="wipeBusy" @click="askWipe(picked.m.sim)" />
           <q-btn v-if="picked.m.sim" unelevated no-caps color="primary" label="حفظ" :loading="form.busy" :disable="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" @click="saveSettings" />
           <q-btn flat no-caps label="إغلاق" v-close-popup />
         </q-card-actions>
@@ -395,8 +411,36 @@ function approvePhone (p) {
   })
 }
 
+// «تصفير» (Flexy Core 0040)
+const wipes = ref([])
+const wipeBusy = ref(false)
+async function loadWipes () {
+  const res = await flexy.ownerSmsWipes()
+  if (res.status === 200 && res.body?.ok) wipes.value = res.body.wipes || []
+}
+function askWipe (sim) {
+  const who = sim ? 'الشريحة ' + (sim.label || sim.code || '') : 'كل الشرائح'
+  Dialog.create({
+    title: 'تصفير مخزن الرسائل',
+    message: `تُحفظ كل رسائل ${who} في السيرفر ثم تُحذف من الشريحة. تأكد أنه لا عمليات ولا تعبئات معلّقة. متابعة؟`,
+    cancel: 'لا', ok: 'نعم، صفّر'
+  }).onOk(async () => {
+    wipeBusy.value = true
+    try {
+      const res = await flexy.ownerSmsWipe(sim ? sim.sim_uuid : null)
+      if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+      wipes.value = res.body.wipes || []
+    } catch (e) {
+      error.value = 'لم يُقبل التصفير (' + (e.message || 'FLEXY_CORE') + ').'
+    } finally {
+      wipeBusy.value = false
+    }
+  })
+}
+
 async function load () {
   loadPhones().catch(() => null)
+  loadWipes().catch(() => null)
   loadSimAlerts().catch(() => null)
   if (busy.value) return
   busy.value = true
