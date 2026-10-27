@@ -1,6 +1,7 @@
 <template>
   <q-page class="page">
-    <FlexySend remember="owner" :open="switchOn === true && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
+    <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
+      :credit-prefixes="phoneMode ? ['06'] : ['06', '07']"
       :send-offer="sendOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <div class="card row items-center q-gutter-sm">
@@ -8,6 +9,14 @@
           :label="forcedOff ? 'الإرسال موقوف من الخادم (طوارئ)' : switchOn ? 'الإرسال الحقيقي مفتوح' : 'الإرسال الحقيقي مقفل'"
           @update:model-value="flip" />
         <q-spinner v-if="switchBusy" size="16px" />
+      </div>
+      <!-- Djezzy (*760*, owner 2026-10-27): its own switch in Flexy Core, off; discovery phase, every
+           reply stays «قيد المراجعة» with its raw text. Not on the phone screen. -->
+      <div v-if="!phoneMode" class="card row items-center q-gutter-sm">
+        <q-toggle :model-value="djezzyOn" :disable="djezzyOn === null || djezzyBusy || forcedOff" color="positive"
+          :label="djezzyOn ? 'إرسال جيزي (07) مفتوح: قيد الاكتشاف' : 'إرسال جيزي (07) مقفل'" @update:model-value="flipDjezzy" />
+        <q-spinner v-if="djezzyBusy" size="16px" />
+        <div class="col-12 small muted">الكود <bdi dir="ltr">*760*</bdi> لم يُجرَّب من البرنامج بعد: كل ردّ من الشبكة يُحفظ كما هو ويبقى «قيد المراجعة» حتى تقرأه.</div>
       </div>
       <!-- «عروض سما» (owner 2026-10-27): kept in Flexy Core for every send, his and the shops'.
            Under 500 DA Arsselli goes first, from 500 Sama; off = Arsselli only. Not on the phone screen. -->
@@ -68,12 +77,17 @@ const OFFER_KEY = 'mobilis.sama.offer.665'
 // An offer the Sama menu never shows (Sama Mix 50, Revolution 100 and 500) goes from an Arsselli SIM
 // by its amount (*696*1*, Flexy Core 0032): an offer for the page, followed like a 630 (owner 2026-10-26)
 const ARSSELLI_OFFER_KEY = 'mobilis.arsselli.offer.696'
+const DJEZZY_KEY = 'djezzy.flexy.ordinary.760'
 
 const ERRORS = {
   OWNER_REQUIRED: 'هذا الحساب ليس المالك، أو انتهت الجلسة.',
   OWNER_SESSION_REQUIRED: 'سجّل الدخول أولًا.',
   ORIGIN_NOT_ALLOWED: 'هذا الموقع غير مسموح له بالإرسال (FLEXY_OWNER_ORIGINS).',
   PHONE_NOT_MOBILIS: 'الرقم ليس Mobilis (يجب أن يبدأ بـ 06).',
+  PHONE_NOT_DJEZZY: 'الرقم ليس Djezzy (يجب أن يبدأ بـ 07).',
+  DJEZZY_SEND_DISABLED: 'إرسال جيزي مقفل: افتحه من زرّه أعلاه. لم يُرسل شيء.',
+  '760_NO_DJEZZY_READY': 'لا شريحة جيزي معتمدة ومتصلة ولها PIN على مودم حر. لم يُرسل شيء.',
+  '760_PREVIOUS_TRANSFER_UNSETTLED_OR_TOO_RECENT': 'لهذا الرقم عملية جيزي غير محسومة أو نفس المبلغ قبل أقل من دقيقة. لم يُرسل شيء.',
   PHONE_INVALID: 'رقم غير صحيح.',
   AMOUNT_INVALID: 'المبلغ بين 40 و50000 دج، عدد صحيح.',
   IDEMPOTENCY_CONFLICT: 'نفس العملية بطلب مختلف. ابدأ عملية جديدة.',
@@ -127,7 +141,12 @@ const switchOn = ref(null)
 const forcedOff = ref(false)
 const switchBusy = ref(false)
 function showSwitch (res) {
-  if (res.status === 200) { switchOn.value = res.body.send_enabled; forcedOff.value = res.body.forced_off; samaOn.value = res.body.sama_offers_enabled !== false } else $q.notify({ type: 'negative', message: errorText(res.body) })
+  if (res.status === 200) {
+    switchOn.value = res.body.send_enabled
+    forcedOff.value = res.body.forced_off
+    samaOn.value = res.body.sama_offers_enabled !== false
+    djezzyOn.value = res.body.djezzy_send_enabled === true
+  } else $q.notify({ type: 'negative', message: errorText(res.body) })
 }
 async function loadSwitch () {
   switchBusy.value = true
@@ -157,6 +176,18 @@ async function alertsSeen () {
   } finally { alertsBusy.value = false }
 }
 
+// Djezzy's own switch (owner.760.send_enabled): read with the money switch, flipped alone, off by default.
+const djezzyOn = ref(null)
+const djezzyBusy = ref(false)
+function flipDjezzy (on) {
+  const apply = async () => {
+    djezzyBusy.value = true
+    try { showSwitch(await flexy.setDjezzySwitch(on)) } finally { djezzyBusy.value = false }
+  }
+  if (!on) return apply()
+  $q.dialog({ title: 'فتح إرسال جيزي الحقيقي', message: 'مسار جيزي لم يُجرَّب بعد: كل «إرسال» إلى 07 يُخرج رصيدًا حقيقيًا من شريحة جيزي، والنتيجة تبقى قيد المراجعة حتى تقرأ ردّ الشبكة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
+}
+
 // «عروض سما»: read with the money switch, flipped alone.
 const samaOn = ref(null)
 const samaBusy = ref(false)
@@ -179,6 +210,12 @@ const REFRESH_MS = 5000
 const REFRESH_MAX = 36
 async function send (p, v, { wait, key: pressKey }) {
   const key = 'owner_' + pressKey.replace(/-/g, '')
+  // 07 = Djezzy (*760*): its own route and switch; no balance refresh exists for it, one request decides.
+  if (p.startsWith('07')) {
+    const res = await flexy.ownerSend760(p, v, key)
+    if (res.body?.operation) return res.body
+    throw refused(res)
+  }
   for (let i = 0; i < REFRESH_MAX; i++) {
     const res = await flexy.ownerSend(p, v, key)
     // Sent, or refused after it was recorded (it shows in «آخر العمليات» with its status)
@@ -283,7 +320,9 @@ async function refreshNow () {
   refreshing.value = true
   try {
     await Promise.all(rows.value.filter((o) => o.status === 'running').map((o) =>
-      (o.operation_key === OFFER_KEY ? flexy.ownerOfferStatus(o.idempotency_key) : flexy.ownerStatus(o.idempotency_key)).catch(() => null)))
+      (o.operation_key === OFFER_KEY ? flexy.ownerOfferStatus(o.idempotency_key)
+        : o.operation_key === DJEZZY_KEY ? flexy.ownerStatus760(o.idempotency_key)
+          : flexy.ownerStatus(o.idempotency_key)).catch(() => null)))
     await loadFirst()
   } catch { /* offline: keep what is shown */ } finally { refreshing.value = false }
 }

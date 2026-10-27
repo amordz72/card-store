@@ -115,7 +115,10 @@ const props = defineProps({
   loadingMore: { type: Boolean, default: false },
   refreshing: { type: Boolean, default: false },
   // Keeps the typed number on this phone under this name (owner / shop), see «The number stays» below
-  remember: { type: String, default: '' }
+  remember: { type: String, default: '' },
+  // Prefixes whose ordinary credit this screen may send (owner 2026-10-27: his page adds 07, Djezzy);
+  // the others hear «قريبًا» on «إرسال». Offers stay Mobilis only.
+  creditPrefixes: { type: Array, default: () => ['06'] }
 })
 const emit = defineEmits(['sent', 'refresh', 'more'])
 const { busy, run } = useRun()
@@ -152,6 +155,7 @@ const digits = computed(() => {
 // Any Algerian mobile can be typed; only Mobilis is sent today, the others hear «قريبًا» on «إرسال»
 const phoneFull = computed(() => /^0[567]\d{8}$/.test(digits.value))
 const phoneOk = computed(() => /^06\d{8}$/.test(digits.value))
+const creditOk = computed(() => phoneFull.value && props.creditPrefixes.includes(digits.value.slice(0, 2)))
 const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
 const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]] : null))
 const amounts = computed(() => [40, 50, 100, 200, 500, 1000, 2000, 5000].filter((a) => a <= props.maxAmount))
@@ -224,8 +228,13 @@ const repeatLine = (last) => last
       آخر عملية كانت لنفس الرقم ونفس ${last.kind === 'offer' ? 'العرض' : 'المبلغ'} (${last.badge.label}، ${when(last.at)}).<br><b>أرسل مرة ثانية؟</b></div>`
   : ''
 
+// Djezzy (07): the path is being discovered; the network's reply is kept raw and the row stays «قيد المراجعة»
+const djezzyLine = (p) => p.startsWith('07')
+  ? '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#E3F2FD;color:#0D47A1;text-align:center">جيزي: مسار جديد قيد الاكتشاف. النتيجة تبقى «قيد المراجعة» حتى تقرأ ردّ الشبكة بنفسك.</div>'
+  : ''
+
 function pressSend () {
-  if (!phoneOk.value) return Notify.create({ message: 'قريبًا: الإرسال إلى هذا المتعامل غير متوفر بعد.', timeout: 2500 })
+  if (!creditOk.value) return Notify.create({ message: 'قريبًا: الإرسال إلى هذا المتعامل غير متوفر بعد.', timeout: 2500 })
   if (busy.value) return
   const v = value.value
   const p = digits.value
@@ -235,7 +244,7 @@ function pressSend () {
     html: true,
     message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
       <div style="text-align:center">يصل للزبون: <b>${money(v)}</b></div>
-      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${repeatLine(last)}`,
+      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${djezzyLine(p)}${repeatLine(last)}`,
     cancel: 'رجوع',
     ok: last ? 'نعم، أرسل مرة ثانية' : 'نعم، أرسل'
   }).onOk(async () => {
