@@ -63,6 +63,9 @@ export const setSamaOffersSwitch = (on) => owner('settings', { method: 'POST', b
 // Offers sent from the other source, and why (Flexy Core 0036): the bell; seen() clears them.
 export const ownerOfferAlerts = () => owner('offer-alerts', { method: 'GET' })
 export const ownerOfferAlertsSeen = () => owner('offer-alerts', { method: 'POST', body: { seen: true } })
+// Stopped SIMs and why (Flexy Core 0039): the bell, again every day until solved; seen() hides them for today.
+export const ownerSimAlerts = () => owner('sim-alerts', { method: 'GET' })
+export const ownerSimAlertsSeen = () => owner('sim-alerts', { method: 'POST', body: { seen: true } })
 // Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).
 export const ownerDevices = () => owner('devices', { method: 'GET' })
 // A SIM's PIN, name and note (owner only). The PIN is never sent back; fields left out are not changed.
