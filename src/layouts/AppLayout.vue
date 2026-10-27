@@ -36,6 +36,11 @@
                 <q-item-section>موديمات أو كمبيوترات معطّلة</q-item-section>
                 <q-item-section side><q-badge :color="devicesDown ? 'negative' : 'grey-5'" :label="devicesDown" /></q-item-section>
               </q-item>
+              <q-item v-close-popup clickable to="/flexy/devices">
+                <q-item-section avatar><q-icon name="sim_card_alert" /></q-item-section>
+                <q-item-section>شرائح متوقفة</q-item-section>
+                <q-item-section side><q-badge :color="simAlerts ? 'negative' : 'grey-5'" :label="simAlerts" /></q-item-section>
+              </q-item>
               <q-item v-close-popup clickable to="/flexy/send">
                 <q-item-section avatar><q-icon name="alt_route" /></q-item-section>
                 <q-item-section>عروض خرجت من المصدر الآخر</q-item-section>
@@ -199,7 +204,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, bellTotal, refreshBell } = useBell()
+const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, bellTotal, refreshBell } = useBell()
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)

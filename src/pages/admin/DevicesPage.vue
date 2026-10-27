@@ -16,6 +16,14 @@
         <b>{{ p.label }}</b> يعمل بلا حماية من التجميد: افتح Rech-Doom مرة ووافق على «تجاهل تحسين البطارية»، وإلا بدا الهاتف «غير متصل» وأنت تستعمله.
       </div>
     </div>
+    <!-- Stopped SIMs (Flexy Core 0039): the reason recorded only; «تم» hides them for today, they come back tomorrow if still stopped -->
+    <div v-if="simAlerts.length" class="card q-gutter-xs">
+      <div class="row items-center">
+        <div class="text-weight-bold text-negative col">شرائح متوقفة</div>
+        <q-btn flat dense color="primary" label="تم" :loading="simAlertsBusy" @click="simAlertsSeen" />
+      </div>
+      <div v-for="a in simAlerts" :key="a.sim_uuid + a.code" class="small">{{ a.text }}</div>
+    </div>
     <!-- One request to Flexy Core; refreshed every 30 seconds while this page is open and visible -->
     <div class="card column q-gutter-sm">
       <div class="row items-center q-gutter-sm">
@@ -203,7 +211,23 @@ const LEVEL = {
   old: { label: 'قديم', color: 'grey-6' }
 }
 // The bell's count follows this page without a second request
-const { devicesDown } = useBell()
+const { devicesDown, simAlerts: simAlertCount } = useBell()
+// Stopped SIMs, again every day until solved (Flexy Core 0039)
+const simAlerts = ref([])
+const simAlertsBusy = ref(false)
+async function loadSimAlerts () {
+  const res = await flexy.ownerSimAlerts()
+  if (res.status === 200 && res.body?.ok) { simAlerts.value = res.body.alerts || []; simAlertCount.value = simAlerts.value.length }
+}
+async function simAlertsSeen () {
+  simAlertsBusy.value = true
+  try {
+    const res = await flexy.ownerSimAlertsSeen()
+    if (res.status === 200 && res.body?.ok) { simAlerts.value = res.body.alerts || []; simAlertCount.value = simAlerts.value.length }
+  } finally {
+    simAlertsBusy.value = false
+  }
+}
 const tree = ref(null)
 const error = ref('')
 const busy = ref(false)
@@ -373,6 +397,7 @@ function approvePhone (p) {
 
 async function load () {
   loadPhones().catch(() => null)
+  loadSimAlerts().catch(() => null)
   if (busy.value) return
   busy.value = true
   try {

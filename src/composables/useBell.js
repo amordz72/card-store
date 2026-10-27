@@ -6,7 +6,8 @@ import * as flexyApi from 'src/api/flexy'
 // Owner's header bell (pattern 18): open card reports + customers' IDOOM top-ups waiting for review
 // + game top-ups waiting for an operator (v1.25) + shops' Flexy sends waiting for the owner's decision (v1.33)
 // + modems and computers Flexy Core judges down (⛔, «المحطات والشرائح»)
-// + offers sent from their second source, with the reason (a SIM to add, to feed or to fix).
+// + offers sent from their second source, with the reason (a SIM to add, to feed or to fix)
+// + stopped SIMs (Flexy Core 0039), again every day until solved.
 // Shared so «البلاغات» and «تعبئة إيدوم» can refresh it right after a decision.
 const openReports = ref(0)
 const idoomReview = ref(0)
@@ -15,7 +16,9 @@ const flexyReview = ref(0)
 const devicesDown = ref(0)
 // Offers that left their first source (Flexy Core 0036): one per reason, until seen on «إرسال فليكسي».
 const offerAlerts = ref(0)
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + devicesDown.value + offerAlerts.value)
+// Stopped SIMs not marked seen today («المحطات والشرائح»).
+const simAlerts = ref(0)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + devicesDown.value + offerAlerts.value + simAlerts.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
@@ -30,8 +33,12 @@ async function refreshBell () {
     const res = await flexyApi.ownerOfferAlerts()
     if (res.status === 200) offerAlerts.value = (res.body?.alerts || []).length
   } catch { /* keep the last value */ }
+  try {
+    const res = await flexyApi.ownerSimAlerts()
+    if (res.status === 200) simAlerts.value = (res.body?.alerts || []).length
+  } catch { /* keep the last value */ }
 }
 
 export function useBell () {
-  return { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, bellTotal, refreshBell }
+  return { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, bellTotal, refreshBell }
 }
