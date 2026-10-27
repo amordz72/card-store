@@ -136,6 +136,7 @@ async function sendToCore(job: Job): Promise<string | null> {
   let status: string;
   if (res.ok && body?.operation?.status) status = shopStatus(String(body.operation.status));
   // A 4xx answer means the core created nothing for this key (validation, closed, expired, no route).
+  // 409 (SOURCE_BUSY: waiting for a SIM, STATION_NOT_READY…) keeps the job queued: asked again on the next refresh.
   else if (res.status >= 400 && res.status < 500 && res.status !== 409) status = "not_sent";
   else return null;
   await mark(job, status, body?.operation?.network_reply ?? null);
@@ -226,6 +227,8 @@ async function handleShop(req: Request, route: string): Promise<Response> {
         signal: AbortSignal.timeout(25_000),
       });
       const b = await res.json().catch(() => ({}));
+      // A paid offer waits for a Sama SIM: the discovery comes after it (Flexy Core, owner 2026-10-27); the shop keeps asking.
+      if (res.status === 409 && b?.error === "DISCOVERY_DEFERRED") return json(req, 200, { ok: true, status: "discovering", group: null, offers: [] });
       if (!res.ok) return json(req, 422, { ok: false, error: String(b?.error ?? "FLEXY_REFUSED") });
       // Only what a shop needs: the status, the group and the offers it can buy now.
       const offers = Array.isArray(b.offers)
