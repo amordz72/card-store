@@ -12,7 +12,8 @@
 
     <q-tabs v-model="tab" dense class="tabs" active-color="primary" indicator-color="primary" no-caps>
       <q-tab name="630" label="رصيد عادي" />
-      <q-tab name="offer" label="عروض" />
+      <!-- The offers tab opens once the number is complete (owner 2026-10-27) -->
+      <q-tab v-if="phoneFull" name="offer" label="عروض" />
     </q-tabs>
 
     <template v-if="tab === '630'">
@@ -151,6 +152,8 @@ const digits = computed(() => {
 })
 // Any Algerian mobile can be typed; only Mobilis is sent today, the others hear «قريبًا» on «إرسال»
 const phoneFull = computed(() => /^0[567]\d{8}$/.test(digits.value))
+// Back to «رصيد عادي» when the number is no longer complete: the offers tab is hidden then
+watch(phoneFull, (ok) => { if (!ok && tab.value === 'offer') tab.value = '630' })
 const phoneOk = computed(() => /^06\d{8}$/.test(digits.value))
 const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
 const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]] : null))
