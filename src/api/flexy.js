@@ -43,6 +43,12 @@ export const ownerSend760 = (phone, amount, idempotencyKey) => owner('760/send',
   method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
 })
 export const ownerStatus760 = (idempotencyKey) => owner('760/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
+// Ooredoo ordinary credit (*590*, Flexy Core 0050, owner 2026-10-27): its own path, its own switch
+// (ooredoo_send_enabled). Confirm 1/2, then «Recharge de l'abonne … realisee avec succes» = success.
+export const ownerSend590 = (phone, amount, idempotencyKey) => owner('590/send', {
+  method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
+})
+export const ownerStatus590 = (idempotencyKey) => owner('590/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Offers from the owner's page: the same flow as the shops', under the owner's switch, no wallet.
 // retry: «أعد المحاولة» after a discovery that ended; otherwise a running one is followed (Flexy Core 0030)
 // via 'phone': «أرسل من هاتفي», the owner's admin phone (Flexy Core 0033), his choice only
@@ -69,6 +75,8 @@ export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: {
 export const setSamaOffersSwitch = (on) => owner('settings', { method: 'POST', body: { sama_offers_enabled: on } })
 // Djezzy's own money switch (owner.760.send_enabled), read with ownerSwitch(); off = every 760 refuses.
 export const setDjezzySwitch = (on) => owner('settings', { method: 'POST', body: { djezzy_send_enabled: on } })
+// Ooredoo's own money switch (owner.590.send_enabled), read with ownerSwitch(); off = every 590 refuses.
+export const setOoredooSwitch = (on) => owner('settings', { method: 'POST', body: { ooredoo_send_enabled: on } })
 // Offers sent from the other source, and why (Flexy Core 0036): the bell; seen() clears them.
 export const ownerOfferAlerts = () => owner('offer-alerts', { method: 'GET' })
 export const ownerOfferAlertsSeen = () => owner('offer-alerts', { method: 'POST', body: { seen: true } })

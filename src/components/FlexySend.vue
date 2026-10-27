@@ -228,10 +228,12 @@ const repeatLine = (last) => last
       آخر عملية كانت لنفس الرقم ونفس ${last.kind === 'offer' ? 'العرض' : 'المبلغ'} (${last.badge.label}، ${when(last.at)}).<br><b>أرسل مرة ثانية؟</b></div>`
   : ''
 
-// Djezzy (07): the carrier confirms the transfer at once (recorded 2026-10-27); an unrecorded reply stays «قيد المراجعة»
+// Djezzy (07) and Ooredoo (05): the carrier confirms at once (recorded 2026-10-27); an unrecorded reply stays «قيد المراجعة»
 const djezzyLine = (p) => p.startsWith('07')
   ? '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#E3F2FD;color:#0D47A1;text-align:center">جيزي: التحويل فوري ونهائي عند ردّ الشبكة. ردّ غير معروف يبقى «قيد المراجعة» حتى تقرأه.</div>'
-  : ''
+  : p.startsWith('05')
+    ? '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#FCE4EC;color:#880E4F;text-align:center">أوريدو: الشحن فوري ونهائي عند ردّ الشبكة برقم العملية. ردّ غير معروف يبقى «قيد المراجعة» حتى تقرأه.</div>'
+    : ''
 
 function pressSend () {
   if (!creditOk.value) return Notify.create({ message: 'قريبًا: الإرسال إلى هذا المتعامل غير متوفر بعد.', timeout: 2500 })
