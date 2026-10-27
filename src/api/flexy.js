@@ -36,6 +36,13 @@ export const ownerSend = (phone, amount, idempotencyKey) => owner('630/send', {
   method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
 })
 export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
+// Djezzy ordinary credit (*760*, Flexy Core 0044, owner 2026-10-27): discovery phase. The database picks the
+// Djezzy SIM; every network reply ends «قيد المراجعة» with its raw text until real replies are recorded.
+// Under its own switch (djezzy_send_enabled), never the Mobilis one.
+export const ownerSend760 = (phone, amount, idempotencyKey) => owner('760/send', {
+  method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
+})
+export const ownerStatus760 = (idempotencyKey) => owner('760/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Offers from the owner's page: the same flow as the shops', under the owner's switch, no wallet.
 // retry: «أعد المحاولة» after a discovery that ended; otherwise a running one is followed (Flexy Core 0030)
 // via 'phone': «أرسل من هاتفي», the owner's admin phone (Flexy Core 0033), his choice only
@@ -60,6 +67,8 @@ export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: 
 export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: { apps_send_enabled: on } })
 // «عروض سما» (offers.sama_enabled, owner 2026-10-27): off = no offer goes from Sama, for him and the shops; kept.
 export const setSamaOffersSwitch = (on) => owner('settings', { method: 'POST', body: { sama_offers_enabled: on } })
+// Djezzy's own money switch (owner.760.send_enabled), read with ownerSwitch(); off = every 760 refuses.
+export const setDjezzySwitch = (on) => owner('settings', { method: 'POST', body: { djezzy_send_enabled: on } })
 // Offers sent from the other source, and why (Flexy Core 0036): the bell; seen() clears them.
 export const ownerOfferAlerts = () => owner('offer-alerts', { method: 'GET' })
 export const ownerOfferAlertsSeen = () => owner('offer-alerts', { method: 'POST', body: { seen: true } })

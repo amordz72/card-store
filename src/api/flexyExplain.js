@@ -44,7 +44,18 @@ const CODES = {
   '630_NO_FINAL_SMS': 'قبلت الشبكة ولم تصل رسالة التأكيد بعد: يُراجَع.',
   '630_SMS_AMBIGUOUS': 'رسالة الشبكة غير واضحة: يُراجَع.',
   '630_FAILURE_SMS_SEEN': 'رسالة فشل من الشبكة: يُراجَع.',
-  '630_SEND_RESULT_UNKNOWN': 'لم يصل ردّ الإرسال: يُراجَع قبل أي إعادة.'
+  '630_SEND_RESULT_UNKNOWN': 'لم يصل ردّ الإرسال: يُراجَع قبل أي إعادة.',
+  // Djezzy ordinary credit (760), discovery phase: no reply is judged yet; the raw text is shown with the row
+  '760_REPLY_UNRECORDED': 'ردّ الشبكة محفوظ كما وصل ولم يُفسَّر بعد (مسار جيزي قيد الاكتشاف): اقرأه وقرّر.',
+  '760_START_NO_RESPONSE': 'أُرسل الكود ولم تردّ الشبكة: قد يكون نُفّذ. يُراجَع قبل أي إعادة.',
+  '760_START_NOT_DISPATCHED': 'الطلب لم يصل إلى المودم. لم يُخصم شيء.',
+  '760_CONFIRM_NOT_DISPATCHED': 'التأكيد لم يصل إلى المودم. لم يُخصم شيء.',
+  '760_CONFIRM_NOT_SENT': 'لم يُرسل التأكيد. لم يُخصم شيء.',
+  '760_CONFIRM_NO_RESPONSE': 'أُرسل التأكيد ولم تردّ الشبكة: يُراجَع.',
+  '760_NO_COMMAND_RECORDED': 'لم يصل أي أمر إلى المودم. لم يُخصم شيء.',
+  '760_NO_DJEZZY_READY': 'لا شريحة جيزي معتمدة ومتصلة ولها PIN على مودم حر. لم يُرسل شيء.',
+  '760_PREVIOUS_TRANSFER_UNSETTLED_OR_TOO_RECENT': 'لهذا الرقم عملية جيزي غير محسومة أو نفس المبلغ قبل أقل من دقيقة. لم يُرسل شيء.',
+  '760_SEND_RESULT_UNKNOWN': 'لم يصل ردّ الإرسال: يُراجَع قبل أي إعادة.'
 }
 const BY_STATUS = {
   queued: 'في الطابور: يُرسل الآن.',
