@@ -17,6 +17,16 @@
         <q-spinner v-if="samaBusy" size="16px" />
         <div class="col-12 small muted">أقل من 500 دج: أرسلي أولًا وسما عند الضرورة. 500 فما فوق: سما أولًا وأرسلي عند الضرورة.</div>
       </div>
+      <!-- Offers sent from their second source, and why (Flexy Core 0036): what to fix, one line per reason -->
+      <div v-if="offerAlerts.length" class="card q-gutter-xs">
+        <div class="row items-center">
+          <div class="text-weight-bold text-deep-orange col">عروض خرجت من المصدر الآخر</div>
+          <q-btn flat dense color="primary" label="تم" :loading="alertsBusy" @click="alertsSeen" />
+        </div>
+        <div v-for="a in offerAlerts" :key="a.preferred + a.reason" class="small">
+          {{ alertText(a) }} — {{ a.count }} {{ a.count > 1 ? 'عروض' : 'عرض' }}، آخرها {{ a.last_offer }}.
+        </div>
+      </div>
       <!-- «أرسل من هاتفي» (owner 2026-10-26): offers and discovery on the admin phone, his choice only -->
       <div v-if="phoneSim" class="card row items-center q-gutter-sm">
         <q-toggle v-model="viaPhone" color="primary" label="العروض من هاتفي" />
@@ -40,6 +50,7 @@ import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import FlexySend from 'src/components/FlexySend.vue'
 import { explain } from 'src/api/flexyExplain'
+import { useBell } from 'src/composables/useBell'
 
 // The owner's side of the shared send screen (FlexySend): real Mobilis from his own SIMs through
 // Flexy Core, under his money switch, no wallet. Flexy Core checks and chooses the SIM itself at
@@ -65,6 +76,7 @@ const ERRORS = {
   SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
   APP_SEND_DISABLED: 'الإرسال الحقيقي مقفل. افتحه من الزر أعلى الصفحة.',
   OFFER_NOT_ON_SAMA: 'هذا العرض لا يُنفَّذ من Sama (ولا من هاتف الإدارة).',
+  SOURCE_BUSY: 'كل الشرائح مشغولة الآن ولم تتحرر في الوقت. لم يُرسل شيء، أعد المحاولة.',
   OFFER_SAMA_DISABLED: 'عروض سما ملغاة، وهذا العرض لا يُرسل إلا من سما. فعّلها من الزر أعلى الصفحة.',
   '665_NO_SAMA_READY': 'لا توجد شريحة Sama متصلة وفارغة الآن.',
   '665_SAMA_PIN_UNCONFIRMED': 'شريحة Sama لم تقبل الـPIN في آخر محاولة: تحقق من الـPIN واحفظه من جديد في «المحطات والشرائح».',
@@ -116,6 +128,30 @@ async function loadSwitch () {
   switchBusy.value = true
   try { showSwitch(await flexy.ownerSwitch()) } finally { switchBusy.value = false }
 }
+// Offers that left their first source: the reason says what to do (owner 2026-10-27).
+const SOURCE = { sama: 'سما', arsselli: 'أرسلي' }
+const offerAlerts = ref([])
+const { refreshBell } = useBell()
+const alertsBusy = ref(false)
+function alertText (a) {
+  const p = SOURCE[a.preferred] || a.preferred
+  const u = SOURCE[a.used] || a.used
+  if (a.reason === 'busy') return `طابور ${p} أطول من الحد فخرجت من ${u}: زد شرائح ${p}`
+  if (a.reason === 'no_balance') return `${p} بلا رصيد يكفي فخرجت من ${u}: غذِّ رصيد ${p}`
+  return `${p} معطّلة فخرجت من ${u}: افحص «المحطات والشرائح»`
+}
+async function loadAlerts () {
+  const res = await flexy.ownerOfferAlerts()
+  if (res.status === 200) offerAlerts.value = res.body.alerts || []
+}
+async function alertsSeen () {
+  alertsBusy.value = true
+  try {
+    const res = await flexy.ownerOfferAlertsSeen()
+    if (res.status === 200) { offerAlerts.value = res.body.alerts || []; refreshBell() }
+  } finally { alertsBusy.value = false }
+}
+
 // «عروض سما»: read with the money switch, flipped alone.
 const samaOn = ref(null)
 const samaBusy = ref(false)
@@ -178,11 +214,20 @@ let phoneTimer = null
 
 async function lookupOffers (p, { retry = false } = {}) {
   const res = await flexy.ownerOffers(p, retry, via())
+  // A paid offer waits for a Sama SIM: the discovery comes after it (owner 2026-10-27), the page keeps asking.
+  if (res.status === 409 && res.body?.error === 'DISCOVERY_DEFERRED') return { status: 'discovering' }
   if (res.status !== 200) throw new Error(errorText(res.body))
   return res.body
 }
 async function sendOffer (p, label, key) {
-  const res = await flexy.ownerOfferSend(p, label, 'own665_' + key.replace(/-/g, ''), via())
+  // SOURCE_BUSY: the SIM frees within the queue limit (owner 2026-10-27); nothing was created, the same key
+  // keeps its place. Asked again until the core sends it or the request expires (2 minutes, then 410).
+  const id = 'own665_' + key.replace(/-/g, '')
+  let res = await flexy.ownerOfferSend(p, label, id, via())
+  for (const end = Date.now() + 120_000; res.status === 409 && res.body?.error === 'SOURCE_BUSY' && Date.now() < end;) {
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (res.body.retry_after_seconds || 3)))
+    res = await flexy.ownerOfferSend(p, label, id, via())
+  }
   if ((res.status === 0 || res.status >= 400) && !res.body?.operation) throw refused(res)
   return res.body
 }
@@ -265,6 +310,7 @@ async function afterSend () {
 
 onMounted(async () => {
   loadSwitch()
+  loadAlerts().catch(() => null)
   loadPhone().catch(() => null)
   phoneTimer = setInterval(() => { if (document.visibilityState === 'visible') loadPhone().catch(() => null) }, 10_000)
   await loadFirst().catch(() => null)
