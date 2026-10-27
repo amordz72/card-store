@@ -175,7 +175,10 @@
           <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" :phone="String(picked.st.agent_version || '').startsWith('phone-')" /></q-card-section>
         </template>
         <q-card-actions align="right">
-          <q-btn v-if="picked.m.sim?.approved || canRetryFirstBalance(picked.m.sim)" outline no-caps color="primary" label="اقرأ الرصيد" :loading="reading.busy" @click="readBalance" />
+          <!-- The admin phone (Flexy Core 0037): «اكتشاف الرصيد» = one *222# from the phone; its reply is the
+               starting point of the phone's cumulative, which the send from the phone is checked against -->
+          <q-btn v-if="picked.m.sim?.approved || canRetryFirstBalance(picked.m.sim) || (picked.m.sim && isPhone(picked.st))" outline no-caps color="primary"
+            :label="picked.m.sim && isPhone(picked.st) ? 'اكتشاف الرصيد' : 'اقرأ الرصيد'" :loading="reading.busy" @click="readBalance" />
           <q-btn v-if="picked.m.sim" unelevated no-caps color="primary" label="حفظ" :loading="form.busy" :disable="!!form.pin && !/^[0-9]{4,8}$/.test(form.pin)" @click="saveSettings" />
           <q-btn flat no-caps label="إغلاق" v-close-popup />
         </q-card-actions>
@@ -399,6 +402,7 @@ const onboardingOf = (sim) => (tree.value?.onboarding || []).find((o) => o.sim_u
 // A SIM not approved yet that stopped on its first balance: the button asks once more (flexy-core 0028).
 // A PIN refused is not among them: a new PIN does that.
 const RETRY_ALERTS = ['BALANCE_NOT_CONFIRMED', 'TYPE_NOT_CONFIRMED', 'LAST_632_UNCONFIRMED']
+const isPhone = (st) => String(st?.agent_version || '').startsWith('phone-')
 const canRetryFirstBalance = (sim) => {
   const o = sim && onboardingOf(sim)
   return !!o && o.stage === 'alert' && RETRY_ALERTS.includes(o.alert_code)
