@@ -4,8 +4,9 @@
        carrying a PIN waits 60 s and its reply. «{PIN}» is filled in by the server. -->
   <div class="column q-gutter-sm">
     <q-tabs v-model="tab" dense no-caps align="justify" class="text-primary">
-      <q-tab name="status" label="حالة المودم" />
-      <q-tab name="sms" label="الرسائل" />
+      <!-- The admin phone (agent «phone-*») has no HiLink modem and no SMS reader: only the USSD lab works there -->
+      <q-tab v-if="!phone" name="status" label="حالة المودم" />
+      <q-tab v-if="!phone" name="sms" label="الرسائل" />
       <q-tab name="ussd" label="تجربة USSD" />
     </q-tabs>
     <div v-if="error" class="small text-negative">{{ error }}</div>
@@ -15,7 +16,7 @@
     <div v-if="page && !page.ready" class="small muted">الشريحة أو المودم أو الكمبيوتر غير متصل الآن: القراءة والإرسال غير متاحين</div>
 
     <!-- Status -->
-    <template v-if="tab === 'status'">
+    <template v-if="tab === 'status' && !phone">
       <div v-if="unsupported" class="small text-deep-orange">قراءة حالة المودم تحتاج Agent 0.6.5 أو أحدث: اضغط «حدّث» لهذا الكمبيوتر.</div>
       <div class="kv">
         <span class="muted">الإشارة</span>
@@ -33,7 +34,7 @@
     </template>
 
     <!-- Messages -->
-    <template v-if="tab === 'sms'">
+    <template v-if="tab === 'sms' && !phone">
       <div v-if="store" class="small" :class="(store.local_inbox || 0) >= 0.8 * (store.local_max || 500) ? 'text-negative' : 'muted'">
         مخزن المودم: {{ store.local_inbox ?? '—' }} من {{ store.local_max ?? '—' }}. إذا امتلأ لا تصل رسائل جديدة.
       </div>
@@ -84,9 +85,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { supabase } from 'boot/supabase'
 
-const props = defineProps({ simUuid: { type: String, required: true } })
+const props = defineProps({ simUuid: { type: String, required: true }, phone: { type: Boolean, default: false } })
 
-const tab = ref('status')
+const tab = ref(props.phone ? 'ussd' : 'status')
 const page = ref(null)
 const lab = ref({ pin_wait_seconds: 0 })
 const messages = ref([])
@@ -195,9 +196,10 @@ watch(() => lab.value.pin_wait_seconds, (s) => {
 })
 async function loadAll () {
   error.value = ''
-  try { await Promise.all([loadPage(), loadLab(), loadSms()]) } catch (e) { error.value = reason(e) }
+  try { await Promise.all([loadPage(), loadLab(), props.phone ? null : loadSms()]) } catch (e) { error.value = reason(e) }
 }
 watch(() => props.simUuid, loadAll)
+watch(() => props.phone, (p) => { if (p) tab.value = 'ussd' })
 onMounted(loadAll)
 onBeforeUnmount(() => { alive = false; clearTimeout(timer) })
 </script>
