@@ -41,6 +41,12 @@
                 <q-item-section>شرائح متوقفة</q-item-section>
                 <q-item-section side><q-badge :color="simAlerts ? 'negative' : 'grey-5'" :label="simAlerts" /></q-item-section>
               </q-item>
+              <!-- The station computers' GitHub key (Flexy Core 0042): shown only when dead or ending soon -->
+              <q-item v-if="repoKeyAlert" v-close-popup clickable to="/flexy/devices">
+                <q-item-section avatar><q-icon name="key_off" /></q-item-section>
+                <q-item-section>{{ repoKeyLevel === 'dead' ? 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' : 'مفتاح GitHub ينتهي قريبًا' }}</q-item-section>
+                <q-item-section side><q-badge :color="repoKeyLevel === 'dead' ? 'negative' : 'orange-8'" label="1" /></q-item-section>
+              </q-item>
               <q-item v-close-popup clickable to="/flexy/send">
                 <q-item-section avatar><q-icon name="alt_route" /></q-item-section>
                 <q-item-section>عروض خرجت من المصدر الآخر</q-item-section>
@@ -204,7 +210,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, bellTotal, refreshBell } = useBell()
+const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, repoKeyLevel, repoKeyAlert, bellTotal, refreshBell } = useBell()
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
