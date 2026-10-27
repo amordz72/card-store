@@ -110,7 +110,10 @@
               <td><span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span><span v-if="st.label" class="muted"> · {{ st.label }}</span>
                 <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div></td>
               <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'غائب' : '✅ متصل'" />
-                <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div></td>
+                <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
+                <!-- A new computer installed with install-station.bat (owner 2026-10-27); the phone has its own approval above -->
+                <q-btn v-if="!st.approved && !isPhone(st)" unelevated dense no-caps color="primary" class="q-mt-xs" label="اعتماد الكمبيوتر"
+                  :loading="busy" @click="approveComputer(st)" /></td>
               <td>{{ isAbsent(st) ? '—' : simSummary(st) }}</td>
               <td>{{ st.gateway === 'core' ? 'النواة' : st.gateway === 'old' ? 'القديمة' : '—' }}</td>
               <td>
@@ -407,6 +410,26 @@ function approvePhone (p) {
     } catch (e) {
       Dialog.create({ title: 'لم يُعتمد', message: e.message || 'FLEXY_CORE', ok: 'حسنًا' })
     } finally { busy.value = false }
+    load()
+  })
+}
+
+// A new station computer (owner 2026-10-27): approved from here, through Flexy API
+function approveComputer (st) {
+  Dialog.create({
+    title: 'اعتماد كمبيوتر جديد',
+    message: `اعتماد ${st.computer_name || st.code || 'هذا الكمبيوتر'}؟ بعدها يستقبل الأوامر والعمليات مثل باقي الكمبيوترات.`,
+    cancel: 'لا', ok: 'نعم، اعتمد'
+  }).onOk(async () => {
+    busy.value = true
+    try {
+      const res = await flexy.ownerApproveComputer(st.station_uuid)
+      if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+    } catch (e) {
+      error.value = 'لم يُقبل الاعتماد (' + (e.message || 'FLEXY_CORE') + ').'
+    } finally {
+      busy.value = false
+    }
     load()
   })
 }

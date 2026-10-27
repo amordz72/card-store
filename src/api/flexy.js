@@ -68,6 +68,8 @@ export const ownerSimAlerts = () => owner('sim-alerts', { method: 'GET' })
 export const ownerSimAlertsSeen = () => owner('sim-alerts', { method: 'POST', body: { seen: true } })
 // «تصفير» (Flexy Core 0040): the modems' message stores emptied, each message saved on the server first.
 // all = every SIM on the computers; else one SIM. Each computer carries it out at its next listening (≈ 1 minute).
+// A new station computer approved (Flexy Core, owner 2026-10-27); the admin phone keeps ownerPhone's route.
+export const ownerApproveComputer = (stationUuid) => owner('stations/approve', { method: 'POST', body: { station_uuid: stationUuid } })
 export const ownerSmsWipes = () => owner('sims/wipe', { method: 'GET' })
 export const ownerSmsWipe = (simUuid) => owner('sims/wipe', { method: 'POST', body: simUuid ? { sim_uuid: simUuid, confirm: true } : { all: true, confirm: true } })
 // Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).
