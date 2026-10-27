@@ -228,9 +228,9 @@ const repeatLine = (last) => last
       آخر عملية كانت لنفس الرقم ونفس ${last.kind === 'offer' ? 'العرض' : 'المبلغ'} (${last.badge.label}، ${when(last.at)}).<br><b>أرسل مرة ثانية؟</b></div>`
   : ''
 
-// Djezzy (07): the path is being discovered; the network's reply is kept raw and the row stays «قيد المراجعة»
+// Djezzy (07): the carrier confirms the transfer at once (recorded 2026-10-27); an unrecorded reply stays «قيد المراجعة»
 const djezzyLine = (p) => p.startsWith('07')
-  ? '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#E3F2FD;color:#0D47A1;text-align:center">جيزي: مسار جديد قيد الاكتشاف. النتيجة تبقى «قيد المراجعة» حتى تقرأ ردّ الشبكة بنفسك.</div>'
+  ? '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#E3F2FD;color:#0D47A1;text-align:center">جيزي: التحويل فوري ونهائي عند ردّ الشبكة. ردّ غير معروف يبقى «قيد المراجعة» حتى تقرأه.</div>'
   : ''
 
 function pressSend () {
