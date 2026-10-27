@@ -83,7 +83,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { supabase } from 'boot/supabase'
+import { ownerModem } from 'src/api/flexy'
 
 const props = defineProps({ simUuid: { type: String, required: true }, phone: { type: Boolean, default: false } })
 
@@ -110,7 +110,8 @@ const KNOWN = {
   LAB_CODE_CHARACTERS: 'الكود يقبل الأرقام و* و# و+ و{PIN} فقط',
   LAB_CODE_MUST_START_WITH_STAR: 'الكود يبدأ بـ * أو #',
   LAB_CODE_LENGTH: 'الكود فارغ أو طويل جدًا',
-  ADMIN_REQUIRED: 'هذا الحساب ليس مديرًا'
+  OWNER_REQUIRED: 'هذا الحساب ليس مديرًا',
+  STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى المحطات الآن: أعد المحاولة'
 }
 const reason = (e) => {
   const text = String(e?.message || e)
@@ -119,11 +120,13 @@ const reason = (e) => {
   const key = Object.keys(KNOWN).find((k) => text.includes(k))
   return key ? KNOWN[key] : text
 }
-const call = async (fn, args) => {
-  const { data, error: e } = await supabase.rpc(fn, args)
-  if (e) throw e
-  return data
+// Through flexy-api only (AGENTS.md rule 1): Flexy Core calls Station Connect as this session.
+const call = async (path, body) => {
+  const r = await ownerModem(path, body)
+  if (!r.body?.ok) throw new Error(r.body?.error || 'HTTP_' + r.status)
+  return r.body.data
 }
+const q = () => '?sim_uuid=' + encodeURIComponent(props.simUuid)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const busyStatus = (s) => s === 'queued' || s === 'claimed'
 const waiting = (s) => busyStatus(s.status)
@@ -151,10 +154,10 @@ const sessionOpen = computed(() => lab.value.status === 'open' || lab.value.stat
 const anyWaiting = computed(() => steps.value.some(waiting))
 const lastOk = computed(() => steps.value.length > 0 && steps.value[steps.value.length - 1].status === 'success')
 
-async function loadPage () { page.value = await call('station_connect_admin_modem_page', { p_sim_uuid: props.simUuid }) }
-async function loadLab () { lab.value = await call('station_connect_admin_ussd_lab_state', { p_sim_uuid: props.simUuid }) || { pin_wait_seconds: 0 } }
+async function loadPage () { page.value = await call('page' + q()) }
+async function loadLab () { lab.value = await call('lab' + q()) || { pin_wait_seconds: 0 } }
 async function loadSms () {
-  const rows = await call('station_connect_admin_sms_inbox_history', { p_sim_uuid: props.simUuid }) || []
+  const rows = await call('sms' + q()) || []
   const latest = rows.find((r) => r.command_status === 'success' && r.raw_response) || null
   const body = parse(latest?.raw_response)
   // Entries with no sender, no text and a 1999 date are not shown (the modem's own page hides them too).
@@ -168,14 +171,14 @@ async function run (fn) {
   try { await fn() } catch (e) { error.value = reason(e) } finally { busy.value = false }
 }
 const readStatus = () => run(async () => {
-  await call('station_connect_admin_modem_status_queue', { p_sim_uuid: props.simUuid })
+  await call('status', { sim_uuid: props.simUuid })
   for (let i = 0; i < 20 && alive; i++) {
     await sleep(2500); await loadPage()
     if (page.value?.status && !busyStatus(page.value.status.command_status)) break
   }
 })
 const readSms = () => run(async () => {
-  await call('station_connect_admin_queue_sms_inbox', { p_sim_uuid: props.simUuid, p_limit: 20, p_source_job_uuid: null })
+  await call('sms', { sim_uuid: props.simUuid })
   for (let i = 0; i < 15 && alive; i++) {
     await sleep(2000)
     if (!busyStatus(await loadSms())) break
@@ -185,9 +188,9 @@ async function follow () {
   await loadLab()
   for (let i = 0; i < 40 && alive && anyWaiting.value; i++) { await sleep(2000); await loadLab() }
 }
-const start = () => { if (!code.value.trim() || busy.value) return; return run(async () => { await call('station_connect_admin_ussd_lab_start', { p_sim_uuid: props.simUuid, p_code: code.value.trim() }); await follow() }) }
-const answer = () => { if (!reply.value.trim() || busy.value) return; return run(async () => { await call('station_connect_admin_ussd_lab_reply', { p_session_uuid: lab.value.session_uuid, p_value: reply.value.trim() }); reply.value = ''; await follow() }) }
-const end = () => run(async () => { await call('station_connect_admin_ussd_lab_release', { p_session_uuid: lab.value.session_uuid }); await follow() })
+const start = () => { if (!code.value.trim() || busy.value) return; return run(async () => { await call('lab/start', { sim_uuid: props.simUuid, code: code.value.trim() }); await follow() }) }
+const answer = () => { if (!reply.value.trim() || busy.value) return; return run(async () => { await call('lab/reply', { session_uuid: lab.value.session_uuid, value: reply.value.trim() }); reply.value = ''; await follow() }) }
+const end = () => run(async () => { await call('lab/release', { session_uuid: lab.value.session_uuid }); await follow() })
 
 // The PIN wait counts down locally, without asking the server every second.
 watch(() => lab.value.pin_wait_seconds, (s) => {

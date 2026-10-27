@@ -78,6 +78,9 @@ export const requestUpdate = (stationUuid, kind, value) => owner('updates', {
   body: kind === 'release' ? { station_uuid: stationUuid, kind, release: value } : { station_uuid: stationUuid, kind, config: value }
 })
 export const cancelUpdate = (deploymentId) => owner('updates', { method: 'POST', body: { cancel: deploymentId } })
+// The modem page (Flexy Core owner-modem): modem status, messages and the USSD lab, through flexy-api
+// (AGENTS.md rule 1). No body = read (GET); a body = one action (POST). The answer is { ok, data | error }.
+export const ownerModem = (path, body) => owner('modem/' + path, body ? { method: 'POST', body } : { method: 'GET' })
 
 export const capabilities = () => call('capabilities', { method: 'GET' })
 export const validate = (phone, amount, distributorAccount) => call('validate', {
