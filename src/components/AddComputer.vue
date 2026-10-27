@@ -41,11 +41,13 @@
       <div class="small column q-gutter-xs help">
         <div>
           <a :href="GITHUB_NEW_KEY" target="_blank" rel="noopener noreferrer">صنع مفتاح جديد على GitHub ↗</a>
-          · <a :href="GITHUB_KEYS" target="_blank" rel="noopener noreferrer">مفاتيحي (حذف مفتاح ضاع) ↗</a>
+          · <a :href="GITHUB_KEYS" target="_blank" rel="noopener noreferrer">مفاتيحي ↗</a>
         </div>
         <div class="muted">في الصفحة: Resource owner = <b class="ltr">amordz72</b> ← Only select repositories = <b class="ltr">station-connect</b> وحده
           ← Repository permissions ← Contents = <b class="ltr">Read-only</b> ← Generate token ← انسخ المفتاح والصقه هنا.
           إن ظهرت الصفحة ناقصة في الهاتف: «موقع سطح المكتب» من قائمة المتصفح.</div>
+        <div class="muted">المفتاح يظهر مرة واحدة فقط. إن لم تنسخه، أو انتهى، أو ضاع: «مفاتيحي» ← اسم المفتاح ← <b class="ltr">Regenerate token</b> ← انسخه
+          (ضغط مطوّل على النص إن غاب زر النسخ) والصقه هنا. وللمفتاح الضائع: <b class="ltr">Delete</b>.</div>
       </div>
       <div class="row items-center q-gutter-sm">
         <q-input v-model="keyText" dense outlined class="col" type="password" autocomplete="off"
