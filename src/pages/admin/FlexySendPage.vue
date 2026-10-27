@@ -14,9 +14,9 @@
            reply stays «قيد المراجعة» with its raw text. Not on the phone screen. -->
       <div v-if="!phoneMode" class="card row items-center q-gutter-sm">
         <q-toggle :model-value="djezzyOn" :disable="djezzyOn === null || djezzyBusy || forcedOff" color="positive"
-          :label="djezzyOn ? 'إرسال جيزي (07) مفتوح: قيد الاكتشاف' : 'إرسال جيزي (07) مقفل'" @update:model-value="flipDjezzy" />
+          :label="djezzyOn ? 'إرسال جيزي (07) مفتوح' : 'إرسال جيزي (07) مقفل'" @update:model-value="flipDjezzy" />
         <q-spinner v-if="djezzyBusy" size="16px" />
-        <div class="col-12 small muted">الكود <bdi dir="ltr">*760*</bdi> لم يُجرَّب من البرنامج بعد: كل ردّ من الشبكة يُحفظ كما هو ويبقى «قيد المراجعة» حتى تقرأه.</div>
+        <div class="col-12 small muted">جيزي (<bdi dir="ltr">*760*</bdi>): تأكيد ثم تحويل فوري، والنجاح يظهر من نص الشبكة. ردّ غير معروف يبقى «قيد المراجعة» حتى تقرأه.</div>
       </div>
       <!-- «عروض سما» (owner 2026-10-27): kept in Flexy Core for every send, his and the shops'.
            Under 500 DA Arsselli goes first, from 500 Sama; off = Arsselli only. Not on the phone screen. -->
@@ -185,7 +185,7 @@ function flipDjezzy (on) {
     try { showSwitch(await flexy.setDjezzySwitch(on)) } finally { djezzyBusy.value = false }
   }
   if (!on) return apply()
-  $q.dialog({ title: 'فتح إرسال جيزي الحقيقي', message: 'مسار جيزي لم يُجرَّب بعد: كل «إرسال» إلى 07 يُخرج رصيدًا حقيقيًا من شريحة جيزي، والنتيجة تبقى قيد المراجعة حتى تقرأ ردّ الشبكة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
+  $q.dialog({ title: 'فتح إرسال جيزي الحقيقي', message: 'كل «إرسال» إلى 07 يُخرج رصيدًا حقيقيًا من شريحة جيزي فورًا عند تأكيد الشبكة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
 }
 
 // «عروض سما»: read with the money switch, flipped alone.

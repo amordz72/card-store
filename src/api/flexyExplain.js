@@ -45,8 +45,9 @@ const CODES = {
   '630_SMS_AMBIGUOUS': 'رسالة الشبكة غير واضحة: يُراجَع.',
   '630_FAILURE_SMS_SEEN': 'رسالة فشل من الشبكة: يُراجَع.',
   '630_SEND_RESULT_UNKNOWN': 'لم يصل ردّ الإرسال: يُراجَع قبل أي إعادة.',
-  // Djezzy ordinary credit (760), discovery phase: no reply is judged yet; the raw text is shown with the row
-  '760_REPLY_UNRECORDED': 'ردّ الشبكة محفوظ كما وصل ولم يُفسَّر بعد (مسار جيزي قيد الاكتشاف): اقرأه وقرّر.',
+  // Djezzy ordinary credit (760): the flow recorded live 2026-10-27 (prompt 1/2, then «… TRANSFERE … VERS LE NUMERO …»)
+  '760_NETWORK_TRANSFERRED': 'الشبكة حوّلت المبلغ إلى رقم الزبون فورًا، ونصّها هو الدليل.',
+  '760_REPLY_UNRECORDED': 'ردّ الشبكة محفوظ كما وصل ولم يُسجَّل تصنيفه بعد: اقرأه وقرّر.',
   '760_START_NO_RESPONSE': 'أُرسل الكود ولم تردّ الشبكة: قد يكون نُفّذ. يُراجَع قبل أي إعادة.',
   '760_START_NOT_DISPATCHED': 'الطلب لم يصل إلى المودم. لم يُخصم شيء.',
   '760_CONFIRM_NOT_DISPATCHED': 'التأكيد لم يصل إلى المودم. لم يُخصم شيء.',
