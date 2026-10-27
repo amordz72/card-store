@@ -1,7 +1,7 @@
 <template>
   <q-page class="page">
-    <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
-      :credit-prefixes="phoneMode ? ['06'] : ['06', '07']"
+    <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
+      :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :send-offer="sendOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <div class="card row items-center q-gutter-sm">
@@ -17,6 +17,13 @@
           :label="djezzyOn ? 'إرسال جيزي (07) مفتوح' : 'إرسال جيزي (07) مقفل'" @update:model-value="flipDjezzy" />
         <q-spinner v-if="djezzyBusy" size="16px" />
         <div class="col-12 small muted">جيزي (<bdi dir="ltr">*760*</bdi>): تأكيد ثم تحويل فوري، والنجاح يظهر من نص الشبكة. ردّ غير معروف يبقى «قيد المراجعة» حتى تقرأه.</div>
+      </div>
+      <!-- Ooredoo (*590*, owner 2026-10-27): its own switch in Flexy Core, off; its own path, never Djezzy's. -->
+      <div v-if="!phoneMode" class="card row items-center q-gutter-sm">
+        <q-toggle :model-value="ooredooOn" :disable="ooredooOn === null || ooredooBusy || forcedOff" color="positive"
+          :label="ooredooOn ? 'إرسال أوريدو (05) مفتوح' : 'إرسال أوريدو (05) مقفل'" @update:model-value="flipOoredoo" />
+        <q-spinner v-if="ooredooBusy" size="16px" />
+        <div class="col-12 small muted">أوريدو (<bdi dir="ltr">*590*</bdi>): تأكيد ثم شحن فوري برقم عملية، والنجاح يظهر من نص الشبكة.</div>
       </div>
       <!-- «عروض سما» (owner 2026-10-27): kept in Flexy Core for every send, his and the shops'.
            Under 500 DA Arsselli goes first, from 500 Sama; off = Arsselli only. Not on the phone screen. -->
@@ -78,6 +85,7 @@ const OFFER_KEY = 'mobilis.sama.offer.665'
 // by its amount (*696*1*, Flexy Core 0032): an offer for the page, followed like a 630 (owner 2026-10-26)
 const ARSSELLI_OFFER_KEY = 'mobilis.arsselli.offer.696'
 const DJEZZY_KEY = 'djezzy.flexy.ordinary.760'
+const OOREDOO_KEY = 'ooredoo.flexy.ordinary.590'
 
 const ERRORS = {
   OWNER_REQUIRED: 'هذا الحساب ليس المالك، أو انتهت الجلسة.',
@@ -85,6 +93,10 @@ const ERRORS = {
   ORIGIN_NOT_ALLOWED: 'هذا الموقع غير مسموح له بالإرسال (FLEXY_OWNER_ORIGINS).',
   PHONE_NOT_MOBILIS: 'الرقم ليس Mobilis (يجب أن يبدأ بـ 06).',
   PHONE_NOT_DJEZZY: 'الرقم ليس Djezzy (يجب أن يبدأ بـ 07).',
+  PHONE_NOT_OOREDOO: 'الرقم ليس Ooredoo (يجب أن يبدأ بـ 05).',
+  OOREDOO_SEND_DISABLED: 'إرسال أوريدو مقفل: افتحه من زرّه أعلاه. لم يُرسل شيء.',
+  '590_NO_OOREDOO_READY': 'لا شريحة أوريدو معتمدة ومتصلة ولها PIN على مودم حر. لم يُرسل شيء.',
+  '590_PREVIOUS_TRANSFER_UNSETTLED_OR_TOO_RECENT': 'لهذا الرقم عملية أوريدو غير محسومة أو نفس المبلغ قبل أقل من دقيقة. لم يُرسل شيء.',
   DJEZZY_SEND_DISABLED: 'إرسال جيزي مقفل: افتحه من زرّه أعلاه. لم يُرسل شيء.',
   '760_NO_DJEZZY_READY': 'لا شريحة جيزي معتمدة ومتصلة ولها PIN على مودم حر. لم يُرسل شيء.',
   '760_PREVIOUS_TRANSFER_UNSETTLED_OR_TOO_RECENT': 'لهذا الرقم عملية جيزي غير محسومة أو نفس المبلغ قبل أقل من دقيقة. لم يُرسل شيء.',
@@ -146,6 +158,7 @@ function showSwitch (res) {
     forcedOff.value = res.body.forced_off
     samaOn.value = res.body.sama_offers_enabled !== false
     djezzyOn.value = res.body.djezzy_send_enabled === true
+    ooredooOn.value = res.body.ooredoo_send_enabled === true
   } else $q.notify({ type: 'negative', message: errorText(res.body) })
 }
 async function loadSwitch () {
@@ -188,6 +201,18 @@ function flipDjezzy (on) {
   $q.dialog({ title: 'فتح إرسال جيزي الحقيقي', message: 'كل «إرسال» إلى 07 يُخرج رصيدًا حقيقيًا من شريحة جيزي فورًا عند تأكيد الشبكة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
 }
 
+// Ooredoo's own switch (owner.590.send_enabled): read with the money switch, flipped alone, off by default.
+const ooredooOn = ref(null)
+const ooredooBusy = ref(false)
+function flipOoredoo (on) {
+  const apply = async () => {
+    ooredooBusy.value = true
+    try { showSwitch(await flexy.setOoredooSwitch(on)) } finally { ooredooBusy.value = false }
+  }
+  if (!on) return apply()
+  $q.dialog({ title: 'فتح إرسال أوريدو الحقيقي', message: 'كل «إرسال» إلى 05 يُخرج رصيدًا حقيقيًا من شريحة أوريدو فورًا عند تأكيد الشبكة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
+}
+
 // «عروض سما»: read with the money switch, flipped alone.
 const samaOn = ref(null)
 const samaBusy = ref(false)
@@ -213,6 +238,12 @@ async function send (p, v, { wait, key: pressKey }) {
   // 07 = Djezzy (*760*): its own route and switch; no balance refresh exists for it, one request decides.
   if (p.startsWith('07')) {
     const res = await flexy.ownerSend760(p, v, key)
+    if (res.body?.operation) return res.body
+    throw refused(res)
+  }
+  // 05 = Ooredoo (*590*): its own route and switch, never Djezzy's.
+  if (p.startsWith('05')) {
+    const res = await flexy.ownerSend590(p, v, key)
     if (res.body?.operation) return res.body
     throw refused(res)
   }
@@ -322,6 +353,7 @@ async function refreshNow () {
     await Promise.all(rows.value.filter((o) => o.status === 'running').map((o) =>
       (o.operation_key === OFFER_KEY ? flexy.ownerOfferStatus(o.idempotency_key)
         : o.operation_key === DJEZZY_KEY ? flexy.ownerStatus760(o.idempotency_key)
+          : o.operation_key === OOREDOO_KEY ? flexy.ownerStatus590(o.idempotency_key)
           : flexy.ownerStatus(o.idempotency_key)).catch(() => null)))
     await loadFirst()
   } catch { /* offline: keep what is shown */ } finally { refreshing.value = false }
