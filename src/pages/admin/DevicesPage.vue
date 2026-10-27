@@ -172,7 +172,7 @@
         </template>
         <template v-if="picked.m.sim">
           <q-separator />
-          <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" /></q-card-section>
+          <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" :phone="String(picked.st.agent_version || '').startsWith('phone-')" /></q-card-section>
         </template>
         <q-card-actions align="right">
           <q-btn v-if="picked.m.sim?.approved || canRetryFirstBalance(picked.m.sim)" outline no-caps color="primary" label="اقرأ الرصيد" :loading="reading.busy" @click="readBalance" />
