@@ -1,6 +1,6 @@
 import { supabase } from 'boot/supabase'
 import { StoreError } from './errors'
-import { rpc } from './rpc'
+import { rpc, isMissingFunction } from './rpc'
 
 // Customer API: token-based, independent of the admin's Supabase session.
 
@@ -137,7 +137,16 @@ export async function gameBoard (token) {
   const rows = await rpc('store_game_board', { p_token: token })
   return rows?.[0] || null
 }
-export const gameQueue = (token, open, limit, offset) => rpc('store_game_queue', { p_token: token, p_open: open, p_limit: limit, p_offset: offset })
+// v1.39 adds the phone's part (by_phone, auto_state, reply, player_name, auto_note); v1.25 before the migration
+export async function gameQueue (token, open, limit, offset) {
+  const args = { p_token: token, p_open: open, p_limit: limit, p_offset: offset }
+  try {
+    return await rpc('store_game_queue_v2', args)
+  } catch (e) {
+    if (!isMissingFunction(e)) throw e
+    return rpc('store_game_queue', args)
+  }
+}
 export const gameOpenCount = (token) => rpc('store_game_open_count', { p_token: token })
 export const gameClaim = (token, gameId, claim) => rpc('store_game_claim', { p_token: token, p_game_id: gameId, p_claim: claim })
 // result: 'done' | 'used_card' | 'failed'

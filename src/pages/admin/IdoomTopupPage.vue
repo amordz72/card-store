@@ -100,6 +100,8 @@
             <q-btn flat dense size="sm" color="primary" icon="key" label="رمز جديد" :disable="busy" @click="newToken(p)" />
             <q-toggle :model-value="p.active" :label="p.active ? 'مفعّل' : 'معطّل'" color="positive" :disable="busy"
               @update:model-value="(v) => setActive(p, v)" />
+            <q-toggle v-if="p.game_enabled !== undefined" :model-value="p.game_enabled" label="Free Fire" color="deep-orange" :disable="busy || !p.active"
+              @update:model-value="(v) => setGame(p, v)" />
             <q-btn v-if="!p.active" flat dense round size="sm" color="negative" icon="delete" :disable="busy"
               aria-label="حذف الهاتف" @click="removePhone(p)" />
           </div>
@@ -291,6 +293,12 @@ async function shareToken () {
 async function setActive (p, active) {
   if (await run(() => api.executorSetActive(p.id, active).then(() => true),
     { success: active ? `فُعّل ${p.name}.` : `عُطّل ${p.name}. أوقف الاستقبال فيه أيضًا.` })) load()
+}
+
+// v1.39: this phone also takes Free Fire orders from «شحن الألعاب بالمعرّف» (and opens the service while it receives)
+async function setGame (p, enabled) {
+  if (await run(() => api.executorSetGame(p.id, enabled).then(() => true),
+    { success: enabled ? `${p.name} يشحن Free Fire الآن ما دام يستقبل.` : `${p.name} لا يأخذ طلبات Free Fire.` })) load()
 }
 
 // Only a disabled phone; the old phone's token stops for good and its past jobs stay as they are

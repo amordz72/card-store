@@ -12,3 +12,8 @@ export async function rpc (fn, args = {}) {
 export function newRequestId () {
   return crypto.randomUUID()
 }
+
+// A function that does not exist yet (its migration is not applied): PostgREST answers PGRST202.
+export function isMissingFunction (e) {
+  return e?.raw?.code === 'PGRST202' || /Could not find the function/i.test(e?.raw?.message || '')
+}

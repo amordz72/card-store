@@ -43,14 +43,32 @@
             <div class="text-weight-bold">{{ g.product_name }}</div>
             <div class="small muted">{{ g.customer_name }} · {{ ago(g.created_at) }}<span v-if="g.cards_used"> · بطاقات مستعملة: {{ g.cards_used }}</span></div>
           </div>
-          <q-badge :color="g.status === 'queued' ? 'grey-7' : 'info'">{{ g.status === 'queued' ? 'في الانتظار' : 'يشحنه: ' + (g.taken_by || '') }}</q-badge>
+          <q-badge :color="badge(g).color">{{ badge(g).label }}</q-badge>
         </div>
         <div class="row items-center no-wrap q-gutter-sm">
           <span class="col player-id ltr text-left">{{ g.player_id }}</span>
           <q-btn flat dense icon="content_copy" aria-label="نسخ المعرّف" @click="copyText(g.player_id)" />
         </div>
 
+        <!-- The phone's part (v1.39): the player name the site showed, why it stopped, the raw screen after «تأكيد» -->
+        <div v-if="g.player_name" class="small">اسم اللاعب في موقع الشحن: <b><bdi>{{ g.player_name }}</bdi></b></div>
+        <div v-if="g.auto_note" class="small" :class="g.auto_state === 'review' ? 'text-warning' : 'muted'">{{ g.auto_note }}</div>
+        <div v-if="g.reply" class="reply-box small">{{ g.reply }}</div>
+
         <q-btn v-if="g.status === 'queued'" unelevated color="primary" label="أبدأ" :disable="busy" @click="claim(g, true)" />
+
+        <div v-else-if="phoneWorking(g)" class="small muted">الهاتف يشحن الآن… تظهر النتيجة هنا.</div>
+
+        <template v-else-if="g.by_phone && session.isAdmin">
+          <!-- review: the owner decides from the screen the phone saved; no code shown, the phone used it -->
+          <div class="small">راجع شاشة الموقع أعلاه ثم اختر:</div>
+          <div class="grid-2">
+            <q-btn unelevated color="positive" label="تمّ الشحن" :disable="busy" @click="done(g)" />
+            <q-btn outline color="warning" label="البطاقة مستعملة" :disable="busy" @click="usedCard(g)" />
+            <q-btn outline color="negative" label="لم يتم" :disable="busy" @click="failed(g)" />
+            <q-btn flat color="grey-8" label="إرجاعه إلى الانتظار" :disable="busy" @click="claim(g, false)" />
+          </div>
+        </template>
 
         <template v-else-if="g.mine">
           <div class="row items-center no-wrap q-pa-sm code-box">
@@ -68,7 +86,7 @@
           </div>
         </template>
 
-        <q-btn v-else-if="session.isAdmin" flat dense color="grey-8" label="إرجاعه إلى الانتظار" class="self-start" :disable="busy" @click="claim(g, false)" />
+        <q-btn v-else-if="session.isAdmin && !g.by_phone" flat dense color="grey-8" label="إرجاعه إلى الانتظار" class="self-start" :disable="busy" @click="claim(g, false)" />
       </div>
       <div v-if="!busy && !openRows.length" class="card text-center muted q-pa-lg">لا توجد طلبات في الانتظار</div>
     </template>
@@ -85,6 +103,7 @@
           </div>
           <div v-if="g.txn_ref" class="small">رقم العملية: <bdi dir="ltr">{{ g.txn_ref }}</bdi></div>
           <div v-if="g.reason" class="small text-negative">{{ g.reason }}</div>
+          <details v-if="g.reply" class="small muted"><summary>شاشة الموقع</summary><div class="reply-box">{{ g.reply }}</div></details>
         </div>
         <div v-if="!busy && !doneRows.length" class="text-center muted q-pa-lg">لا توجد طلبات منتهية</div>
       </div>
@@ -122,6 +141,16 @@ const when = (t) => new Date(t).toLocaleString('ar-DZ')
 function ago (t) {
   const m = Math.max(0, Math.round((Date.now() - new Date(t).getTime()) / 60000))
   return m < 1 ? 'الآن' : m < 60 ? `منذ ${m} د` : `منذ ${Math.round(m / 60)} سا`
+}
+
+// A phone order is «working» until the phone reports; after 10 minutes without a report the owner may take it over
+const PHONE_STALE_MS = 10 * 60 * 1000
+const phoneWorking = (g) => g.by_phone && g.auto_state === 'working' && Date.now() - new Date(g.claimed_at).getTime() < PHONE_STALE_MS
+function badge (g) {
+  if (g.status === 'queued') return { label: 'في الانتظار', color: 'grey-7' }
+  if (g.by_phone && g.auto_state === 'review') return { label: 'يحتاج مراجعة', color: 'warning' }
+  if (g.by_phone && g.auto_state === 'working' && !phoneWorking(g)) return { label: 'توقف الهاتف', color: 'negative' }
+  return { label: 'يشحنه: ' + (g.taken_by || ''), color: 'info' }
 }
 
 const tab = ref('open')
@@ -253,4 +282,5 @@ onUnmounted(() => clearInterval(timer))
 .code-box { border: 1px dashed #A5A9F0; background: #F5F6FF; border-radius: 12px; }
 .op-row { padding: 10px 14px; border-bottom: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
 .op-row:last-child { border-bottom: 0; }
+.reply-box { white-space: pre-wrap; background: #F7F7F9; border: 1px solid #ECEEF3; border-radius: 8px; padding: 6px 8px; max-height: 160px; overflow: auto; }
 </style>

@@ -1,5 +1,5 @@
 import { supabase } from 'boot/supabase'
-import { rpc } from './rpc'
+import { rpc, isMissingFunction } from './rpc'
 import { StoreError } from './errors'
 
 // Admin API: requires a Supabase Auth session; the database also checks store.admins.
@@ -196,7 +196,16 @@ export async function idoomLineInfo (line) {
   const rows = await rpc('store_admin_idoom_line_info', { p_line: line })
   return rows[0] || null
 }
-export const executors = () => rpc('store_admin_executors')
+// v1.39: with game_enabled (the phone also does Free Fire top-ups); falls back before the migration is applied
+export async function executors () {
+  try {
+    return await rpc('store_admin_executors_v2')
+  } catch (e) {
+    if (!isMissingFunction(e)) throw e
+    return rpc('store_admin_executors')
+  }
+}
+export const executorSetGame = (id, enabled) => rpc('store_admin_executor_set_game', { p_executor_id: id, p_enabled: enabled })
 // v1.30: a disabled phone gets no job (refused while it has one in progress)
 export const executorNewToken = (id) => rpc('store_admin_executor_new_token', { p_executor_id: id })
 export const executorSetActive = (id, active) => rpc('store_admin_executor_set_active', { p_executor_id: id, p_active: active })
