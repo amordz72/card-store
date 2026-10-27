@@ -111,7 +111,8 @@ const KNOWN = {
   LAB_CODE_MUST_START_WITH_STAR: 'الكود يبدأ بـ * أو #',
   LAB_CODE_LENGTH: 'الكود فارغ أو طويل جدًا',
   OWNER_REQUIRED: 'هذا الحساب ليس مديرًا',
-  STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى المحطات الآن: أعد المحاولة'
+  STATION_CONNECT_UNREACHABLE: 'تعذّر الوصول إلى المحطات الآن: أعد المحاولة',
+  MODEM_BUSY: 'المودم مشغول بعملية أخرى (رصيد أو عرض أو تجربة): أعد المحاولة بعد نصف دقيقة'
 }
 const reason = (e) => {
   const text = String(e?.message || e)
