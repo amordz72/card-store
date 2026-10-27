@@ -72,6 +72,8 @@ export const ownerSimAlertsSeen = () => owner('sim-alerts', { method: 'POST', bo
 export const ownerApproveComputer = (stationUuid) => owner('stations/approve', { method: 'POST', body: { station_uuid: stationUuid } })
 // A new station computer with no key in any file (Flexy Core 0041): the GitHub key saved once (never
 // read back), then the computer let in by the number it shows, a code typed on it, or a one-time installer.
+// The GitHub key's health (Flexy Core 0042): end date, GitHub's answer once a day, the computers refused.
+export const ownerRepoKey = () => owner('repo-key', { method: 'GET' })
 export const ownerPairing = () => owner('stations/pairing', { method: 'GET' })
 export const ownerPairingAction = (body) => owner('stations/pairing', { method: 'POST', body })
 export const ownerSmsWipes = () => owner('sims/wipe', { method: 'GET' })

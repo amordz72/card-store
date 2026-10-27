@@ -9,6 +9,11 @@
       <q-btn flat dense no-caps color="primary" :label="open ? 'إخفاء' : 'فتح'" @click="toggle" />
     </div>
 
+    <!-- The key's health (Flexy Core 0042): shown even closed when it is dead or ends soon -->
+    <div v-if="repoKey.level === 'dead' || repoKey.level === 'expiring'" class="small" :class="repoKey.level === 'dead' ? 'text-negative' : 'text-deep-orange'">
+      <b>{{ keyLine }}</b>
+      <a :href="GITHUB_KEYS" target="_blank" rel="noopener noreferrer">مفاتيحي ↗</a>: اسم المفتاح ← Regenerate token ← الصقه هنا.
+    </div>
     <!-- Requests waiting: always shown, even closed, so a number is never missed -->
     <div v-for="p in live" :key="p.pairing_id" class="req column q-gutter-xs">
       <div class="row items-center">
@@ -33,7 +38,7 @@
       <!-- The GitHub key: pasted once; never shown again -->
       <div class="small">
         مفتاح GitHub (قراءة فقط):
-        <b v-if="repoKey.saved" class="text-positive">محفوظ</b><span v-if="repoKey.saved" class="muted"> منذ {{ clock(repoKey.saved_at) }}</span>
+        <b v-if="repoKey.saved" :class="KEY_LEVEL[repoKey.level]?.cls || 'text-positive'">{{ KEY_LEVEL[repoKey.level]?.label || 'محفوظ' }}</b><span v-if="repoKey.saved" class="muted"> منذ {{ day(repoKey.saved_at) }}<template v-if="repoKey.expires_at"> · صالح حتى {{ day(repoKey.expires_at) }}</template><template v-if="repoKey.checked_at"> · فُحص {{ clock(repoKey.checked_at) }}</template></span>
         <b v-else class="text-negative">غير محفوظ</b>
       </div>
       <!-- Where the key is made (owner 2026-10-27: «ضع الروابط في الصفحة، لماذا نرجع دائمًا إلى المحادثة»).
@@ -89,6 +94,13 @@ const emit = defineEmits(['approved'])
 const GITHUB_NEW_KEY = 'https://github.com/settings/personal-access-tokens/new?name=stations&description=Read+station-connect+for+new+station+computers&target_name=amordz72&expires_in=365&contents=read'
 const GITHUB_KEYS = 'https://github.com/settings/personal-access-tokens'
 
+const KEY_LEVEL = {
+  ok: { label: 'محفوظ وسليم', cls: 'text-positive' },
+  unknown: { label: 'محفوظ (لم يُفحص بعد)', cls: 'text-positive' },
+  expiring: { label: 'محفوظ وينتهي قريبًا', cls: 'text-deep-orange' },
+  dead: { label: 'ميت', cls: 'text-negative' }
+}
+
 const STATE = {
   waiting: 'ينتظر موافقتك',
   blocked: 'محظور',
@@ -103,6 +115,7 @@ const ERRORS = {
   REPO_KEY_REFUSED_BY_GITHUB: 'GitHub رفض المفتاح: يجب أن يقرأ station-connect (Contents: Read-only) وألا يكون منتهيًا.',
   GITHUB_UNREACHABLE: 'لم نصل إلى GitHub الآن، أعد المحاولة.',
   NO_REPO_KEY: 'احفظ مفتاح GitHub أولًا.',
+  REPO_KEY_REFUSED: 'GitHub رفض المفتاح المحفوظ (انتهى أو حُذف): Regenerate من «مفاتيحي» والصقه هنا.',
   WRONG_NUMBER: 'رقم خاطئ: ظهر رقم جديد على الكمبيوتر.',
   BLOCKED: 'محظور بعد الأخطاء.',
   EXPIRED: 'انتهى وقت هذا الطلب: شغّل الملف من جديد.'
@@ -123,6 +136,14 @@ const live = computed(() => pairings.value.filter((p) => p.state === 'waiting' |
 const done = computed(() => pairings.value.filter((p) => p.state !== 'waiting' && p.state !== 'blocked'))
 const moving = computed(() => pairings.value.some((p) => ['waiting', 'confirmed', 'installing', 'bound'].includes(p.state)))
 
+const day = (t) => (t ? new Date(t).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'short', day: 'numeric' }) : '—')
+const keyLine = computed(() => {
+  const k = repoKey.value
+  if (k.level === 'expiring') return `مفتاح GitHub ينتهي بعد ${k.days_left} يومًا (${day(k.expires_at)}).`
+  if (k.check_ok === false) return 'مفتاح GitHub ميت: GitHub رفضه. الكمبيوترات لا تتحدّث، ولا تثبيت جديد.'
+  if (k.expires_at && new Date(k.expires_at) <= new Date()) return `مفتاح GitHub انتهى في ${day(k.expires_at)}.`
+  return `مفتاح GitHub ميت: GitHub رفضه على كل الكمبيوترات (${k.stations_refused}).`
+})
 const clock = (t) => (t ? new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }) : '—')
 function say (text, bad = false) { message.value = text; messageBad.value = bad }
 const reason = (res) => ERRORS[res.body?.error] || res.body?.error || 'FLEXY_CORE'
