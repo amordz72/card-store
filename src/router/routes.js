@@ -21,6 +21,8 @@ const routes = [
       { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار ونسب الزبائن' } },
       { path: 'flexy', component: () => import('pages/admin/FlexyTestPage.vue'), meta: { admin: true, title: 'اختبار Flexy' } },
       { path: 'flexy/send', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, title: 'إرسال فليكسي' } },
+      // The admin phone's own screen (2026-10-27): the same page in phone mode, owner only
+      { path: 'flexy/phone', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, phone: true, title: 'فليكسي الهاتف' } },
       { path: 'flexy/devices', component: () => import('pages/admin/DevicesPage.vue'), meta: { admin: true, title: 'المحطات والشرائح' } },
       { path: 'flexy/shops', component: () => import('pages/admin/FlexyShopsPage.vue'), meta: { admin: true, title: 'فليكسي المحلات' } },
       // the owner's page or the customer's page (customers the owner enabled)

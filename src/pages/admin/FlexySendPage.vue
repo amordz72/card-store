@@ -10,8 +10,8 @@
         <q-spinner v-if="switchBusy" size="16px" />
       </div>
       <!-- «عروض سما» (owner 2026-10-27): kept in Flexy Core for every send, his and the shops'.
-           Under 500 DA Arsselli goes first, from 500 Sama; off = Arsselli only. -->
-      <div class="card row items-center q-gutter-sm">
+           Under 500 DA Arsselli goes first, from 500 Sama; off = Arsselli only. Not on the phone screen. -->
+      <div v-if="!phoneMode" class="card row items-center q-gutter-sm">
         <q-toggle :model-value="samaOn" :disable="samaOn === null || samaBusy" color="primary"
           :label="samaOn ? 'عروض سما مفعّلة' : 'عروض سما ملغاة: العروض من أرسلي فقط'" @update:model-value="flipSama" />
         <q-spinner v-if="samaBusy" size="16px" />
@@ -28,10 +28,14 @@
         </div>
       </div>
       <!-- «أرسل من هاتفي» (owner 2026-10-26): offers and discovery on the admin phone, his choice only -->
-      <div v-if="phoneSim" class="card row items-center q-gutter-sm">
-        <q-toggle v-model="viaPhone" color="primary" label="العروض من هاتفي" />
-        <q-badge :color="phoneSim.live ? 'positive' : (viaPhone ? 'negative' : 'grey-6')" class="q-pa-xs">
-          {{ phoneSim.live ? 'متصل' : (viaPhone ? 'غير متصل: لن يُرسل شيء' : 'غير متصل') }}</q-badge>
+      <div v-if="phoneMode" class="column items-center q-gutter-xs q-py-sm">
+        <q-icon name="smartphone" size="44px" color="primary" />
+        <div class="text-weight-bold">فليكسي الهاتف</div>
+      </div>
+      <div v-if="phoneMode && phoneSim" class="card row items-center q-gutter-sm">
+        <span class="name">شريحة الهاتف</span>
+        <q-badge :color="phoneSim.live ? 'positive' : 'negative'" class="q-pa-xs">
+          {{ phoneSim.live ? 'متصل' : 'غير متصل: لن يُرسل شيء' }}</q-badge>
         <span class="small muted">آخر اتصال منذ {{ phoneAgo }}</span>
         <!-- Rech-Doom 0.8.2 reports its protection; without it Android freezes the app behind the browser -->
         <div v-if="phoneSim.health && phoneSim.health.protected === false" class="col-12 small text-negative">
@@ -44,7 +48,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
@@ -187,14 +192,13 @@ async function send (p, v, { wait, key: pressKey }) {
 
 // The admin phone, when one is linked: its SIM, and whether offers go to it (kept on this phone)
 const phoneSim = ref(null)
-const VIA_KEY = 'flexy-via-phone'
-const viaPhone = ref((() => { try { return localStorage.getItem(VIA_KEY) === '1' } catch { return false } })())
-watch(viaPhone, (v) => { try { localStorage.setItem(VIA_KEY, v ? '1' : '0') } catch { /* private mode */ } })
+// The phone screen (route flexy/phone, owner only) sends every offer from the phone; the send screen never does.
+const phoneMode = useRoute().meta.phone === true
 // The switch alone decides. It used to also require the phone to look «live» here, and when it did not
 // (2026-10-26 21:51 UTC) a Revolution 1200 went out from sama-4 instead: the owner's choice fell back to a
 // modem in silence. Now «from my phone» is always sent as is; the core refuses when the phone is offline
 // (665_PHONE_OFFLINE) and nothing is sent. Never a fallback.
-const via = () => (viaPhone.value ? 'phone' : null)
+const via = () => (phoneMode ? 'phone' : null)
 async function loadPhone () {
   const res = await flexy.ownerPhone()
   const p = res.status === 200 ? (res.body.phones || [])[0] : null
@@ -311,8 +315,10 @@ async function afterSend () {
 onMounted(async () => {
   loadSwitch()
   loadAlerts().catch(() => null)
-  loadPhone().catch(() => null)
-  phoneTimer = setInterval(() => { if (document.visibilityState === 'visible') loadPhone().catch(() => null) }, 10_000)
+  if (phoneMode) {
+    loadPhone().catch(() => null)
+    phoneTimer = setInterval(() => { if (document.visibilityState === 'visible') loadPhone().catch(() => null) }, 10_000)
+  }
   await loadFirst().catch(() => null)
   schedule()
 })
