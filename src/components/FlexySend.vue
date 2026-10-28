@@ -61,6 +61,13 @@
               <div class="small muted ltr text-right reply">{{ j.reply }}</div>
             </template>
             <!-- The owner only: which SIM ran it, and the ones it left (owner 2026-10-26) -->
+            <!-- The owner only: settle an open operation himself, with his note (Flexy Core 0057) -->
+            <div v-if="settle && j.open" class="row q-gutter-xs q-mt-xs" @click.stop>
+              <span class="small muted col-12">احسمها بنفسك:</span>
+              <q-btn dense unelevated no-caps size="sm" color="positive" label="نجحت" @click.stop="settle(j, 'success')" />
+              <q-btn dense unelevated no-caps size="sm" color="negative" label="فشلت" @click.stop="settle(j, 'failed')" />
+              <q-btn dense outline no-caps size="sm" color="grey-8" label="لم تُرسل" @click.stop="settle(j, 'not_sent')" />
+            </div>
             <template v-if="j.sims && j.sims.length">
               <div class="small">الشريحة: <bdi dir="ltr">{{ simLine(j.sims[j.sims.length - 1]) }}</bdi></div>
               <div v-for="(w, i) in j.sims.slice(0, -1)" :key="i" class="small moved">
@@ -110,6 +117,8 @@ const props = defineProps({
   send: { type: Function, required: true },
   lookup: { type: Function, required: true },
   sendOffer: { type: Function, required: true },
+  // The owner's page only: settle(row, to) for an open operation (row.open)
+  settle: { type: Function, default: null },
   rows: { type: Array, required: true },
   hasMore: { type: Boolean, default: false },
   loadingMore: { type: Boolean, default: false },
