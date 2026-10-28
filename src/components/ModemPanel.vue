@@ -62,6 +62,10 @@
         </div>
       </div>
       <template v-if="!sessionOpen">
+        <div v-if="quick.length" class="row q-gutter-xs">
+          <q-btn v-for="[label, c] in quick" :key="c" outline dense no-caps size="sm" color="primary" :label="label"
+            :disable="busy || !page?.ready || (pinLike(c) && (!page?.has_pin || lab.pin_wait_seconds > 0))" @click="code = c; start()" />
+        </div>
         <q-input v-model="code" dense outlined class="ltr" placeholder="*101#" @keyup.enter="start">
           <template #append><q-btn flat dense no-caps size="sm" label="PIN" :disable="!page?.has_pin" @click="code = addPin(code, true)" /></template>
         </q-input>
@@ -90,7 +94,17 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ownerModem } from 'src/api/flexy'
 import SimLedger from 'src/components/SimLedger.vue'
 
-const props = defineProps({ simUuid: { type: String, required: true }, phone: { type: Boolean, default: false } })
+const props = defineProps({ simUuid: { type: String, required: true }, phone: { type: Boolean, default: false }, simType: { type: String, default: '' } })
+
+// One press for what is known (owner 2026-10-26): read-only codes from telecom/TELECOM-SERVICE-CODES.md, by SIM type.
+// No money code here; typing stays for anything else.
+const QUICK = {
+  'mobilis-arsselli': [['الرصيد', '*632*01*{PIN}#'], ['الرقم', '*101#'], ['أرقام فليكسي', '*632*03*{PIN}#']],
+  'mobilis-sama': [['الرصيد', '*222#'], ['الرقم', '*101#']],
+  'djezzy-flexy': [['الرصيد', '*766#'], ['آخر العمليات', '*762#']],
+  'ooredoo-flexy': [['الرصيد', '*200*{PIN}#']]
+}
+const quick = computed(() => QUICK[props.simType] || [])
 
 const tab = ref(props.phone ? 'ussd' : 'status')
 const page = ref(null)

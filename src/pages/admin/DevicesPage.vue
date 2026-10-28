@@ -28,7 +28,7 @@
     <div class="card column q-gutter-xs">
       <div class="row items-center q-gutter-sm">
         <div class="col text-weight-bold">مخزن الرسائل</div>
-        <q-btn outline no-caps color="negative" label="تصفير كل الشرائح" :loading="wipeBusy" @click="askWipe(null)" />
+        <q-btn outline no-caps color="negative" :label="`تصفير كل الشرائح (${wipeCount})`" :loading="wipeBusy" @click="askWipe(null)" />
       </div>
       <div class="small muted">كل رسالة تُحفظ في السيرفر أولًا ثم تُحذف من الشريحة. لا شيء يُحذف قرب عملية مالية.</div>
       <div v-for="w in wipes.filter((x) => x.pending || x.last_error)" :key="w.sim_uuid" class="small"
@@ -83,7 +83,7 @@
               <td>{{ r.st.code || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
               <td><q-badge :color="r.old ? 'grey-6' : STATE[simState(r)]?.color || LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : STATE[simState(r)]?.label || LEVEL[r.m.level].label" />
-                <div v-if="statusText(r)" class="small" :class="statusClass(r)">{{ statusText(r) }}</div></td>
+                <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim)" size="12px" class="q-mr-xs" />{{ statusText(r) }}</div></td>
             </tr>
             <tr v-if="!shownSims.length">
               <td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر
@@ -190,7 +190,7 @@
             <span class="muted">PIN</span><span>{{ picked.m.sim.pin_present ? 'محفوظ' : 'غير محفوظ' }}</span>
             <span class="muted">ICCID</span><bdi class="ltr">…{{ picked.m.sim.iccid_tail || '—' }}</bdi>
             <span class="muted">الرقم</span><span><bdi class="ltr">{{ picked.m.sim.msisdn || (picked.m.sim.msisdn_tail ? '…' + picked.m.sim.msisdn_tail : '—') }}</bdi> · {{ numberText(picked.m.sim) }}</span>
-            <span class="muted">الرصيد</span><span :class="balanceClass(picked.m.sim)">{{ balanceText(picked.m.sim) }}<span v-if="picked.m.sim.balance_checked_at" class="muted"> · قُرئ {{ clock(picked.m.sim.balance_checked_at) }}</span></span>
+            <span class="muted">الرصيد</span><span :class="balanceClass(picked.m.sim)"><q-spinner v-if="isReading(picked.m.sim) || reading.busy" size="14px" class="q-mr-xs" color="primary" />{{ balanceText(picked.m.sim) }}<span v-if="picked.m.sim.balance_checked_at" class="muted"> · قُرئ {{ clock(picked.m.sim.balance_checked_at) }}</span></span>
             <template v-if="onboardingText(picked.m.sim)">
               <span class="muted">الاكتشاف الآلي</span><span :class="onboardingClass(picked.m.sim)">{{ onboardingText(picked.m.sim) }}</span>
             </template>
@@ -221,7 +221,7 @@
         </template>
         <template v-if="picked.m.sim">
           <q-separator />
-          <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" :phone="String(picked.st.agent_version || '').startsWith('phone-')" /></q-card-section>
+          <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" :sim-type="picked.m.sim.sim_type" :phone="String(picked.st.agent_version || '').startsWith('phone-')" /></q-card-section>
         </template>
         <q-card-actions align="right">
           <!-- The admin phone (Flexy Core 0037): «اكتشاف الرصيد» = one *222# from the phone; its reply is the
@@ -493,8 +493,16 @@ async function loadWipes () {
   const res = await flexy.ownerSmsWipes()
   if (res.status === 200 && res.body?.ok) wipes.value = res.body.wipes || []
 }
+const wipeCount = computed(() => everySim.value.filter((r) => !r.old).length)
+// «كل الشرائح» = every SIM seen in the last 7 days (Flexy Core 0040): say how many, by operator (owner 2026-10-27)
+function wipeScope () {
+  const rows = everySim.value.filter((r) => !r.old)
+  const by = SUMMARY_TYPES.map(([type, label]) => [label, rows.filter((r) => r.m.sim.sim_type === type).length]).filter(([, n]) => n)
+  const off = rows.filter((r) => isAbsent(r.st)).length
+  return `${rows.length} شريحة (${by.map(([l, n]) => l + ' ' + n).join('، ')})` + (off ? `، منها ${off} كمبيوترها مطفأ فتُصفَّر حين يعود` : '')
+}
 function askWipe (sim) {
-  const who = sim ? 'الشريحة ' + (sim.label || sim.code || '') : 'كل الشرائح'
+  const who = sim ? 'الشريحة ' + (sim.label || sim.code || '') : 'كل الشرائح: ' + wipeScope() + '،'
   Dialog.create({
     title: 'تصفير مخزن الرسائل',
     message: `تُحفظ كل رسائل ${who} في السيرفر ثم تُحذف من الشريحة. تأكد أنه لا عمليات ولا تعبئات معلّقة. متابعة؟`,
@@ -558,12 +566,15 @@ function onboardingText (sim) {
   if (o.stage === 'number') return `يُكتشف الرقم (محاولة ${o.number_tries || 1} من 3)`
   if (o.stage === 'pin_wait') return 'ينتظر PIN منك قبل سؤال الرصيد'
   if (o.stage === 'balance') return 'يُسأل أول رصيد'
-  if (o.stage === 'read') return 'يُقرأ الرصيد'
+  // The last known balance stays in sight while the new one is read (owner 2026-10-28)
+  if (o.stage === 'read') return 'يُقرأ الرصيد…' + (sim.balance != null ? ' · السابق ' + money(sim.balance) : '')
   if (o.stage === 'approved') return 'اعتُمدت آليًا بعد أول رصيد'
   if (o.stage === 'balance_only') return 'الرصيد ' + (o.probe_amount != null ? money(o.probe_amount) : 'مقروء') + ' (بلا اعتماد)'
   if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code)
   return ''
 }
+// A balance code is on its way: the page turns a spinner beside it
+const isReading = (sim) => ['read', 'balance'].includes(onboardingOf(sim)?.stage)
 const onboardingClass = (sim) => {
   const stage = onboardingOf(sim)?.stage
   return stage === 'alert' ? 'text-negative' : stage === 'approved' ? 'text-positive' : 'text-deep-orange'

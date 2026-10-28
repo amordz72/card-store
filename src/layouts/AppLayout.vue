@@ -16,27 +16,29 @@
           <q-badge v-if="bellTotal" color="negative" floating rounded :label="bellTotal" />
           <q-menu anchor="bottom end" self="top end">
             <q-list style="min-width:240px">
-              <q-item v-close-popup clickable to="/reports">
+              <!-- Only what has something (owner 2026-10-26): an empty bell says so in one line -->
+              <q-item v-if="!bellTotal && !repoKeyAlert"><q-item-section class="text-grey-7">لا شيء يحتاجك الآن</q-item-section></q-item>
+              <q-item v-if="openReports" v-close-popup clickable to="/reports">
                 <q-item-section avatar><q-icon name="support" /></q-item-section>
                 <q-item-section>البلاغات المفتوحة</q-item-section>
                 <q-item-section side><q-badge :color="openReports ? 'negative' : 'grey-5'" :label="openReports" /></q-item-section>
               </q-item>
-              <q-item v-close-popup clickable to="/idoom">
+              <q-item v-if="idoomReview" v-close-popup clickable to="/idoom">
                 <q-item-section avatar><q-icon name="wifi" /></q-item-section>
                 <q-item-section>تعبئة إيدوم تحتاج مراجعة</q-item-section>
                 <q-item-section side><q-badge :color="idoomReview ? 'negative' : 'grey-5'" :label="idoomReview" /></q-item-section>
               </q-item>
-              <q-item v-close-popup clickable to="/flexy/shops">
+              <q-item v-if="flexyReview" v-close-popup clickable to="/flexy/shops">
                 <q-item-section avatar><q-icon name="send_to_mobile" /></q-item-section>
                 <q-item-section>فليكسي المحلات تحتاج حكمك</q-item-section>
                 <q-item-section side><q-badge :color="flexyReview ? 'negative' : 'grey-5'" :label="flexyReview" /></q-item-section>
               </q-item>
-              <q-item v-close-popup clickable to="/flexy/devices">
+              <q-item v-if="devicesDown" v-close-popup clickable to="/flexy/devices">
                 <q-item-section avatar><q-icon name="router" /></q-item-section>
                 <q-item-section>موديمات أو كمبيوترات معطّلة</q-item-section>
                 <q-item-section side><q-badge :color="devicesDown ? 'negative' : 'grey-5'" :label="devicesDown" /></q-item-section>
               </q-item>
-              <q-item v-close-popup clickable to="/flexy/devices">
+              <q-item v-if="simAlerts" v-close-popup clickable to="/flexy/devices">
                 <q-item-section avatar><q-icon name="sim_card_alert" /></q-item-section>
                 <q-item-section>شرائح متوقفة</q-item-section>
                 <q-item-section side><q-badge :color="simAlerts ? 'negative' : 'grey-5'" :label="simAlerts" /></q-item-section>
@@ -47,12 +49,12 @@
                 <q-item-section>{{ repoKeyLevel === 'dead' ? 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' : 'مفتاح GitHub ينتهي قريبًا' }}</q-item-section>
                 <q-item-section side><q-badge :color="repoKeyLevel === 'dead' ? 'negative' : 'orange-8'" label="1" /></q-item-section>
               </q-item>
-              <q-item v-close-popup clickable to="/flexy/send">
+              <q-item v-if="offerAlerts" v-close-popup clickable to="/flexy/send">
                 <q-item-section avatar><q-icon name="alt_route" /></q-item-section>
                 <q-item-section>عروض خرجت من المصدر الآخر</q-item-section>
                 <q-item-section side><q-badge :color="offerAlerts ? 'negative' : 'grey-5'" :label="offerAlerts" /></q-item-section>
               </q-item>
-              <q-item v-close-popup clickable to="/game">
+              <q-item v-if="gameWaiting" v-close-popup clickable to="/game">
                 <q-item-section avatar><q-icon name="sports_esports" /></q-item-section>
                 <q-item-section>شحن ألعاب في الانتظار</q-item-section>
                 <q-item-section side><q-badge :color="gameWaiting ? 'negative' : 'grey-5'" :label="gameWaiting" /></q-item-section>

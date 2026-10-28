@@ -12,7 +12,7 @@
         <q-btn unelevated size="lg" :color="board?.me_available ? 'positive' : 'grey-7'" :loading="busy && switching"
           :label="board?.me_available ? 'متاح' : 'غير متاح'" :icon="board?.me_available ? 'toggle_on' : 'toggle_off'" @click="toggle" />
       </div>
-      <div class="small muted">اضغط «غير متاح» عند التوقف. يُغلق تلقائيًا بعد 30 دقيقة إذا أُغلقت هذه الصفحة.</div>
+      <div class="small muted">اضغط «غير متاح» عند التوقف. يُغلق تلقائيًا بعد 30 دقيقة إذا أُغلق الموقع.</div>
       <q-btn v-if="board?.url" outline color="primary" icon="open_in_new" label="فتح موقع الشحن" :href="board.url" target="_blank" />
     </div>
 
