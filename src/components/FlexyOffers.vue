@@ -18,7 +18,7 @@
           group="families" header-class="family" expand-separator>
           <div v-for="o in f.offers" :key="o.label" class="offer-row" :class="{ busy }" role="button" tabindex="0"
             :aria-disabled="busy" @click="confirm(o)" @keyup.enter="confirm(o)">
-            <span class="text-weight-bold">{{ o.label }}</span>
+            <span class="text-weight-bold">{{ o.label }}<q-badge v-if="o.review" class="q-ml-xs" color="purple-6" label="جديد" /><q-badge v-else-if="o.visibility === 'admin'" class="q-ml-xs" color="amber-8" label="للإدارة" /></span>
             <span class="row items-center no-wrap q-gutter-xs">
               <q-btn v-if="detailOf(o)" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
                 @click.stop="details(o)" />
@@ -39,6 +39,14 @@
         </div>
       </div>
     </template>
+    <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): the initial catalog. The owner moves
+         through its pages in the lab on that SIM; every page is recorded, then decided in «العروض». -->
+    <div v-else-if="newGroup" class="card column q-gutter-sm live">
+      <div class="text-weight-bold">⚡ مجموعة جديدة: {{ newGroup.group || 'غير معروفة' }}</div>
+      <div class="small muted">أول مرة يرى البرنامج عروض هذه المجموعة. افتح القائمة وتنقّل بين صفحاتها بـ«المزيد»: كل صفحة تُسجَّل وحدها. ثم قرّر كل عرض في شاشة العروض.</div>
+      <ModemPanel v-if="newGroup.sim" :sim-uuid="newGroup.sim" sim-type="ooredoo-flexy" ussd-only :start-code="'*585*' + phone + '#'" />
+      <q-btn flat no-caps color="primary" icon="local_offer" label="شاشة العروض" to="/flexy/offers" />
+    </div>
     <div v-else-if="looked" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
   </div>
 </template>
@@ -48,7 +56,7 @@
 // `lookup(phone)` answers { status: 'ready' | 'discovering' | …, offers: [{ label, family, amount, available? }] },
 // `send(phone, label)` sends one offer and resolves to something truthy when it was accepted for sending;
 // `repeatOf(phone, { offer })` names the last operation when it was this same offer to this number.
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { Dialog } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
@@ -63,6 +71,9 @@ const props = defineProps({
   repeatOf: { type: Function, default: () => null }
 })
 const emit = defineEmits(['sent'])
+// The lab, only for the owner's live session on a new group (never loaded on a shop's page)
+const ModemPanel = defineAsyncComponent(() => import('src/components/ModemPanel.vue'))
+const newGroup = ref(null)
 const { busy, run } = useRun()
 
 // What the customer gets for each offer (shown from «i»). The price is the number in the name.
@@ -117,6 +128,7 @@ async function load ({ retry = false } = {}) {
   offers.value = []
   error.value = ''
   looked.value = false
+  newGroup.value = null
   loading.value = true
   try {
     let r = await props.lookup(p, { retry })
@@ -130,6 +142,10 @@ async function load ({ retry = false } = {}) {
       offers.value = r.offers || []
       looked.value = true
       group.value = r.group || ''
+    } else if (r?.status === 'new_group') {
+      loadedFor = p
+      looked.value = true
+      newGroup.value = { group: r.group || '', sim: r.sim_uuid || '' }
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
       loadedFor = p
@@ -207,4 +223,5 @@ function confirm (o) {
 .net-card { border-inline-start: 4px solid #0E7490; }
 .net-head { display: flex; align-items: center; gap: 6px; padding: 10px 14px; font-weight: 700; color: #0E7490; }
 .net-price { color: #0E7490; }
+.live { border: 2px solid #0E7490; padding: 12px; }
 </style>

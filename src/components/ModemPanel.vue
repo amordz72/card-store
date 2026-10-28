@@ -3,7 +3,7 @@
        Read-only status, a message reader, and a USSD lab where no code is blocked; a code
        carrying a PIN waits 60 s and its reply. «{PIN}» is filled in by the server. -->
   <div class="column q-gutter-sm">
-    <q-tabs v-model="tab" dense no-caps align="justify" class="text-primary">
+    <q-tabs v-if="!ussdOnly" v-model="tab" dense no-caps align="justify" class="text-primary">
       <!-- The admin phone (agent «phone-*») has no HiLink modem and no SMS reader: only the USSD lab works there -->
       <q-tab v-if="!phone" name="status" label="حالة المودم" />
       <q-tab v-if="!phone" name="sms" label="الرسائل" />
@@ -107,7 +107,14 @@ import { ownerModem } from 'src/api/flexy'
 import { readReply, typedPin } from 'src/api/ussdMenu'
 import SimLedger from 'src/components/SimLedger.vue'
 
-const props = defineProps({ simUuid: { type: String, required: true }, phone: { type: Boolean, default: false }, simType: { type: String, default: '' } })
+const props = defineProps({
+  simUuid: { type: String, required: true },
+  phone: { type: Boolean, default: false },
+  simType: { type: String, default: '' },
+  // The offers tab's live session on a new group (owner 2026-10-28): the lab alone, its code ready
+  ussdOnly: { type: Boolean, default: false },
+  startCode: { type: String, default: '' }
+})
 
 // One press for what is known (owner 2026-10-26): read-only codes from telecom/TELECOM-SERVICE-CODES.md, by SIM type.
 // No money code here; typing stays for anything else.
@@ -119,12 +126,12 @@ const QUICK = {
 }
 const quick = computed(() => QUICK[props.simType] || [])
 
-const tab = ref(props.phone ? 'ussd' : 'status')
+const tab = ref(props.phone || props.ussdOnly ? 'ussd' : 'status')
 const page = ref(null)
 const lab = ref({ pin_wait_seconds: 0 })
 const messages = ref([])
 const store = ref(null)
-const code = ref('')
+const code = ref(props.startCode)
 const reply = ref('')
 const busy = ref(false)
 const error = ref('')
