@@ -3,8 +3,20 @@
     <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07']"
-      :send-offer="sendOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
+      :send-offer="sendOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow"
       @sent="afterSend" @refresh="refreshNow" @more="more">
+      <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
+      <div v-if="newReplies.length" class="card column q-gutter-xs">
+        <div class="row items-center">
+          <span class="col text-weight-bold">ردود وعروض جديدة من الشبكة ({{ newReplies.length }})</span>
+          <q-btn flat dense no-caps size="sm" color="primary" label="رأيتها كلها" @click="seenReplies('all')" />
+        </div>
+        <div v-for="n in newReplies" :key="n.id" class="new-reply">
+          <div class="small text-weight-bold">{{ n.step === 'new_offer' ? 'عرض جديد في قائمة' : 'رد جديد قبل التأكيد' }} · {{ OPERATORS[n.operator] || n.operator }}<span class="muted"> · {{ n.seenCount }} مرة · {{ new Date(n.lastAt).toLocaleString('ar-DZ') }}</span></div>
+          <div class="small ltr reply">{{ n.text }}</div>
+          <q-btn flat dense no-caps size="sm" color="primary" label="رأيته" @click="seenReplies([n.id])" />
+        </div>
+      </div>
       <div class="card row items-center q-gutter-sm">
         <q-toggle :model-value="switchOn" :disable="switchOn === null || switchBusy || forcedOff" color="positive"
           :label="forcedOff ? 'الإرسال موقوف من الخادم (طوارئ)' : switchOn ? 'الإرسال الحقيقي مفتوح' : 'الإرسال الحقيقي مقفل'"
@@ -242,17 +254,34 @@ function flip (on) {
 // so the same press is asked again with the same key until a SIM is ready: one operation at most.
 const REFRESH_MS = 5000
 const REFRESH_MAX = 36
+// A number just served is a question, an open operation the owner's choice (Flexy Core 0057, owner 2026-10-28).
+// Asked again with a new key: the refused one stays «لم تُرسل» in the list with its reason.
+const askYes = (message, ok, danger = false) => new Promise((resolve) => {
+  $q.dialog({ title: 'هذا الرقم', message, cancel: 'لا', ok: { label: ok, color: danger ? 'negative' : 'primary' }, persistent: true })
+    .onOk(() => resolve(true)).onCancel(() => resolve(false))
+})
+async function guarded (call, key) {
+  let res = await call(key, {})
+  const code = () => res.body?.operation?.outcome?.code || res.body?.error || ''
+  if (/_SAME_NUMBER_RECENT$/.test(code()) && await askYes('لهذا الرقم عملية قبل أقل من دقيقتين. هل ترسل عملية أخرى؟', 'نعم، أرسل')) {
+    res = await call(key + '_r', { confirm_repeat: true })
+  }
+  if (/_PREVIOUS_UNSETTLED$/.test(code()) && await askYes('لهذا الرقم عملية لم تُحسم بعد، وقد يكون وصله مبلغها. الإرسال الآن قد يدفع مرتين. أرسل رغم ذلك؟', 'أرسل رغم ذلك', true)) {
+    res = await call(key + '_f', { force: true })
+  }
+  return res
+}
 async function send (p, v, { wait, key: pressKey }) {
   const key = 'owner_' + pressKey.replace(/-/g, '')
   // 07 = Djezzy (*760*): its own route and switch; no balance refresh exists for it, one request decides.
   if (p.startsWith('07')) {
-    const res = await flexy.ownerSend760(p, v, key)
+    const res = await guarded((k, extra) => flexy.ownerSend760(p, v, k, extra), key)
     if (res.body?.operation) return res.body
     throw refused(res)
   }
   // 05 = Ooredoo (*590*): its own route and switch, never Djezzy's.
   if (p.startsWith('05')) {
-    const res = await flexy.ownerSend590(p, v, key)
+    const res = await guarded((k, extra) => flexy.ownerSend590(p, v, k, extra), key)
     if (res.body?.operation) return res.body
     throw refused(res)
   }
@@ -310,7 +339,7 @@ async function sendOffer (p, label, key) {
   // SOURCE_BUSY: the SIM frees within the queue limit (owner 2026-10-27); nothing was created, the same key
   // keeps its place. Asked again until the core sends it or the request expires (2 minutes, then 410).
   if (p.startsWith('07')) {
-    const r7 = await flexy.ownerOfferSend760(p, label, 'own760o_' + key.replace(/-/g, ''))
+    const r7 = await guarded((k, extra) => flexy.ownerOfferSend760(p, label, k, extra), 'own760o_' + key.replace(/-/g, ''))
     if ((r7.status === 0 || r7.status >= 400) && !r7.body?.operation) throw refused(r7)
     return r7.body
   }
@@ -340,8 +369,34 @@ const ops = computed(() => rows.value.map((o) => ({
   badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply,
   running: ['queued', 'running'].includes(o.status), explain: explain(o.outcome_code, o.status),
   stopped: o.status === 'not_sent', lineChanged: o.outcome_code === '665_LINE_GROUP_CHANGED',
-  doneAt: o.updated_at, sims: o.sims || []
+  doneAt: o.updated_at, sims: o.sims || [],
+  // Open = may have moved money and not settled: the owner can settle it here (Flexy Core 0057)
+  open: ['accepted', 'review'].includes(o.status), operationId: o.operation_id
 })))
+const OPERATORS = { mobilis: 'موبيليس', djezzy: 'جيزي', ooredoo: 'أوريدو' }
+const newReplies = ref([])
+async function loadNewReplies () {
+  const res = await flexy.ownerNewReplies().catch(() => null)
+  if (res?.status === 200) newReplies.value = (res.body.items || []).filter((x) => !x.seenAt)
+}
+async function seenReplies (seen) {
+  await flexy.ownerNewRepliesSeen(seen).catch(() => null)
+  await loadNewReplies()
+  refreshBell()
+}
+async function settleRow (j, to) {
+  const words = { success: 'نجحت', failed: 'فشلت', not_sent: 'لم تُرسل' }
+  $q.dialog({
+    title: 'حسم العملية: ' + words[to],
+    message: 'اكتب دليلك (مثلًا: سطر *762# أو كلام الزبون). يُحفظ مع العملية.',
+    prompt: { model: '', type: 'text' }, cancel: 'رجوع', ok: 'احسم'
+  }).onOk(async (note) => {
+    const res = await flexy.ownerSettle(j.operationId, to, note)
+    if (res.status === 200 && res.body?.ok) { $q.notify({ type: 'positive', message: 'حُسمت: ' + words[to] }); await refreshNow() } else {
+      $q.notify({ type: 'negative', message: 'لم تُحسم: ' + (res.body?.error || res.status) })
+    }
+  })
+}
 const hasMore = ref(false)
 const loadingMore = ref(false)
 const refreshing = ref(false)
@@ -407,6 +462,7 @@ async function afterSend () {
 onMounted(async () => {
   loadSwitch()
   loadAlerts().catch(() => null)
+  loadNewReplies().catch(() => null)
   if (phoneMode) {
     loadPhone().catch(() => null)
     phoneTimer = setInterval(() => { if (document.visibilityState === 'visible') loadPhone().catch(() => null) }, 10_000)
@@ -416,3 +472,8 @@ onMounted(async () => {
 })
 onUnmounted(() => { clearTimeout(timer); clearInterval(phoneTimer) })
 </script>
+
+<style scoped>
+.new-reply { border-top: 1px solid #ECEEF3; padding-top: 6px; }
+.reply { white-space: pre-wrap; direction: ltr; text-align: left; color: #4B5563; }
+</style>

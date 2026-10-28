@@ -39,20 +39,26 @@ export const ownerStatus = (idempotencyKey) => owner('630/' + encodeURIComponent
 // Djezzy ordinary credit (*760*, Flexy Core 0044, owner 2026-10-27): discovery phase. The database picks the
 // Djezzy SIM; every network reply ends «قيد المراجعة» with its raw text until real replies are recorded.
 // Under its own switch (djezzy_send_enabled), never the Mobilis one.
-export const ownerSend760 = (phone, amount, idempotencyKey) => owner('760/send', {
-  method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
+// extra: { confirm_repeat } after «هل ترسل عملية أخرى؟», { force } after the owner's «أرسل رغم ذلك» (Flexy Core 0057)
+export const ownerSend760 = (phone, amount, idempotencyKey, extra = {}) => owner('760/send', {
+  method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey, ...extra }
 })
 export const ownerStatus760 = (idempotencyKey) => owner('760/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Djezzy OFFERS (Flexy Core 0051, owner 2026-10-27): the line's family (LEGEND / IZZY) read once, no money,
 // then one offer by name; «en cours de traitement» = accepted, the SIM's balance drop settles it.
 export const ownerOffers760 = (phone, retry = false) => owner('760/offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}) } })
-export const ownerOfferSend760 = (phone, offer, idempotencyKey) => owner('760/offer/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey } })
+export const ownerOfferSend760 = (phone, offer, idempotencyKey, extra = {}) => owner('760/offer/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey, ...extra } })
 export const ownerOfferStatus760 = (idempotencyKey) => owner('760/offer/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Ooredoo ordinary credit (*590*, Flexy Core 0050, owner 2026-10-27): its own path, its own switch
 // (ooredoo_send_enabled). Confirm 1/2, then «Recharge de l'abonne … realisee avec succes» = success.
-export const ownerSend590 = (phone, amount, idempotencyKey) => owner('590/send', {
-  method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey }
+export const ownerSend590 = (phone, amount, idempotencyKey, extra = {}) => owner('590/send', {
+  method: 'POST', body: { phone, amount, idempotency_key: idempotencyKey, ...extra }
 })
+// The owner settles an open operation himself (Flexy Core 0057): to = success | failed | not_sent, note = his evidence
+export const ownerSettle = (operationId, to, note) => owner('operations/settle', { method: 'POST', body: { operation_id: operationId, to, note } })
+// Replies before «1» and offers no path knows yet (Flexy Core 0056)
+export const ownerNewReplies = () => owner('new-replies', { method: 'GET' })
+export const ownerNewRepliesSeen = (seen) => owner('new-replies', { method: 'POST', body: { seen } })
 export const ownerStatus590 = (idempotencyKey) => owner('590/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Offers from the owner's page: the same flow as the shops', under the owner's switch, no wallet.
 // retry: «أعد المحاولة» after a discovery that ended; otherwise a running one is followed (Flexy Core 0030)
