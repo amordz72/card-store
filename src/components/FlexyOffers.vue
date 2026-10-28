@@ -43,7 +43,8 @@
     <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
          owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
     <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
-      <div class="text-weight-bold">⚡ مجموعة جديدة: {{ newGroup.group || 'غير معروفة' }} · الصفحات التالية</div>
+      <div class="text-weight-bold">{{ newGroup.frozen ? '❄️ مجموعة مجمّدة' : '⚡ مجموعة جديدة' }}: {{ newGroup.group || 'غير معروفة' }} · الصفحات التالية</div>
+      <div v-if="newGroup.frozen" class="small text-deep-orange">لا يُباع منها شيء حتى تعتمد نسختها الجديدة في شاشة العروض. تنقّل في الصفحات لتُسجَّل.</div>
       <ModemPanel v-if="newGroup.sim" :sim-uuid="newGroup.sim" sim-type="ooredoo-flexy" ussd-only :start-code="'*585*' + phone + '#'" />
       <q-btn flat no-caps color="primary" icon="local_offer" label="شاشة العروض" to="/flexy/offers" />
     </div>
@@ -146,7 +147,7 @@ async function load ({ retry = false } = {}) {
       looked.value = true
       offers.value = r.offers || []
       group.value = r.group || ''
-      newGroup.value = { group: r.group || '', sim: r.sim_uuid || '' }
+      newGroup.value = { group: r.group || '', sim: r.sim_uuid || '', frozen: r.frozen === true }
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
       loadedFor = p
