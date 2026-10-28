@@ -54,6 +54,10 @@ export const ownerOffers585 = (phone, retry = false) => owner('585/offers/lookup
 // The offers screen (Flexy Core 0060): every recorded offer of an operator, one control each
 export const ownerOfferCatalog = (operator) => owner('offers/catalog?operator=' + encodeURIComponent(operator), { method: 'GET' })
 export const ownerOfferCatalogSet = (id, patch) => owner('offers/catalog/set', { method: 'POST', body: { id, ...patch } })
+// Groups (Flexy Core 0061): state and versions; freeze / approve / restore / on_change / unblock; a changed offer's decision
+export const ownerOfferGroups = (operator) => owner('offers/groups?operator=' + encodeURIComponent(operator), { method: 'GET' })
+export const ownerOfferGroupAction = (operator, group, action, value = null) => owner('offers/groups/action', { method: 'POST', body: { operator, group, action, value } })
+export const ownerOfferDrift = (id, accept) => owner('offers/catalog/drift', { method: 'POST', body: { id, accept } })
 export const ownerOfferSend585 = (phone, offer, idempotencyKey, extra = {}) => owner('585/offer/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey, ...extra } })
 export const ownerOfferStatus585 = (idempotencyKey) => owner('585/offer/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Ooredoo ordinary credit (*590*, Flexy Core 0050, owner 2026-10-27): its own path, its own switch
