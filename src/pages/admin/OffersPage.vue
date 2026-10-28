@@ -24,17 +24,17 @@
       <div class="grp">{{ g }}</div>
       <div v-for="o in list" :key="o.id" class="offer" :class="{ off: o.status === 'doubt' }">
         <div class="col">
-          <div class="nm">{{ o.name_display }}<span v-if="o.name_display !== o.name_network" class="muted small"> · {{ o.name_network }}</span></div>
+          <div class="nm">{{ o.nameDisplay }}<span v-if="o.nameDisplay !== o.nameNetwork" class="muted small"> · {{ o.nameNetwork }}</span></div>
           <div class="meta">
             رمز {{ o.code }} · {{ where(o) }} ·
             <span :class="o.price ? '' : 'text-negative'">{{ o.price ? money(o.price) : 'بلا سعر' }}</span>
-            <span v-if="o.price"> ({{ PRICE[o.price_source] || '—' }})</span>
+            <span v-if="o.price"> ({{ PRICE[o.priceSource] || '—' }})</span>
             <span v-if="o.category === 'internet'"> · إنترنت</span>
           </div>
           <div class="meta">
             <span v-if="o.status === 'doubt'" class="text-negative">الرمز ظهر مرتين في القائمة: لا يُرسل · </span>
             <span v-else-if="o.status === 'tested'">مجرّب ✓ · </span>
-            وجدته {{ o.found_sim || '—' }} · {{ who(o.found_by) }} · رآه {{ o.seen_count }} مرة · آخرها {{ clock(o.last_seen_at) }}
+            وجدته {{ o.foundSim || '—' }} · {{ who(o.foundBy) }} · رآه {{ o.seenCount }} مرة · آخرها {{ clock(o.lastSeenAt) }}
           </div>
         </div>
         <div class="column items-end q-gutter-xs">
@@ -70,12 +70,12 @@ const loading = ref(false)
 const busy = ref(null)
 const error = ref('')
 
-const groups = computed(() => [...new Set(rows.value.map((o) => o.grp))])
-const inGroup = computed(() => rows.value.filter((o) => !group.value || o.grp === group.value))
+const groups = computed(() => [...new Set(rows.value.map((o) => o.group))])
+const inGroup = computed(() => rows.value.filter((o) => !group.value || o.group === group.value))
 const counts = computed(() => ({ new: inGroup.value.filter((o) => o.review).length, active: inGroup.value.filter((o) => !o.review).length }))
 const shown = computed(() => inGroup.value.filter((o) => (tab.value === 'new' ? o.review : !o.review)))
-const byGroup = computed(() => shown.value.reduce((acc, o) => ({ ...acc, [o.grp]: [...(acc[o.grp] || []), o] }), {}))
-const where = (o) => (o.exec_path?.length ? `الصفحة ${o.page} (${o.exec_path.map((p) => (p === '0' ? 'المزيد' : p)).join(' ثم ')} ثم ${o.code})` : `الصفحة ${o.page}`)
+const byGroup = computed(() => shown.value.reduce((acc, o) => ({ ...acc, [o.group]: [...(acc[o.group] || []), o] }), {}))
+const where = (o) => (o.execPath?.length ? `الصفحة ${o.page} (${o.execPath.map((p) => (p === '0' ? 'المزيد' : p)).join(' ثم ')} ثم ${o.code})` : `الصفحة ${o.page}`)
 const who = (v) => (v === 'owner-console' ? 'الإدارة' : v === 'owner-lab' ? 'تجربتك' : v || '—')
 const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ') : '—')
 
@@ -113,7 +113,7 @@ const setVisibility = (o, v) => save(o, { visibility: v })
 
 function editPrice (o) {
   Dialog.create({
-    title: o.name_display,
+    title: o.nameDisplay,
     message: 'سعر العرض بالدينار (ما يُخصم من رصيد الشريحة). الـPIN لا يُرسل إلا إذا قالت الشبكة نفس السعر.',
     prompt: { model: o.price ? String(o.price) : '', type: 'number', inputmode: 'numeric' },
     cancel: 'رجوع',
