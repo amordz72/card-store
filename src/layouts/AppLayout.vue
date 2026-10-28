@@ -59,6 +59,10 @@
                 <q-item-section>ردود وعروض جديدة من الشبكة</q-item-section>
                 <q-item-section side><q-badge color="negative" :label="newReplies" /></q-item-section>
               </q-item>
+              <q-item v-if="newReplies" v-close-popup clickable to="/flexy/offers">
+                <q-item-section avatar><q-icon name="local_offer" /></q-item-section>
+                <q-item-section>شاشة العروض (الجديدة تنتظرك)</q-item-section>
+              </q-item>
               <q-item v-if="gameWaiting" v-close-popup clickable to="/game">
                 <q-item-section avatar><q-icon name="sports_esports" /></q-item-section>
                 <q-item-section>شحن ألعاب في الانتظار</q-item-section>
@@ -179,7 +183,7 @@ const MENU = [
     ]
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
-  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/phone', label: 'فليكسي الهاتف', icon: 'smartphone' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy', icon: 'menu_book' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/phone', label: 'فليكسي الهاتف', icon: 'smartphone' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/offers', label: 'العروض', icon: 'local_offer' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy', icon: 'menu_book' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()
