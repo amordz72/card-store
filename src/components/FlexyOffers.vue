@@ -39,15 +39,14 @@
         </div>
       </div>
     </template>
-    <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): the initial catalog. The owner moves
-         through its pages in the lab on that SIM; every page is recorded, then decided in «العروض». -->
-    <div v-else-if="newGroup" class="card column q-gutter-sm live">
-      <div class="text-weight-bold">⚡ مجموعة جديدة: {{ newGroup.group || 'غير معروفة' }}</div>
-      <div class="small muted">أول مرة يرى البرنامج عروض هذه المجموعة. افتح القائمة وتنقّل بين صفحاتها بـ«المزيد»: كل صفحة تُسجَّل وحدها. ثم قرّر كل عرض في شاشة العروض.</div>
+    <div v-else-if="looked && !newGroup" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
+    <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
+         owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
+    <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
+      <div class="text-weight-bold">⚡ مجموعة جديدة: {{ newGroup.group || 'غير معروفة' }} · الصفحات التالية</div>
       <ModemPanel v-if="newGroup.sim" :sim-uuid="newGroup.sim" sim-type="ooredoo-flexy" ussd-only :start-code="'*585*' + phone + '#'" />
       <q-btn flat no-caps color="primary" icon="local_offer" label="شاشة العروض" to="/flexy/offers" />
     </div>
-    <div v-else-if="looked" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
   </div>
 </template>
 
@@ -145,6 +144,8 @@ async function load ({ retry = false } = {}) {
     } else if (r?.status === 'new_group') {
       loadedFor = p
       looked.value = true
+      offers.value = r.offers || []
+      group.value = r.group || ''
       newGroup.value = { group: r.group || '', sim: r.sim_uuid || '' }
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
@@ -166,7 +167,7 @@ async function load ({ retry = false } = {}) {
 // (owner 2026-10-26): a wait still running goes on, an answer or an error stays (its own button retries).
 watch(() => [props.active, props.phone, props.phoneOk], () => {
   if (!props.active) return
-  if (!props.phoneOk) { runId++; loading.value = false; loadingFor = ''; shownFor = ''; offers.value = []; looked.value = false; error.value = ''; return }
+  if (!props.phoneOk) { runId++; loading.value = false; loadingFor = ''; shownFor = ''; offers.value = []; looked.value = false; error.value = ''; newGroup.value = null; return }
   if (loading.value && loadingFor === props.phone) return
   if (shownFor === props.phone && (looked.value || error.value)) return
   load()

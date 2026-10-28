@@ -62,7 +62,12 @@
           <div v-if="s.status !== 'success' && !waiting(s)" class="text-negative">{{ s.error_code || s.status }}</div>
         </div>
       </div>
-      <template v-if="!sessionOpen">
+      <!-- The offers tab's live session opens by itself; once ended, one button opens it again -->
+      <template v-if="!sessionOpen && ussdOnly">
+        <q-btn outline no-caps color="primary" icon="refresh" :loading="busy" :disable="!page?.ready || !startCode"
+          label="افتح القائمة من جديد" @click="code = startCode; start()" />
+      </template>
+      <template v-else-if="!sessionOpen">
         <div v-if="quick.length" class="row q-gutter-xs">
           <q-btn v-for="[label, c] in quick" :key="c" outline dense no-caps size="sm" color="primary" :label="label"
             :disable="busy || !page?.ready || (pinLike(c) && (!page?.has_pin || lab.pin_wait_seconds > 0))" @click="code = c; start()" />
@@ -262,7 +267,11 @@ async function loadAll () {
 }
 watch(() => props.simUuid, loadAll)
 watch(() => props.phone, (p) => { if (p) tab.value = 'ussd' })
-onMounted(loadAll)
+onMounted(async () => {
+  await loadAll()
+  // The offers tab's live session: no question, the menu opens at once (owner 2026-10-28)
+  if (props.ussdOnly && props.startCode && !sessionOpen.value && page.value?.ready) start()
+})
 onBeforeUnmount(() => { alive = false; clearTimeout(timer) })
 </script>
 
