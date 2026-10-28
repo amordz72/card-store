@@ -73,6 +73,17 @@
           :label="lab.pin_wait_seconds > 0 && pinLike(code) ? 'انتظر ' + lab.pin_wait_seconds + ' ث' : 'أرسل'" @click="start" />
       </template>
       <template v-else>
+        <!-- What the last reply asks for, as buttons (owner 2026-10-28); the box stays for anything else -->
+        <template v-if="lastOk && !anyWaiting">
+          <q-btn v-if="asked.pin" unelevated no-caps color="deep-orange" icon="lock" :disable="!page?.has_pin"
+            :label="page?.has_pin ? 'أرسل الـPIN المحفوظ (من الخادم)' : 'لا يوجد PIN محفوظ لهذه الشريحة'" @click="choose({ value: '{PIN}', label: 'PIN', money: asked.pinIsMoney })" />
+          <div v-if="asked.options.length" class="row q-gutter-xs">
+            <q-btn v-for="(o, i) in asked.options" :key="i" dense no-caps :outline="!o.money" :unelevated="o.money"
+              :color="o.money ? 'deep-orange' : o.duplicate ? 'warning' : 'primary'" @click="choose(o)">
+              <span class="ltr">{{ o.value }}</span>&nbsp;·&nbsp;<span dir="auto">{{ o.next ? 'المزيد' : o.label }}</span>
+            </q-btn>
+          </div>
+        </template>
         <q-input v-model="reply" dense outlined class="ltr" placeholder="1" :disable="anyWaiting || !lastOk" @keyup.enter="answer">
           <template #append><q-btn flat dense no-caps size="sm" label="PIN" :disable="!page?.has_pin || anyWaiting" @click="reply = addPin(reply, false)" /></template>
         </q-input>
@@ -91,7 +102,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Dialog } from 'quasar'
 import { ownerModem } from 'src/api/flexy'
+import { readReply, typedPin } from 'src/api/ussdMenu'
 import SimLedger from 'src/components/SimLedger.vue'
 
 const props = defineProps({ simUuid: { type: String, required: true }, phone: { type: Boolean, default: false }, simType: { type: String, default: '' } })
@@ -173,6 +186,7 @@ const steps = computed(() => lab.value.steps || [])
 const sessionOpen = computed(() => lab.value.status === 'open' || lab.value.status === 'closing')
 const anyWaiting = computed(() => steps.value.some(waiting))
 const lastOk = computed(() => steps.value.length > 0 && steps.value[steps.value.length - 1].status === 'success')
+const asked = computed(() => readReply(steps.value[steps.value.length - 1]?.reply, props.simType))
 
 async function loadPage () { page.value = await call('page' + q()) }
 async function loadLab () { lab.value = await call('lab' + q()) || { pin_wait_seconds: 0 } }
@@ -209,7 +223,21 @@ async function follow () {
   for (let i = 0; i < 40 && alive && anyWaiting.value; i++) { await sleep(2000); await loadLab() }
 }
 const start = () => { if (!code.value.trim() || busy.value) return; return run(async () => { await call('lab/start', { sim_uuid: props.simUuid, code: code.value.trim() }); await follow() }) }
-const answer = () => { if (!reply.value.trim() || busy.value) return; return run(async () => { await call('lab/reply', { session_uuid: lab.value.session_uuid, value: reply.value.trim() }); reply.value = ''; await follow() }) }
+const send = (value) => run(async () => { await call('lab/reply', { session_uuid: lab.value.session_uuid, value }); reply.value = ''; await follow() })
+// A PIN is never typed (owner 2026-10-28: a typed PIN is kept in the station's command log): the server fills {PIN}
+const answer = () => {
+  if (!reply.value.trim() || busy.value) return
+  if (typedPin(reply.value, asked.value.pin)) { error.value = 'لا تكتب الـPIN: اضغط زر «أرسل الـPIN المحفوظ»، فيضعه الخادم دون أن يُحفظ ظاهرًا'; return }
+  return send(reply.value.trim())
+}
+// A button: the money step (and a code the menu shows twice) is asked first
+function choose (o) {
+  if (busy.value) return
+  const notes = [o.money ? 'هذه خطوة المال: بعدها قد يُخصم الرصيد.' : '', o.duplicate ? 'الرمز ' + o.value + ' مكرر في القائمة: الشبكة قد تختار عرضًا آخر بنفس الرمز.' : ''].filter(Boolean)
+  if (!notes.length) return send(o.value)
+  Dialog.create({ title: 'تأكيد', message: notes.join(' ') + ' أرسل «' + (o.value === '{PIN}' ? 'PIN' : o.value) + '»؟', cancel: 'رجوع', ok: 'نعم، أرسل' })
+    .onOk(() => send(o.value))
+}
 const end = () => run(async () => { await call('lab/release', { session_uuid: lab.value.session_uuid }); await follow() })
 
 // The PIN wait counts down locally, without asking the server every second.
