@@ -51,10 +51,11 @@
     <!-- USSD lab -->
     <template v-if="tab === 'ussd'">
       <div class="small muted">كل الأكواد مسموحة على مسؤولية الإدارة. اكتب {PIN} ليضع الخادم الـPIN المحفوظ دون أن يظهر. الكود الذي فيه PIN لا يتكرر قبل 60 ثانية ووصول رده.</div>
-      <div class="console ltr">
+      <!-- The offers tab's live session shows only the session started here, never an older one -->
+      <div v-if="!ussdOnly || startedHere || sessionOpen" class="console ltr">
         <div v-if="!steps.length" class="muted">—</div>
-        <div v-for="s in steps" :key="s.sequence">
-          <div v-if="s.action !== 'ussd_release'"><b>Sent:</b> {{ s.value }}</div>
+        <div v-for="(s, i) in steps" :key="s.sequence">
+          <div v-if="s.action !== 'ussd_release'"><b>Sent:</b> {{ sentText(s, i) }}</div>
           <div v-else class="muted">— انتهت الجلسة —</div>
           <div v-if="waiting(s) && s.action !== 'ussd_release'" class="muted">… بانتظار الرد</div>
           <div v-if="s.reply" dir="auto" class="text-primary"><b>Received:</b> {{ s.reply }}</div>
@@ -229,7 +230,10 @@ async function follow () {
   await loadLab()
   for (let i = 0; i < 40 && alive && anyWaiting.value; i++) { await sleep(2000); await loadLab() }
 }
-const start = () => { if (!code.value.trim() || busy.value) return; return run(async () => { await call('lab/start', { sim_uuid: props.simUuid, code: code.value.trim() }); await follow() }) }
+const startedHere = ref(false)
+const start = () => { if (!code.value.trim() || busy.value) return; startedHere.value = true; return run(async () => { await call('lab/start', { sim_uuid: props.simUuid, code: code.value.trim() }); await follow() }) }
+// A PIN typed by hand in an older session is never shown again (owner 2026-10-28: «Sent: 3808» on screen)
+const sentText = (s, i) => (i > 0 && readReply(steps.value[i - 1]?.reply).pin && /^\s*\d{4,8}\s*$/.test(s.value || '') ? '••••' : s.value)
 const send = (value) => run(async () => { await call('lab/reply', { session_uuid: lab.value.session_uuid, value }); reply.value = ''; await follow() })
 // A PIN is never typed (owner 2026-10-28: a typed PIN is kept in the station's command log): the server fills {PIN}
 const answer = () => {
