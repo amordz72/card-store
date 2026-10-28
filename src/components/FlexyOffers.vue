@@ -18,7 +18,7 @@
           group="families" header-class="family" expand-separator>
           <div v-for="o in f.offers" :key="o.label" class="offer-row" :class="{ busy }" role="button" tabindex="0"
             :aria-disabled="busy" @click="confirm(o)" @keyup.enter="confirm(o)">
-            <span class="text-weight-bold">{{ o.label }}<q-badge v-if="o.review" class="q-ml-xs" color="purple-6" label="جديد" /><q-badge v-else-if="o.visibility === 'admin'" class="q-ml-xs" color="amber-8" label="للإدارة" /></span>
+            <span class="text-weight-bold"><bdi dir="auto">{{ o.label }}</bdi><q-badge v-if="o.review" class="q-ml-xs" color="purple-6" label="جديد" /><q-badge v-else-if="o.visibility === 'admin'" class="q-ml-xs" color="amber-8" label="للإدارة" /></span>
             <span class="row items-center no-wrap q-gutter-xs">
               <q-btn v-if="detailOf(o)" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
                 @click.stop="details(o)" />
@@ -32,7 +32,7 @@
         <div v-for="o in internet" :key="o.label" class="offer-row net" :class="{ busy }" role="button" tabindex="0"
           :aria-disabled="busy" @click="confirm(o)" @keyup.enter="confirm(o)">
           <span class="column">
-            <span class="text-weight-bold">{{ o.label }}</span>
+            <span class="text-weight-bold"><bdi dir="auto">{{ o.label }}</bdi></span>
             <span v-if="detailOf(o)" class="small muted">{{ detailOf(o) }}</span>
           </span>
           <span class="price net-price">{{ money(o.amount) }}</span>
