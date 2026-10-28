@@ -54,7 +54,7 @@
           <div class="n">{{ t.n }}</div><div class="small">{{ t.label }}</div>
         </component>
       </div>
-      <div v-if="tree" class="small muted">المتصل الآن<template v-if="typeFilter"> · <button type="button" class="link" @click="typeFilter = null">مفلتر: {{ typeName(typeFilter) }} ✕</button></template> · آخر تحديث {{ clock(tree.checked_at) }} · غائب بعد {{ tree.limits.absentMinutes }} دقيقة · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
+      <div v-if="tree" class="small muted">المتصل الآن<template v-if="typeFilter"> · <button type="button" class="link" @click="typeFilter = null">مفلتر: {{ typeName(typeFilter) }} ✕</button></template> · آخر تحديث {{ clock(tree.checked_at) }} · مطفأ بعد {{ tree.limits.offMinutes || 1 }} دقيقة بلا اتصال، والتنبيه بعد {{ tree.limits.absentMinutes }} · معطّل بعد {{ tree.limits.ussdTimeouts }} مهل USSD</div>
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
@@ -68,8 +68,10 @@
           class="chip" @click="simStation = c.value" />
       </div>
       <div class="sub">
-        <q-btn-toggle v-model="simActive" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: `النشطة (${simRows.active.length})`, value: true }, { label: `غير النشطة (${simRows.inactive.length})`, value: false }]" />
+        <!-- One word per SIM from the top layer down (owner 2026-10-28): its computer off is not its problem;
+             «تحتاج تدخلًا» holds only what needs the owner now, even with its computer off (a PIN, an approval) -->
+        <q-btn-toggle v-model="simTab" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+          :options="[{ label: `جاهزة (${simRows.ready.length})`, value: 'ready' }, { label: `كمبيوترها مطفأ (${simRows.station_off.length})`, value: 'station_off' }, { label: `تحتاج تدخلًا (${simRows.needs_action.length})`, value: 'needs_action' }]" />
       </div>
       <div class="table-wrap">
         <table class="sims">
@@ -80,14 +82,14 @@
               <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
               <td>{{ r.st.code || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
-              <td><q-badge :color="r.old ? 'grey-6' : LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : LEVEL[r.m.level].label" />
+              <td><q-badge :color="r.old ? 'grey-6' : STATE[simState(r)]?.color || LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : STATE[simState(r)]?.label || LEVEL[r.m.level].label" />
                 <div v-if="statusText(r)" class="small" :class="statusClass(r)">{{ statusText(r) }}</div></td>
             </tr>
             <tr v-if="!shownSims.length">
               <td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر
                 <q-btn v-if="typeFilter || simStation !== 'all'" flat dense no-caps size="sm" color="primary" label="إلغاء الفلاتر" @click="clearFilters" /></td>
             </tr>
-            <tr v-if="!simActive && simRows.old.length" class="static">
+            <tr v-if="simTab === 'station_off' && simRows.old.length" class="static">
               <td colspan="5"><button type="button" class="link" @click="showOldSims = !showOldSims">قديمة ({{ simRows.old.length }}) {{ showOldSims ? '▴' : '▾' }}</button></td>
             </tr>
           </tbody>
@@ -101,7 +103,7 @@
       <div class="section-title q-pa-sm">الكمبيوترات</div>
       <div class="sub">
         <q-btn-toggle v-model="stationActive" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: `النشطة (${presentCount})`, value: true }, { label: `غير النشطة (${current.length - presentCount})`, value: false }]" />
+          :options="[{ label: `تعمل (${presentCount})`, value: true }, { label: `مطفأة (${current.length - presentCount})`, value: false }]" />
       </div>
       <div class="table-wrap">
         <table class="sims">
@@ -110,7 +112,8 @@
             <tr v-for="st in stationRows" :key="st.station_uuid" class="static">
               <td><span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span><span v-if="st.label" class="muted"> · {{ st.label }}</span>
                 <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div></td>
-              <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'غائب' : '✅ متصل'" />
+              <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
+                <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
                 <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
                 <!-- A new computer not let in from «إضافة كمبيوتر» (owner 2026-10-27); the phone has its own approval above -->
                 <q-btn v-if="!st.approved && !isPhone(st)" unelevated dense no-caps color="primary" class="q-mt-xs" label="اعتماد الكمبيوتر"
@@ -148,6 +151,22 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- The owner's phone (agent «phone-*»): never counted as a computer, its SIM never in the SIM counts (owner 2026-10-28) -->
+    <div v-if="tree && phones.length" class="card q-pa-none">
+      <div class="section-title q-pa-sm">هاتف الإدارة</div>
+      <div v-for="st in phones" :key="st.station_uuid" class="phone-row">
+        <div class="row items-center q-gutter-sm">
+          <span class="col text-weight-bold">{{ st.code || 'الهاتف' }}<span class="muted small"> · {{ st.computer_name || '' }}</span></span>
+          <q-badge :color="isAbsent(st) ? 'grey-6' : 'positive'" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
+        </div>
+        <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
+        <button v-for="m in st.modems.filter((x) => x.sim && x.level !== 'old')" :key="m.sim.sim_uuid" type="button" class="phone-sim" @click="open(st, m)">
+          <span class="text-weight-bold">{{ m.sim.code }}</span><span class="muted"> · {{ m.sim.label || m.sim.sim_type_name }}</span>
+          <span class="q-ml-sm">{{ m.sim.balance == null ? 'غير مقروء' : money(m.sim.balance) }}</span>
+        </button>
       </div>
     </div>
 
@@ -257,10 +276,14 @@ const error = ref('')
 const busy = ref(false)
 const clock = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
 
-const current = computed(() => (tree.value?.stations || []).filter((s) => s.level !== 'old'))
-const gone = computed(() => (tree.value?.stations || []).filter((s) => s.level === 'old'))
+// The phone is apart (owner 2026-10-28): computers only in the counts, the tables and the SIMs.
+const computers = computed(() => (tree.value?.stations || []).filter((s) => !s.phone && !isPhone(s)))
+const phones = computed(() => (tree.value?.stations || []).filter((s) => (s.phone || isPhone(s)) && s.level !== 'old'))
+const current = computed(() => computers.value.filter((s) => s.level !== 'old'))
+const gone = computed(() => computers.value.filter((s) => s.level === 'old'))
 const live = (st) => st.modems.filter((m) => m.level !== 'old')
-const isAbsent = (st) => !!st.absent_minutes
+// «مطفأ»: silent past the core's off limit (a minute); older cores only say absent_minutes
+const isAbsent = (st) => (typeof st.off === 'boolean' ? st.off : !!st.absent_minutes)
 const presentCount = computed(() => current.value.filter((s) => !isAbsent(s)).length)
 // Connected = the modem answers and holds a SIM (ready or with a warning); otherwise not.
 const isConnected = (m) => !!m.sim && m.level !== 'down'
@@ -277,34 +300,55 @@ const SUMMARY_TYPES = [['mobilis-arsselli', 'أرسلي'], ['mobilis-sama', 'Sam
 const typeName = (type) => SUMMARY_TYPES.find(([t]) => t === type)?.[1] || type
 const typeFilter = ref(null)
 const simStation = ref('all')
-const simActive = ref(true)
+const simTab = ref('ready')
 const showOldSims = ref(false)
 const pickType = (type) => { typeFilter.value = typeFilter.value === type ? null : type }
 function clearFilters () { typeFilter.value = null; simStation.value = 'all' }
 const stationChips = computed(() => [
   { value: 'all', label: 'الكل' },
   ...current.value.filter((st) => !isAbsent(st)).map((st) => ({ value: st.station_uuid, label: st.code || 'كمبيوتر' })),
-  ...current.value.filter(isAbsent).map((st) => ({ value: st.station_uuid, label: (st.code || 'كمبيوتر') + ' (غائب)', muted: true }))
+  ...current.value.filter(isAbsent).map((st) => ({ value: st.station_uuid, label: (st.code || 'كمبيوتر') + ' (مطفأ)', muted: true }))
 ])
 // Every SIM with its computer; old = its modem or its computer gone for longer than old_days.
 const everySim = computed(() => [...current.value, ...gone.value].flatMap((st) =>
   st.modems.filter((m) => m.sim).map((m) => ({ st, m, old: st.level === 'old' || m.level === 'old' }))))
 const isActive = (r) => !r.old && !isAbsent(r.st) && isConnected(r.m)
+// The core's one word; an older core without it: the old rule
+const simState = (r) => r.m.sim_state || (isActive(r) ? 'ready' : isAbsent(r.st) ? 'station_off' : 'needs_action')
+const STATE = {
+  ready: null,
+  station_off: { label: 'كمبيوترها مطفأ', color: 'grey-6' },
+  needs_action: { label: 'تحتاج تدخلًا', color: 'negative' }
+}
 const simRows = computed(() => {
   const rows = everySim.value.filter((r) =>
     (simStation.value === 'all' || r.st.station_uuid === simStation.value) && (!typeFilter.value || r.m.sim.sim_type === typeFilter.value))
-  return { active: rows.filter(isActive), inactive: rows.filter((r) => !r.old && !isActive(r)), old: rows.filter((r) => r.old) }
+  const now = rows.filter((r) => !r.old)
+  return {
+    ready: now.filter((r) => simState(r) === 'ready'),
+    station_off: now.filter((r) => simState(r) === 'station_off'),
+    needs_action: now.filter((r) => simState(r) === 'needs_action'),
+    old: rows.filter((r) => r.old)
+  }
 })
-const shownSims = computed(() => simActive.value
-  ? simRows.value.active
-  : [...simRows.value.inactive, ...(showOldSims.value ? simRows.value.old : [])])
+const shownSims = computed(() => simTab.value === 'station_off'
+  ? [...simRows.value.station_off, ...(showOldSims.value ? simRows.value.old : [])]
+  : simRows.value[simTab.value])
 // The summary counts every active SIM of each type, whatever the filters (owner 2026-10-25).
 const summary = computed(() => [
   { label: 'كمبيوتر', n: presentCount.value },
-  ...SUMMARY_TYPES.map(([type, label]) => ({ type, label, n: everySim.value.filter((r) => isActive(r) && r.m.sim.sim_type === type).length }))
+  ...SUMMARY_TYPES.map(([type, label]) => ({ type, label, n: everySim.value.filter((r) => !r.old && simState(r) === 'ready' && r.m.sim.sim_type === type).length }))
 ])
-const statusText = (r) => onboardingText(r.m.sim) || (r.old ? '' : isAbsent(r.st) ? 'الكمبيوتر غائب' : r.m.reasons[0]?.text) || ''
-const statusClass = (r) => onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : r.m.level === 'down' ? 'text-negative' : 'text-deep-orange'
+// The SIM's own problem first; «كمبيوترها مطفأ» beside it when that is also true
+function statusText (r) {
+  if (onboardingText(r.m.sim)) return onboardingText(r.m.sim)
+  if (r.old) return ''
+  const own = r.m.reasons.find((x) => x.code !== 'STATION_ABSENT')?.text
+  const off = r.m.reasons.find((x) => x.code === 'STATION_ABSENT')?.text || (isAbsent(r.st) ? 'كمبيوترها مطفأ' : '')
+  if (simState(r) === 'station_off') return off
+  return [own, off].filter(Boolean).join(' · ')
+}
+const statusClass = (r) => onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : simState(r) === 'station_off' ? 'muted' : r.m.level === 'down' || simState(r) === 'needs_action' ? 'text-negative' : 'text-deep-orange'
 // Balance: one total the SIM can execute now, with how old the reading is. Old = past the
 // core's refresh window (6 h), when a send would first ask for a fresh 632.
 const BALANCE_FRESH_MS = 6 * 3600 * 1000
@@ -611,6 +655,8 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
 .tile.picked .funnel { color: var(--q-primary); }
 .sub { margin: 8px; padding: 8px; background: #F4F6FA; border-radius: 8px; }
 .chip { border: 1px solid #D5D9E0; }
+.phone-row { padding: 8px 14px 12px; border-top: 1px solid #EEF0F4; }
+.phone-sim { display: block; width: 100%; text-align: right; border: 1px solid #EEF0F4; border-radius: 8px; background: transparent; padding: 8px 10px; margin-top: 6px; font: inherit; color: inherit; cursor: pointer; }
 .link { border: 0; background: transparent; padding: 0; font: inherit; color: var(--q-primary); cursor: pointer; }
 .tile { flex: 1 1 0; min-width: 0; background: #F1F8F3; border-radius: 10px; padding: 8px 4px; text-align: center; color: #5B6170; }
 .tile .n { font-size: 22px; font-weight: 700; color: #1E8E3E; }
