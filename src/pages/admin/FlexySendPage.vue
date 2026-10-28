@@ -12,7 +12,7 @@
           <q-btn flat dense no-caps size="sm" color="primary" label="رأيتها كلها" @click="seenReplies('all')" />
         </div>
         <div v-for="n in newReplies" :key="n.id" class="new-reply">
-          <div class="small text-weight-bold">{{ n.step === 'new_offer' ? 'عرض جديد في قائمة' : 'رد جديد قبل التأكيد' }} · {{ OPERATORS[n.operator] || n.operator }}<span class="muted"> · {{ n.seenCount }} مرة · {{ new Date(n.lastAt).toLocaleString('ar-DZ') }}</span></div>
+          <div class="small text-weight-bold">{{ STEPS[n.step] || 'رد جديد قبل التأكيد' }} · {{ OPERATORS[n.operator] || n.operator }}<span class="muted"> · {{ n.seenCount }} مرة · {{ new Date(n.lastAt).toLocaleString('ar-DZ') }}</span></div>
           <div class="small ltr reply">{{ n.text }}</div>
           <q-btn flat dense no-caps size="sm" color="primary" label="رأيته" @click="seenReplies([n.id])" />
         </div>
@@ -374,6 +374,7 @@ const ops = computed(() => rows.value.map((o) => ({
   open: ['accepted', 'review'].includes(o.status), operationId: o.operation_id
 })))
 const OPERATORS = { mobilis: 'موبيليس', djezzy: 'جيزي', ooredoo: 'أوريدو' }
+const STEPS = { before_confirm: 'رد جديد قبل التأكيد', new_offer: 'عرض جديد في قائمة', background_paused: 'توقف الاستكشاف الخلفي' }
 const newReplies = ref([])
 async function loadNewReplies () {
   const res = await flexy.ownerNewReplies().catch(() => null)
