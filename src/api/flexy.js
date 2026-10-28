@@ -106,6 +106,8 @@ export const ownerDevices = () => owner('devices', { method: 'GET' })
 export const saveSimSettings = (simUuid, fields) => owner('sims/settings', { method: 'POST', body: { sim_uuid: simUuid, ...fields } })
 // An approved SIM's balance read once more: one balance code, no money (Flexy Core 0018).
 export const readSimBalance = (simUuid) => owner('sims/read-balance', { method: 'POST', body: { sim_uuid: simUuid } })
+// The SIM ledger (Flexy Core 0052): every session, every balance read, the periods they close
+export const simLedger = (simUuid, days = 7) => owner('sims/ledger?sim_uuid=' + encodeURIComponent(simUuid) + '&days=' + days, { method: 'GET' })
 // Agent updates: what each computer runs and what main on GitHub holds, and its last request;
 // ask one computer to pull main (its version as shown) or move gateway (its updater applies it
 // and rolls back by itself); withdraw a request not yet taken.

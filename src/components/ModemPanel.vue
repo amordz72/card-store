@@ -8,6 +8,7 @@
       <q-tab v-if="!phone" name="status" label="حالة المودم" />
       <q-tab v-if="!phone" name="sms" label="الرسائل" />
       <q-tab name="ussd" label="تجربة USSD" />
+      <q-tab name="ledger" label="سجل الرصيد" />
     </q-tabs>
     <div v-if="error" class="small text-negative">{{ error }}</div>
     <div v-if="page && page.same_ip_modems > 0" class="small text-deep-orange">
@@ -78,12 +79,16 @@
         </div>
       </template>
     </template>
+
+    <!-- The SIM ledger: what each session did to the balance, and the reads that settle it -->
+    <SimLedger v-if="tab === 'ledger'" :sim-uuid="simUuid" />
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ownerModem } from 'src/api/flexy'
+import SimLedger from 'src/components/SimLedger.vue'
 
 const props = defineProps({ simUuid: { type: String, required: true }, phone: { type: Boolean, default: false } })
 
