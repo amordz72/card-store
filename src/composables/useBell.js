@@ -28,6 +28,12 @@ async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
   try { idoomReview.value = Number(await adminApi.idoomReviewCount()) || 0 } catch { /* keep the last value */ }
   try { gameWaiting.value = Number(await customerApi.gameOpenCount(null)) || 0 } catch { /* keep the last value */ }
+  // «متاح» for game top-ups stays on while any admin page is open, not only the games page (owner 2026-10-26).
+  // Only while it is live now: a switch the 30-minute rule already closed is never reopened by this.
+  try {
+    const b = await customerApi.gameBoard(null)
+    if (b?.me_available) await customerApi.gamePresence(null, null)
+  } catch { /* the games page keeps its own */ }
   try { flexyReview.value = Number(await adminApi.flexyReviewCount()) || 0 } catch { /* keep the last value */ }
   try {
     const res = await flexyApi.ownerDevices()

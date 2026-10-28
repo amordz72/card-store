@@ -263,6 +263,8 @@ function pressSend () {
 const sendOffer = (p, label) => keyed('offer:' + p + ':' + label, (key) => props.sendOffer(p, label, key))
 function sentOffer (e) {
   phone.value = ''
+  // Back to ordinary credit, ready for the next customer (owner 2026-10-26)
+  tab.value = '630'
   emit('sent', e)
 }
 </script>
