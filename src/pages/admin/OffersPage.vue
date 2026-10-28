@@ -50,7 +50,7 @@
       </div>
       <div v-for="o in list" :key="o.id" class="offer" :class="{ off: o.status === 'doubt' }">
         <div class="col">
-          <div class="nm">{{ o.nameDisplay }}<span v-if="o.nameDisplay !== o.nameNetwork" class="muted small"> · {{ o.nameNetwork }}</span></div>
+          <div class="nm"><bdi dir="auto">{{ o.nameDisplay }}</bdi><span v-if="o.nameDisplay !== o.nameNetwork" class="muted small"> · {{ o.nameNetwork }}</span></div>
           <div class="meta">
             رمز {{ o.code }} · {{ where(o) }} ·
             <span :class="o.price ? '' : 'text-negative'">{{ o.price ? money(o.price) : 'بلا سعر' }}</span>
