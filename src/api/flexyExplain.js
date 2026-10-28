@@ -85,6 +85,18 @@ const CODES = {
   '590_SEND_RESULT_UNKNOWN': 'لم يصل ردّ الإرسال: يُراجَع قبل أي إعادة.',
   // Djezzy offers (760 without an amount), recorded live 2026-10-27: the confirmation SMS goes to the customer,
   // so the SIM's balance drop (*766#, a minute later) is the proof.
+  // Ooredoo offers (*585*, Flexy Core 0059): the PIN after the network names the price is the money step
+  '585_NETWORK_OK': 'ردّت الشبكة «OK» للرقم: العرض مقبول؛ يُحسم بفرق رصيد الشريحة بعد دقيقة.',
+  '585_NEW_REPLY_BEFORE_PIN': 'ردّت الشبكة بنص غير مسجّل قبل الـPIN. لم يُخصم شيء، وأُبلغت الإدارة.',
+  '585_CODE_SHOWN_TWICE': 'رمز العرض ظهر مرتين في القائمة، فلم يُختر. لم يُخصم شيء.',
+  '585_OFFER_NOT_IN_MENU': 'قائمة الرقم لا تحمل هذا العرض برمزه واسمه. لم يُخصم شيء، وحُفظت قائمة الرقم.',
+  '585_START_NO_RESPONSE': 'المودم لم يردّ على أول طلب. لم يُخصم شيء.',
+  '585_CHOICE_NO_RESPONSE': 'لا ردّ بعد اختيار العرض. لم يُرسل الـPIN، فلم يُخصم شيء.',
+  '585_PIN_NO_RESPONSE': 'أُرسل الـPIN ولم يصل ردّ: قد يكون خُصم، يحسمه الرصيد.',
+  '585_REPLY_UNRECORDED': 'ردّ غير مسجّل بعد الـPIN: قد يكون خُصم، يحسمه الرصيد.',
+  '585_PREVIOUS_UNSETTLED': 'لهذا الرقم عملية أوريدو لم تُحسم بعد. لم يُرسل شيء.',
+  '585_SAME_NUMBER_RECENT': 'لهذا الرقم عملية قبل أقل من دقيقتين. لم يُرسل شيء.',
+  '585_NO_CATALOG_OFFER_IN_MENU': 'قائمة الرقم لا تحمل أي عرض من عروضنا المسجّلة.',
   '760O_NETWORK_PROCESSING': 'الشبكة قبلت العرض وهو قيد المعالجة؛ يُحسم بفرق رصيد الشريحة بعد دقيقة.',
   '760O_DISCOVERED': 'قراءة قائمة عروض الرقم فقط، بلا شراء.',
   '760O_OFFER_NOT_IN_MENU': 'قائمة الرقم لا تحمل هذا العرض بالرقم المعتمد (نوع الخط مختلف أو تغيّرت القائمة). لم يُخصم شيء.',

@@ -2,7 +2,7 @@
   <q-page class="page">
     <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
-      :offer-prefixes="phoneMode ? ['06'] : ['06', '07']"
+      :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :send-offer="sendOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
@@ -100,6 +100,7 @@ const ARSSELLI_OFFER_KEY = 'mobilis.arsselli.offer.696'
 const DJEZZY_KEY = 'djezzy.flexy.ordinary.760'
 const OOREDOO_KEY = 'ooredoo.flexy.ordinary.590'
 const DJEZZY_OFFER_KEY = 'djezzy.flexy.offer.760'
+const OOREDOO_OFFER_KEY = 'ooredoo.flexy.offer.585'
 
 const ERRORS = {
   OWNER_REQUIRED: 'هذا الحساب ليس المالك، أو انتهت الجلسة.',
@@ -329,6 +330,12 @@ async function lookupOffers (p, { retry = false } = {}) {
     if (r7.status !== 200) throw new Error(errorText(r7.body))
     return r7.body
   }
+  // 05 = Ooredoo offers (*585*, Flexy Core 0059): no discovery session, the sale itself reads the menu
+  if (p.startsWith('05')) {
+    const r5 = await flexy.ownerOffers585(p)
+    if (r5.status !== 200) throw new Error(errorText(r5.body))
+    return r5.body
+  }
   const res = await flexy.ownerOffers(p, retry, via())
   // A paid offer waits for a Sama SIM: the discovery comes after it (owner 2026-10-27), the page keeps asking.
   if (res.status === 409 && res.body?.error === 'DISCOVERY_DEFERRED') return { status: 'discovering' }
@@ -342,6 +349,11 @@ async function sendOffer (p, label, key) {
     const r7 = await guarded((k, extra) => flexy.ownerOfferSend760(p, label, k, extra), 'own760o_' + key.replace(/-/g, ''))
     if ((r7.status === 0 || r7.status >= 400) && !r7.body?.operation) throw refused(r7)
     return r7.body
+  }
+  if (p.startsWith('05')) {
+    const r5 = await guarded((k, extra) => flexy.ownerOfferSend585(p, label, k, extra), 'own585_' + key.replace(/-/g, ''))
+    if ((r5.status === 0 || r5.status >= 400) && !r5.body?.operation) throw refused(r5)
+    return r5.body
   }
   const id = 'own665_' + key.replace(/-/g, '')
   let res = await flexy.ownerOfferSend(p, label, id, via())
@@ -365,7 +377,7 @@ const BADGES = {
 const rows = ref([])
 const ops = computed(() => rows.value.map((o) => ({
   id: o.idempotency_key, title: o.offer || money(o.amount), phone: o.phone,
-  kind: [OFFER_KEY, ARSSELLI_OFFER_KEY, DJEZZY_OFFER_KEY].includes(o.operation_key) ? 'offer' : '630', amount: o.amount, offer: o.offer,
+  kind: [OFFER_KEY, ARSSELLI_OFFER_KEY, DJEZZY_OFFER_KEY, OOREDOO_OFFER_KEY].includes(o.operation_key) ? 'offer' : '630', amount: o.amount, offer: o.offer,
   badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply,
   running: ['queued', 'running'].includes(o.status), explain: explain(o.outcome_code, o.status),
   stopped: o.status === 'not_sent', lineChanged: o.outcome_code === '665_LINE_GROUP_CHANGED',
@@ -431,7 +443,8 @@ async function refreshNow () {
         : o.operation_key === DJEZZY_KEY ? flexy.ownerStatus760(o.idempotency_key)
           : o.operation_key === OOREDOO_KEY ? flexy.ownerStatus590(o.idempotency_key)
             : o.operation_key === DJEZZY_OFFER_KEY ? flexy.ownerOfferStatus760(o.idempotency_key)
-          : flexy.ownerStatus(o.idempotency_key)).catch(() => null)))
+              : o.operation_key === OOREDOO_OFFER_KEY ? flexy.ownerOfferStatus585(o.idempotency_key)
+                : flexy.ownerStatus(o.idempotency_key)).catch(() => null)))
     await loadFirst()
   } catch { /* offline: keep what is shown */ } finally { refreshing.value = false }
 }
