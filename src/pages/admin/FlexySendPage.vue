@@ -103,6 +103,11 @@ const ERRORS = {
   '590_PREVIOUS_TRANSFER_UNSETTLED_OR_TOO_RECENT': 'لهذا الرقم عملية أوريدو غير محسومة أو نفس المبلغ قبل أقل من دقيقة. لم يُرسل شيء.',
   DJEZZY_SEND_DISABLED: 'إرسال جيزي مقفل: افتحه من زرّه أعلاه. لم يُرسل شيء.',
   '760_NO_DJEZZY_READY': 'لا شريحة جيزي معتمدة ومتصلة ولها PIN على مودم حر. لم يُرسل شيء.',
+  // Reading a Djezzy line's offers ended without the network's menu (owner 2026-10-28): never «no offers»
+  '760O_START_NO_RESPONSE': 'لم تردّ شبكة جيزي على طلب العروض. أعد المحاولة.',
+  '760O_START_NOT_DISPATCHED': 'لم يصل طلب العروض إلى المودم. أعد المحاولة.',
+  '760O_MENU_UNRECOGNIZED': 'ردّت جيزي بنص غير قائمة العروض. أعد المحاولة.',
+  '760O_NOT_DISCOVERED': 'لم تُقرأ عروض هذا الرقم. أعد المحاولة.',
   '760_PREVIOUS_TRANSFER_UNSETTLED_OR_TOO_RECENT': 'لهذا الرقم عملية جيزي غير محسومة أو نفس المبلغ قبل أقل من دقيقة. لم يُرسل شيء.',
   PHONE_INVALID: 'رقم غير صحيح.',
   AMOUNT_INVALID: 'المبلغ بين 40 و50000 دج، عدد صحيح.',
