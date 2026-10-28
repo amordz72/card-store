@@ -10,20 +10,35 @@
       <div class="small text-negative text-center">{{ error }}</div>
       <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="load({ retry: true })" />
     </div>
-    <div v-else-if="families.length" class="card q-pa-none">
-      <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
-        group="families" header-class="family" expand-separator>
-        <div v-for="o in f.offers" :key="o.label" class="offer-row" :class="{ busy }" role="button" tabindex="0"
+    <!-- Sections come from the offers themselves (owner 2026-10-28): each offer's category (bundle /
+         internet); no category = bundle, so an operator without categories (Sama) looks as before. -->
+    <template v-else-if="families.length || internet.length">
+      <div v-if="families.length" class="card q-pa-none">
+        <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
+          group="families" header-class="family" expand-separator>
+          <div v-for="o in f.offers" :key="o.label" class="offer-row" :class="{ busy }" role="button" tabindex="0"
+            :aria-disabled="busy" @click="confirm(o)" @keyup.enter="confirm(o)">
+            <span class="text-weight-bold">{{ o.label }}</span>
+            <span class="row items-center no-wrap q-gutter-xs">
+              <q-btn v-if="detailOf(o)" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
+                @click.stop="details(o)" />
+              <span class="price">{{ money(o.amount) }}</span>
+            </span>
+          </div>
+        </q-expansion-item>
+      </div>
+      <div v-if="internet.length" class="card q-pa-none net-card">
+        <div class="net-head"><q-icon name="swap_vert" size="18px" /> إنترنت فقط</div>
+        <div v-for="o in internet" :key="o.label" class="offer-row net" :class="{ busy }" role="button" tabindex="0"
           :aria-disabled="busy" @click="confirm(o)" @keyup.enter="confirm(o)">
-          <span class="text-weight-bold">{{ o.label }}</span>
-          <span class="row items-center no-wrap q-gutter-xs">
-            <q-btn v-if="DETAILS[o.label]" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
-              @click.stop="details(o)" />
-            <span class="price">{{ money(o.amount) }}</span>
+          <span class="column">
+            <span class="text-weight-bold">{{ o.label }}</span>
+            <span v-if="detailOf(o)" class="small muted">{{ detailOf(o) }}</span>
           </span>
+          <span class="price net-price">{{ money(o.amount) }}</span>
         </div>
-      </q-expansion-item>
-    </div>
+      </div>
+    </template>
     <div v-else-if="looked" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
   </div>
 </template>
@@ -73,17 +88,23 @@ let loadedFor = ''
 let runId = 0
 const group = ref('')
 
-// Families in the catalog's order (Mix, Talk, Net…), prices rising inside each one
+// Prices rising; the catalog's order only between equal prices (owner 2026-10-28: by amount by default)
+const byPrice = (a, b) => a.amount - b.amount || (a.order ?? 0) - (b.order ?? 0)
+const shown = computed(() => offers.value.filter((x) => x.available !== false && x.amount <= props.maxAmount))
+// Bundles: by family in the catalog's order (Mix, Talk, Net…). An offer without a category is a bundle.
 const families = computed(() => {
   const out = []
-  for (const o of offers.value.filter((x) => x.available !== false && x.amount <= props.maxAmount)) {
+  for (const o of shown.value.filter((x) => x.category !== 'internet')) {
     let f = out.find((x) => x.name === o.family)
     if (!f) out.push(f = { name: o.family, offers: [] })
     f.offers.push(o)
   }
-  for (const f of out) f.offers.sort((a, b) => a.amount - b.amount)
+  for (const f of out) f.offers.sort(byPrice)
   return out
 })
+// Internet only: its own section and colour, never beside a bundle of the same price
+const internet = computed(() => shown.value.filter((x) => x.category === 'internet').sort(byPrice))
+const detailOf = (o) => DETAILS[o.label] || o.details || ''
 
 // One request; while the core discovers the line, ask again every 3 s (at most 90 s).
 // `retry` («أعد المحاولة») asks the core for a new discovery when the last one ended.
@@ -146,7 +167,7 @@ async function recheck (p) {
 defineExpose({ recheck })
 
 function details (o) {
-  Dialog.create({ title: o.label, message: DETAILS[o.label], ok: 'حسنًا', position: 'bottom' })
+  Dialog.create({ title: o.label, message: detailOf(o), ok: 'حسنًا', position: 'bottom' })
 }
 
 // One offer at a time: a tap while one is being sent opens nothing
@@ -161,7 +182,8 @@ function confirm (o) {
     title: last ? 'نفس آخر عملية' : 'تأكيد العرض',
     html: true,
     message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
-      <div style="text-align:center"><b>${o.label}</b>${DETAILS[o.label] ? ' — ' + DETAILS[o.label] : ''}</div>
+      ${o.category === 'internet' ? '<div style="text-align:center;margin:4px 0"><span style="background:#ECFEFF;color:#0E7490;border-radius:6px;padding:2px 8px;font-weight:700">إنترنت فقط</span></div>' : ''}
+      <div style="text-align:center${o.category === 'internet' ? ';color:#0E7490' : ''}"><b>${o.label}</b>${detailOf(o) ? ' — ' + detailOf(o) : ''}</div>
       <div style="text-align:center">السعر: <b>${money(o.amount)}</b></div>
       <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${last
         ? `<div style="margin-top:8px;padding:8px;border-radius:8px;background:#FFF3E0;color:#BF360C;text-align:center">
@@ -182,4 +204,7 @@ function confirm (o) {
 :deep(.family) { font-weight: 700; }
 .price { font-weight: 700; white-space: nowrap; }
 .offer-row.busy { opacity: 0.5; cursor: default; }
+.net-card { border-inline-start: 4px solid #0E7490; }
+.net-head { display: flex; align-items: center; gap: 6px; padding: 10px 14px; font-weight: 700; color: #0E7490; }
+.net-price { color: #0E7490; }
 </style>
