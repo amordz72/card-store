@@ -92,6 +92,10 @@ export const ownerOfferSend = (phone, offer, idempotencyKey, via = null) =>
 // The admin phone: linked phones and their SIM, and a phone app waiting for approval; approve one
 export const ownerPhone = () => owner('phone', { method: 'GET' })
 export const approvePhone = (stationUuid, label) => owner('phone', { method: 'POST', body: { approve: stationUuid, label } })
+// «المختبر» (Flexy Core 1.34): the owner's real try, its source forced and an offer kept out of the catalog allowed
+export const ownerLabSend = (phone, offer, idempotencyKey, route) =>
+  owner('665/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey, test: true, ...(route ? { route } : {}) } })
+export const ownerLabStatus = (idempotencyKey) => owner('665/' + encodeURIComponent(idempotencyKey) + '?steps=1', { method: 'GET' })
 export const ownerOfferStatus = (idempotencyKey) => owner('665/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // «آخر العمليات» of the owner's page: newest 630s and offers, older than `before` (created_at).
 export const ownerOperations = (limit, before) =>
