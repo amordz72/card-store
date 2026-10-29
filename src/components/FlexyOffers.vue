@@ -2,17 +2,20 @@
   <div class="column q-gutter-sm">
     <!-- The line's group (kept, or discovered without money), then its offers: name and price -->
     <div v-if="!phoneOk" class="card text-center muted q-pa-lg">اكتب رقم الزبون لتظهر عروضه.</div>
-    <div v-else-if="loading" class="card column items-center q-gutter-sm q-pa-lg">
+    <!-- No spinner while the automix shows (owner 2026-10-29): the discovery goes on behind it -->
+    <div v-else-if="loading && !showAutomix" class="card column items-center q-gutter-sm q-pa-lg">
       <q-spinner color="primary" size="32px" />
       <div class="small muted">جارٍ معرفة نوع خط الزبون… قد يأخذ حتى دقيقة.</div>
     </div>
-    <div v-else-if="error" class="card column items-center q-gutter-sm q-pa-lg">
+    <div v-else-if="error && !showAutomix" class="card column items-center q-gutter-sm q-pa-lg">
       <div class="small text-negative text-center">{{ error }}</div>
       <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="load({ retry: true })" />
     </div>
     <!-- Sections come from the offers themselves (owner 2026-10-28): each offer's category (bundle /
          internet); no category = bundle, so an operator without categories (Sama) looks as before. -->
     <template v-else-if="!holding && (families.length || internet.length)">
+      <!-- Known now, before any press: a short line and a brief colour, so the seller sees the screen changed -->
+      <div v-if="justKnown && group" class="card small text-weight-bold known">عُرف الخط: {{ group }}</div>
       <div v-if="families.length" class="card q-pa-none">
         <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
           group="families" header-class="family" expand-separator>
@@ -87,6 +90,11 @@
          the line's offers show. Each row only while a SIM can take it; otherwise «حاول بعد دقيقة» (the owner is told). -->
     <div v-if="showAutomix" class="card column q-gutter-sm automix">
       <div class="text-weight-bold">اختر مباشرة دون انتظار</div>
+      <div v-if="!holding && loading" class="small muted">عروض الخط تظهر هنا حين تُعرف.</div>
+      <div v-if="!holding && error" class="row items-center q-gutter-xs small muted">
+        <span>لم يُعرف نوع الخط.</span>
+        <button type="button" class="link text-primary" @click="load({ retry: true })">أعد المحاولة</button>
+      </div>
       <div v-if="holding" class="row items-center q-gutter-sm small text-primary"><q-spinner size="16px" /><span>جارٍ تنفيذ العرض… النتيجة في «آخر العمليات». لا تُرسل غيره حتى ينتهي.</span></div>
       <div v-if="automix.small === null" class="row items-center q-gutter-sm small muted"><q-spinner size="16px" /><span>جارٍ التحقق من الشرائح…</span></div>
       <div v-else-if="!automix.small && !automix.big" class="small text-negative">لا توجد عروض الآن، حاول بعد دقيقة.</div>
@@ -276,6 +284,7 @@ const detailOf = (o) => DETAILS[o.label] || o.details || ''
 const autoSent = ref('')
 // Until its row shows in «آخر العمليات» (a few seconds), the send counts as running
 const justSent = ref(false)
+const justKnown = ref(false)
 const holding = computed(() => autoSent.value !== '' && autoSent.value === props.phone && (props.running || justSent.value))
 const showAutomix = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
   (loading.value || Boolean(error.value) || holding.value))
@@ -311,6 +320,8 @@ async function load ({ retry = false } = {}) {
     ordered.value = r?.ordered === true
     blocked.value = Array.isArray(r?.blocked) ? r.blocked : []
     if (r?.status === 'ready') {
+      // Replacing the automix buttons: mark it for a moment
+      if (automix.value.for === p && !holding.value) { justKnown.value = true; setTimeout(() => { justKnown.value = false }, 2500) }
       loadedFor = p
       offers.value = r.offers || []
       looked.value = true
@@ -414,6 +425,8 @@ function confirm (o, auto = false) {
 .menu-lines { background: #F6F6F6; border-radius: 8px; padding: 8px 10px; font-family: monospace; font-size: 12px; max-height: 180px; overflow: auto; }
 .live { border: 2px solid #0E7490; padding: 12px; }
 .automix { border: 2px solid #1D4ED8; padding: 12px; }
+.known { background: #FEF3C7; color: #92400E; padding: 8px 12px; }
+.link { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
 .amounts { display: flex; flex-wrap: wrap; gap: 8px; }
 .amounts .q-btn { min-width: 72px; min-height: 44px; }
 </style>
