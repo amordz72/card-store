@@ -44,6 +44,9 @@
           لا نسخة معتمدة لهذه المجموعة بعد: لا يُباع منها شيء إلا ما تستكشفه أنت.
           افتح رقمًا منها في «إرسال فليكسي» لتُقرأ قائمته، أو ارفع نسخة قديمة من الأسفل.
         </div>
+        <!-- «إلغاء النسخة» on top, under the tabs (owner 2026-10-29: it was below the long list) -->
+        <q-btn v-if="editing && approved.length" outline no-caps color="negative" icon="block" :label="'إلغاء النسخة ' + info.version"
+          :disable="acting" @click="withdraw" />
         <div v-else class="card">
           <template v-for="p in pagesOf(approved)" :key="p.key">
             <div class="pg">{{ p.label }}</div>
@@ -73,8 +76,6 @@
           </template>
         </div>
         <div v-if="editing && approved.length" class="small muted q-px-sm">لا يتغير هنا اسم ولا ترتيب: مكانهما في المشاهدة.</div>
-        <q-btn v-if="editing && approved.length" outline no-caps color="negative" icon="block" :label="'إلغاء النسخة ' + info.version"
-          :disable="acting" @click="withdraw" />
       </template>
 
       <!-- جديدة: the network's new shape (or a raised version) beside what changed; the approved one goes on selling -->
