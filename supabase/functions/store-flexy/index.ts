@@ -100,13 +100,14 @@ function creditKey(phone: string): string {
 // Before any charge (owner 2026-10-29): is there a SIM the core could send on, with enough balance?
 // «غير متاح» = nothing taken, nothing written for the shop; the core tells the owner. The core not
 // answering never blocks a sale (the send itself still decides, and refunds, as before).
-async function coreAvailable(operationKey: string, amount: number): Promise<boolean> {
-  if (!Number.isFinite(amount) || amount <= 0) return true;
+async function coreAvailable(operationKey: string, amount: number, offer: string | null = null): Promise<boolean> {
+  if (!offer && (!Number.isFinite(amount) || amount <= 0)) return true;
   try {
     const res = await fetch(`${FLEXY_API}/availability`, {
       method: "POST",
       headers: { authorization: `Bearer ${FLEXY_KEY}`, "content-type": "application/json" },
-      body: JSON.stringify({ operation_key: operationKey, amount }),
+      // An offer is asked by its name: the core checks its real routes (Sama Mix 50 = Arsselli only).
+      body: JSON.stringify(offer ? { operation_key: operationKey, offer } : { operation_key: operationKey, amount }),
       signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return true;
@@ -214,7 +215,7 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     const label = kind === "offer" ? String(body.offer ?? "").trim() : null;
     const amount = kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
     const phone = String(body.phone ?? "");
-    if (!(await coreAvailable(kind === "offer" ? OP_OFFER : creditKey(phone), amount))) {
+    if (!(await coreAvailable(kind === "offer" ? OP_OFFER : creditKey(phone), amount, label))) {
       return json(req, 422, { ok: false, error: "FLEXY_UNAVAILABLE" });
     }
     const created = await serviceRpc("store_flexy_create_v3", {
@@ -237,6 +238,22 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     if (!open.ok || !Array.isArray(jobs)) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
     await Promise.all((jobs as Job[]).map(followUp));
     return json(req, 200, { ok: true, open: jobs.length });
+  }
+
+  // «أوتوميكس» (owner 2026-10-29): which quick offers a SIM can take now, before the line is known.
+  // {offers: up to 4 names} → {available: {name: bool}}. Unavailable = the owner is told by the core.
+  if (route === "/shop/available") {
+    const st = await fetch(`${SUPABASE_URL}/rest/v1/rpc/store_flexy_status`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ p_token: token }),
+    });
+    const s = (await st.json().catch(() => null))?.[0];
+    if (!st.ok || !s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
+    if (!s.enabled || !s.open || !s.offers) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
+    const names = (Array.isArray(body.offers) ? body.offers : []).filter((x: unknown) => typeof x === "string").slice(0, 4) as string[];
+    const answers = await Promise.all(names.map((n) => coreAvailable(OP_OFFER, NaN, n)));
+    return json(req, 200, { ok: true, available: Object.fromEntries(names.map((n, i) => [n, answers[i]])) });
   }
 
   // Offers for a number: Flexy Core keeps the line's group (or discovers it, no money) and

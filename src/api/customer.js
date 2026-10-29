@@ -117,6 +117,8 @@ export const flexyRefresh = (token) => shop('refresh', { token })
 // by its name; the server takes the price from the name.
 export const flexyOffer = (token, phone, offer, requestId) => shop('send', { token, kind: 'offer', phone, offer, request_id: requestId })
 export const flexyOffers = (token, phone) => shop('offers', { token, phone })
+// «أوتوميكس» (owner 2026-10-29): which quick offers a SIM can take now → { name: true | false }
+export const flexyAvailable = (token, offers) => shop('available', { token, offers }).then((r) => r?.available || {})
 
 // Game top-up by player id (v1.25): the card comes from stock and is never shown; an operator tops up by hand
 export async function gameStatus (token) {
