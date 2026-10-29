@@ -103,7 +103,7 @@
             <q-btn v-for="o in AUTO.small.filter(fits)" :key="o.label" unelevated no-caps color="primary" :label="money(o.amount)" :disable="busy || holding" @click="confirm(o, true)" />
           </div>
         </div>
-        <div v-else class="small text-deep-orange-9">100 غير متاح الآن، حاول بعد دقيقة.</div>
+        <div v-else class="small text-deep-orange-9">عروض 50 و100 غير متاحة الآن، حاول بعد دقيقة.</div>
         <template v-if="automix.big">
           <div class="small muted">مختلط (مكالمات ورسائل وإنترنت)</div>
           <div class="amounts">
@@ -168,8 +168,8 @@ const newGroup = ref(null)
 // «أوتوميكس»: the quick offers by their catalog names (Flexy Core sends each by its known route)
 const autoOffer = (family, amount, display, category = 'bundle') => ({ label: `${family} ${amount}`, amount, display, category })
 const AUTO = {
-  // 50 dropped (owner 2026-10-29): the network refuses 50 DA to Sama Mix and Revolution lines
-  small: [100].map((a) => autoOffer('Mixed', a, `عرض ${a} دج (حسب خط الزبون)`)),
+  // 50 back (owner 2026-10-29): tried by Arsselli, a Sama line got «Sama Mix 50 500Mo + Bonus 50DA»
+  small: [50, 100].map((a) => autoOffer('Mixed', a, `عرض ${a} دج (حسب خط الزبون)`)),
   // «Mixed N» (Flexy Core): the line's own offer of kind «مختلط» and that amount, whatever its group
   mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Mixed', a, `مختلط ${a} دج`)),
   net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `إنترنت ${a} دج`, 'internet'))
