@@ -24,10 +24,12 @@ const newReplies = ref(0)
 // «المراقبة» (Flexy Core 0068): the red / orange bar on every admin page, and its alerts in the bell
 const monitorBar = ref(null)
 const monitorAlerts = ref(0)
+// «حدث أثناء غيابك» (Flexy Core 0079): unseen events that solved themselves
+const monitorIncidents = ref(0)
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
 const repoKeyAlert = computed(() => (repoKeyLevel.value === 'dead' || repoKeyLevel.value === 'expiring' ? 1 : 0))
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
@@ -61,6 +63,7 @@ async function refreshBell () {
     if (res.status === 200) {
       monitorBar.value = res.body?.bar || null
       monitorAlerts.value = (res.body?.alerts || []).length
+      monitorIncidents.value = res.body?.counts?.incidents || 0
     }
   } catch { /* keep the last value */ }
   try {
@@ -70,5 +73,5 @@ async function refreshBell () {
 }
 
 export function useBell () {
-  return { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, bellTotal, refreshBell }
+  return { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }

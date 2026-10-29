@@ -150,6 +150,7 @@ export const numberMemory = (phone) => owner('numbers?phone=' + encodeURICompone
 export const numberForget = (phone) => owner('numbers', { method: 'POST', body: { forget: phone } })
 export const numberForgetMine = (days, confirm) => owner('numbers', { method: 'POST', body: { mine_days: days, confirm: !!confirm } })
 export const numberForgetRecent = (days, confirm) => owner('numbers', { method: 'POST', body: { recent_days: days, confirm: !!confirm } })
+export const ownerIncidentSeen = (id) => owner('monitor', { method: 'POST', body: { seen: id } })
 export const ownerMonitorAck = (key) => owner('monitor', { method: 'POST', body: { ack: key } })
 // A SIM's PIN, name and note (owner only). The PIN is never sent back; fields left out are not changed.
 export const saveSimSettings = (simUuid, fields) => owner('sims/settings', { method: 'POST', body: { sim_uuid: simUuid, ...fields } })
