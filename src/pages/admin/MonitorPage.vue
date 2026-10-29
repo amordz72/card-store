@@ -8,7 +8,7 @@
       <button v-for="t in TILES" :key="t.key" type="button" class="count" :class="[t.key, { picked: filter === t.key, dim: filter && filter !== t.key }]"
         :aria-pressed="filter === t.key" @click="pick(t.key)">
         <q-icon name="filter_alt" size="14px" class="funnel" />
-        <div class="n">{{ view?.counts[t.key] ?? '—' }}</div><div class="small">{{ t.label }}</div>
+        <div class="n">{{ view ? tileCount(t.key) : '—' }}</div><div class="small">{{ t.label }}</div>
       </button>
     </div>
     <div class="row items-center q-mt-sm">
@@ -17,7 +17,7 @@
     </div>
     <div v-if="error" class="small text-negative">{{ error }}</div>
 
-    <template v-if="filter !== 'ok'">
+    <template v-if="!SIM_FILTERS.has(filter)">
     <div class="section-title q-mt-sm">يحتاجك الآن</div>
     <div v-if="view && !shownAlerts.length" class="card small muted">لا شيء يحتاجك الآن.</div>
     <div v-for="a in shownAlerts" :key="a.key" class="card column q-gutter-xs">
@@ -136,14 +136,23 @@ const tab = ref('balances')
 const picked = ref(null)
 const unavailableOpen = ref(false)
 
-const TILES = [{ key: 'down', label: 'حرج' }, { key: 'warn', label: 'قبل الحرج' }, { key: 'ok', label: 'شريحة جاهزة' }]
+// «متصلة» / «غير متصلة» (owner 2026-10-29): what is really connected now, whatever its other state
+const TILES = [{ key: 'down', label: 'حرج' }, { key: 'warn', label: 'قبل الحرج' }, { key: 'ok', label: 'شريحة جاهزة' },
+  { key: 'online', label: 'متصلة' }, { key: 'offline', label: 'غير متصلة' }]
+const SIM_FILTERS = new Set(['ok', 'online', 'offline'])
+function tileCount (key) {
+  const sims = view.value?.sims || []
+  if (key === 'online') return sims.filter((s) => s.online).length
+  if (key === 'offline') return sims.filter((s) => !s.online).length
+  return view.value?.counts[key] ?? 0
+}
 const filter = ref(null)
 function pick (key) {
   filter.value = filter.value === key ? null : key
-  if (key === 'ok' && filter.value) tab.value = 'balances'
+  if (SIM_FILTERS.has(key) && filter.value) tab.value = 'balances'
 }
-const shownAlerts = computed(() => (view.value?.alerts || []).filter((a) => !filter.value || a.level === filter.value))
-const sortedSims = computed(() => [...(view.value?.sims || [])].filter((s) => filter.value !== 'ok' || s.ready).sort((a, b) =>
+const shownAlerts = computed(() => (view.value?.alerts || []).filter((a) => !filter.value || SIM_FILTERS.has(filter.value) || a.level === filter.value))
+const sortedSims = computed(() => [...(view.value?.sims || [])].filter((s) => (filter.value === 'ok' ? s.ready : filter.value === 'online' ? s.online : filter.value === 'offline' ? !s.online : true)).sort((a, b) =>
   (a.ready === b.ready ? 0 : a.ready ? 1 : -1) || (a.approved === b.approved ? 0 : a.approved ? -1 : 1) || String(a.code).localeCompare(String(b.code))))
 const pickedSims = computed(() => (view.value?.sims || []).filter((s) => picked.value && s.operator === picked.value.operator && !s.ready))
 
@@ -198,7 +207,11 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <style scoped>
-.counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.counts { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.counts .count { grid-column: span 2; }
+.counts .count.online, .counts .count.offline { grid-column: span 3; }
+.count.online { background: #DCFCE7; color: #166534; }
+.count.offline { background: #FEE2E2; color: #991B1B; }
 .count { position: relative; border: 2px solid transparent; border-radius: 10px; padding: 10px; text-align: center; font: inherit; cursor: pointer; min-height: 44px; }
 .count.picked { border-color: currentColor; }
 .count.dim { opacity: 0.55; }
