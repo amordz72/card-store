@@ -15,7 +15,7 @@
     <div v-if="groupNames.length" class="row q-gutter-xs">
       <q-btn v-for="g in groupNames" :key="g" dense no-caps rounded size="sm" :unelevated="group === g" :outline="group !== g"
         :color="group === g ? 'deep-orange' : 'grey-7'" @click="group = g">
-        {{ g }}<span v-if="infoOf(g).draft_source" class="dot">●</span>
+        {{ chipLabel(g) }}<span v-if="infoOf(g).draft_source" class="dot">●</span>
       </q-btn>
     </div>
     <div v-if="group" class="modes row no-wrap">
@@ -82,6 +82,12 @@
           </template>
         </div>
         <div v-if="editing && approved.length" class="small muted q-px-sm">لا يتغير هنا اسم ولا ترتيب: مكانهما في المشاهدة.</div>
+        <!-- «صيغ»: how many numbers are decided on this variant; whether an exact menu match sells by itself -->
+        <div v-if="approved.length" class="card q-pa-sm column q-gutter-xs">
+          <div class="small muted">{{ info.numbers ? info.numbers + ' رقمًا على هذه الصيغة' : 'لا رقم محسوم على هذه الصيغة بعد' }}<span v-if="(info.label || group) !== group"> · الاسم: {{ info.label }}</span></div>
+          <q-checkbox v-if="editing" :model-value="info.auto_exact !== false" dense size="sm" color="positive" :disable="acting"
+            label="البيع تلقائيًا عند المطابقة التامة (مطفأ: يسألني أولًا لكل رقم)" @update:model-value="(v) => act('auto_exact', v ? 'on' : 'off')" />
+        </div>
       </template>
 
       <!-- جديدة: the network's new shape (or a raised version) beside what changed; the approved one goes on selling -->
@@ -239,6 +245,13 @@ const error = ref('')
 const num = (n) => (n ? Number(n).toLocaleString('en-US') : '—')
 const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ') : '—')
 const infoOf = (g) => groupInfo.value.find((x) => x.grp === g) || {}
+// «صيغ» (Flexy Core 0067): variants of a label are keyed «GOLD», «GOLD 2»…; the chip shows the label and the variant
+const chipLabel = (g) => {
+  const i = infoOf(g)
+  const label = i.label || g
+  const suffix = g.startsWith(label) ? g.slice(label.length).trim() : g
+  return suffix && suffix !== g ? label + ' · صيغة ' + suffix : label === g ? g : label + ' · ' + g
+}
 const groupNames = computed(() => [...new Set([...groupInfo.value.map((g) => g.grp), ...rows.value.map((o) => o.group)])])
 const info = computed(() => infoOf(group.value))
 const approved = computed(() => rows.value.filter((o) => o.group === group.value && !o.draft))

@@ -39,6 +39,27 @@
         </div>
       </div>
     </template>
+    <!-- «صيغ» (Flexy Core 0067): this number's menu is a known label's but no variant matches it exactly -->
+    <div v-else-if="shape" class="card column q-gutter-sm ask">
+      <div class="text-weight-bold">
+        {{ shape.status === 'confirm' ? 'قائمة هذا الرقم تطابق ' + (shape.candidates[0]?.label || shape.group) + '. تبدأ البيع؟'
+          : 'قائمة هذا الرقم من ' + shape.word + ' لكنها تختلف عن ' + (shape.candidates.length > 1 ? 'صيغه المعروفة' : 'المعتمدة') + '.' }}
+      </div>
+      <div class="small muted">ما أرسلته الشبكة:</div>
+      <div class="menu-lines ltr">
+        <div v-for="it in shape.items" :key="it.code + it.name"><b>{{ it.code }}</b> · {{ it.name }}</div>
+      </div>
+      <template v-if="shape.status === 'confirm'">
+        <q-btn unelevated no-caps color="positive" label="نعم، ابدأ البيع" :loading="deciding === 'confirm' + shape.group" :disable="Boolean(deciding)"
+          @click="decideShape('confirm', shape.group)" />
+      </template>
+      <template v-else>
+        <q-btn v-for="c in shape.candidates" :key="c.key" outline no-caps color="deep-orange" :loading="deciding === 'change' + c.key" :disable="Boolean(deciding)"
+          :label="'تغيير في ' + c.key + (c.numbers ? ' (' + c.numbers + ' رقمًا)' : '')" @click="decideShape('change', c.key)" />
+      </template>
+      <q-btn unelevated no-caps color="cyan-9" label="صيغة جديدة" :loading="deciding === 'new'" :disable="Boolean(deciding)" @click="decideShape('new')" />
+      <div class="small muted">«صيغة جديدة» تنشئ {{ shape.word || shape.candidates[0]?.label }} أخرى لهذا النوع من الخطوط، وتستكشفها الآن للإدارة. لا مال في أي خيار.</div>
+    </div>
     <div v-else-if="looked && !newGroup && !blocked.length" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
     <!-- Offers the index guard stops (Ooredoo, Flexy Core 0065): a code the menu shows twice. Never sold from here;
          «اكشف» asks the network which offer that code gives (its price, before the PIN; no money). -->
@@ -90,12 +111,30 @@ const props = defineProps({
   send: { type: Function, required: true },
   repeatOf: { type: Function, default: () => null },
   // «اكشف» (owner's page, Ooredoo): probe(phone, code, again) → { status: 'probing' | 'done', price, offers }
-  probe: { type: Function, default: null }
+  probe: { type: Function, default: null },
+  // «صيغ»: decide(phone, 'confirm' | 'change' | 'new', group) when a menu matched no variant exactly
+  decide: { type: Function, default: null }
 })
 const emit = defineEmits(['sent'])
 // The lab, only for the owner's live session on a new group (never loaded on a shop's page)
 const ModemPanel = defineAsyncComponent(() => import('src/components/ModemPanel.vue'))
 const newGroup = ref(null)
+// The owner's question (Ooredoo «صيغ», Flexy Core 0067): { status: 'ask' | 'confirm', word, group, candidates, items }
+const shape = ref(null)
+const deciding = ref('')
+async function decideShape (decision, group = null) {
+  if (!props.decide || deciding.value) return
+  deciding.value = decision + (group || '')
+  try {
+    await props.decide(props.phone, decision, group)
+    shape.value = null
+    await load()
+  } catch (e) {
+    error.value = e?.message || 'تعذّر حفظ القرار.'
+  } finally {
+    deciding.value = ''
+  }
+}
 const { busy, run } = useRun()
 
 // What the customer gets for each offer (shown from «i»). The price is the number in the name.
@@ -186,6 +225,7 @@ async function load ({ retry = false } = {}) {
   error.value = ''
   looked.value = false
   newGroup.value = null
+  shape.value = null
   blocked.value = []
   probed.value = {}
   probeError.value = ''
@@ -210,6 +250,13 @@ async function load ({ retry = false } = {}) {
       offers.value = r.offers || []
       group.value = r.group || ''
       newGroup.value = { group: r.group || '', sim: r.sim_uuid || '' }
+    } else if (r?.status === 'ask' || r?.status === 'confirm') {
+      // The menu is a known label's but matches no variant exactly (or the variant asks first): the owner decides
+      loadedFor = p
+      looked.value = true
+      offers.value = []
+      group.value = ''
+      shape.value = r
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
       loadedFor = p
@@ -288,5 +335,7 @@ function confirm (o) {
 .net-head { display: flex; align-items: center; gap: 6px; padding: 10px 14px; font-weight: 700; color: #0E7490; }
 .net-price { color: #0E7490; }
 .blocked { border-style: dashed; }
+.ask { border: 2px solid #C2410C; padding: 12px; }
+.menu-lines { background: #F6F6F6; border-radius: 8px; padding: 8px 10px; font-family: monospace; font-size: 12px; max-height: 180px; overflow: auto; }
 .live { border: 2px solid #0E7490; padding: 12px; }
 </style>
