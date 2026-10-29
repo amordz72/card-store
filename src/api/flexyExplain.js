@@ -33,6 +33,8 @@ const CODES = {
   '630_NETWORK_REJECTED': 'الشبكة رفضت التحويل. لم يُخصم شيء.',
   '630_NETWORK_INSUFFICIENT': 'رصيد الشريحة لا يكفي. لم يُخصم شيء.',
   '630_SMS_INSUFFICIENT': 'رسالة الشبكة: رصيد الشريحة لا يكفي. لم يُخصم شيء.',
+  // Owner 2026-10-29: «Transaction échouée» = the number has no such offer (e.g. 50 DA to a Sama Mix line)
+  '630_SMS_TRANSACTION_FAILED': 'رسالة الشبكة: «Transaction échouée»، هذا الرقم ليس له هذا العرض. لم يُخصم شيء وأُرجع المبلغ.',
   '630_SMS_PIN_REJECTED': 'رسالة الشبكة: الـPIN خاطئ. لم يُخصم شيء.',
   '630_START_NO_RESPONSE': 'المودم لم يردّ على أول طلب. لم يُخصم شيء.',
   '630_START_NOT_DISPATCHED': 'الطلب لم يصل إلى المودم. لم يُخصم شيء.',

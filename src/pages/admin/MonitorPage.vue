@@ -92,11 +92,16 @@
 
     <q-dialog v-model="unavailableOpen">
       <q-card v-if="picked" style="min-width: 300px">
-        <q-card-section class="text-weight-bold">{{ picked.name }} · غير متاح</q-card-section>
-        <q-card-section class="column q-gutter-sm">
+        <q-card-section class="column q-gutter-xs">
+          <div class="text-weight-bold">{{ picked.name }} · غير متاح الآن</div>
+          <!-- Owner 2026-10-29: the amount is money still inside a SIM that cannot send now, not money available -->
+          <div class="small muted">رصيد موجود في هذه الشرائح، لكنها لا تستطيع الإرسال الآن. لا يدخل في «متاح الآن».</div>
+        </q-card-section>
+        <q-card-section class="column q-gutter-sm q-pt-none">
           <div v-for="s in pickedSims" :key="s.sim_uuid" class="column">
-            <div class="row"><b class="col">{{ s.code || 'شريحة' }}</b><span>{{ s.balance == null ? '—' : money(s.balance) }}</span></div>
-            <div class="small muted">{{ s.reason_text }}</div>
+            <div class="row"><b class="col">{{ s.code || 'شريحة' }}</b><span class="column items-end"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
+              <span class="tiny muted">رصيدها المحفوظ<template v-if="s.balance_checked_at">، قُرئ {{ ago(s.balance_checked_at) }}</template></span></span></div>
+            <div class="small text-negative">السبب: {{ s.reason_text }}</div>
           </div>
         </q-card-section>
         <q-card-actions align="left">
