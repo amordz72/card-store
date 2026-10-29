@@ -81,6 +81,35 @@
         للبيع: {{ newGroup ? 'اعتمد المجموعة في شاشة العروض، ثم' : 'في شاشة العروض ←' }} «اعتماد الرمز» على العرض المطابق. الآخر يبقى موقوفًا.
       </div>
     </div>
+    <!-- «أوتوميكس» (owner 2026-10-29): a Mobilis number whose line is not known yet sells at once, without waiting
+         for the discovery. 50 and 100 go by Arsselli (the network gives the line's own offer at that price); «مختلط»
+         and «إنترنت» open a Sama session that buys only when the line has that offer, else stops before any money and
+         the line's offers show. Each row only while a SIM can take it; otherwise «حاول بعد دقيقة» (the owner is told). -->
+    <div v-if="showAutomix" class="card column q-gutter-sm automix">
+      <div class="text-weight-bold">اختر مباشرة دون انتظار</div>
+      <div v-if="automix.small === null" class="row items-center q-gutter-sm small muted"><q-spinner size="16px" /><span>جارٍ التحقق من الشرائح…</span></div>
+      <div v-else-if="!automix.small && !automix.big" class="small text-negative">لا توجد عروض الآن، حاول بعد دقيقة.</div>
+      <template v-else>
+        <div v-if="automix.small" class="column q-gutter-xs">
+          <div class="small muted">عرض الخط بهذا المبلغ</div>
+          <div class="amounts">
+            <q-btn v-for="o in AUTO.small.filter(fits)" :key="o.label" unelevated no-caps color="primary" :label="money(o.amount)" :disable="busy" @click="confirm(o, true)" />
+          </div>
+        </div>
+        <div v-else class="small text-deep-orange-9">50 و100 غير متاحة الآن، حاول بعد دقيقة.</div>
+        <template v-if="automix.big">
+          <div class="small muted">مختلط (مكالمات ورسائل وإنترنت)</div>
+          <div class="amounts">
+            <q-btn v-for="o in AUTO.mix.filter(fits)" :key="o.label" outline no-caps color="primary" :label="money(o.amount)" :disable="busy" @click="confirm(o, true)" />
+          </div>
+          <div class="small muted">إنترنت</div>
+          <div class="amounts">
+            <q-btn v-for="o in AUTO.net.filter(fits)" :key="o.label" outline no-caps color="cyan-9" :label="money(o.amount)" :disable="busy" @click="confirm(o, true)" />
+          </div>
+        </template>
+        <div v-else class="small text-deep-orange-9">العروض الأخرى غير متاحة الآن، حاول بعد دقيقة.</div>
+      </template>
+    </div>
     <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
          owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
     <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
@@ -110,6 +139,8 @@ const props = defineProps({
   lookup: { type: Function, required: true },
   send: { type: Function, required: true },
   repeatOf: { type: Function, default: () => null },
+  // «أوتوميكس»: available(names) → { name: bool } (the shop's page); absent = every row shown (the owner's page)
+  available: { type: Function, default: null },
   // «اكشف» (owner's page, Ooredoo): probe(phone, code, again) → { status: 'probing' | 'done', price, offers }
   probe: { type: Function, default: null },
   // «صيغ»: decide(phone, 'confirm' | 'change' | 'new', group) when a menu matched no variant exactly
@@ -119,6 +150,28 @@ const emit = defineEmits(['sent'])
 // The lab, only for the owner's live session on a new group (never loaded on a shop's page)
 const ModemPanel = defineAsyncComponent(() => import('src/components/ModemPanel.vue'))
 const newGroup = ref(null)
+// «أوتوميكس»: the quick offers by their catalog names (Flexy Core sends each by its known route)
+const autoOffer = (family, amount, display, category = 'bundle') => ({ label: `${family} ${amount}`, amount, display, category })
+const AUTO = {
+  small: [50, 100].map((a) => autoOffer('Sama Mix', a, `عرض ${a} دج (حسب خط الزبون)`)),
+  mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Mix', a, `مختلط ${a} دج`)),
+  net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `إنترنت ${a} دج`, 'internet'))
+}
+const fits = (o) => o.amount <= props.maxAmount
+const automix = ref({ for: '', small: null, big: null })
+let automixRun = 0
+async function checkAutomix (p) {
+  const mine = ++automixRun
+  automix.value = { for: p, small: null, big: null }
+  if (!props.available) { automix.value = { for: p, small: true, big: true }; return }
+  try {
+    const a = await props.available(['Sama Mix 50', 'Sama Net 500'])
+    if (mine === automixRun) automix.value = { for: p, small: a['Sama Mix 50'] !== false, big: a['Sama Net 500'] !== false }
+  } catch {
+    // Not known: the rows show, the send itself still refuses («غير متاح») without taking anything
+    if (mine === automixRun) automix.value = { for: p, small: true, big: true }
+  }
+}
 // The owner's question (Ooredoo «صيغ», Flexy Core 0067): { status: 'ask' | 'confirm', word, group, candidates, items }
 const shape = ref(null)
 const deciding = ref('')
@@ -212,6 +265,8 @@ const families = computed(() => {
 // Internet only: its own section and colour, never beside a bundle of the same price
 const internet = computed(() => shown.value.filter((x) => x.category === 'internet').sort(byPrice))
 const detailOf = (o) => DETAILS[o.label] || o.details || ''
+// Only while this Mobilis number's line is not known: waiting for it, or its discovery failed
+const showAutomix = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone && (loading.value || Boolean(error.value)))
 
 // One request; while the core discovers the line, ask again every 3 s (at most 90 s).
 // `retry` («أعد المحاولة») asks the core for a new discovery when the last one ended.
@@ -230,6 +285,7 @@ async function load ({ retry = false } = {}) {
   probed.value = {}
   probeError.value = ''
   loading.value = true
+  if (p.startsWith('06') && automix.value.for !== p) checkAutomix(p)
   try {
     let r = await props.lookup(p, { retry })
     for (let i = 0; r?.status === 'discovering' && i < 30 && mine === runId; i++) {
@@ -299,10 +355,10 @@ function details (o) {
 
 // One offer at a time: a tap while one is being sent opens nothing
 let asking = false
-function confirm (o) {
+function confirm (o, auto = false) {
   const p = props.phone
   if (busy.value || asking) return
-  if (p !== loadedFor) { load(); return }
+  if (!auto && p !== loadedFor) { load(); return }
   const last = props.repeatOf(p, { offer: o.label })
   asking = true
   Dialog.create({
@@ -310,7 +366,8 @@ function confirm (o) {
     html: true,
     message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
       ${o.category === 'internet' ? '<div style="text-align:center;margin:4px 0"><span style="background:#ECFEFF;color:#0E7490;border-radius:6px;padding:2px 8px;font-weight:700">إنترنت فقط</span></div>' : ''}
-      <div style="text-align:center${o.category === 'internet' ? ';color:#0E7490' : ''}"><b>${o.label}</b>${detailOf(o) ? ' — ' + detailOf(o) : ''}</div>
+      <div style="text-align:center${o.category === 'internet' ? ';color:#0E7490' : ''}"><b>${o.display || o.label}</b>${!o.display && detailOf(o) ? ' — ' + detailOf(o) : ''}</div>${o.display
+        ? '<div style="font-size:12px;color:#5B6170;text-align:center">إن لم يكن لخط الزبون هذا العرض يتوقف قبل أي خصم، وتظهر عروض خطه.</div>' : ''}
       <div style="text-align:center">السعر: <b>${money(o.amount)}</b></div>
       <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${last
         ? `<div style="margin-top:8px;padding:8px;border-radius:8px;background:#FFF3E0;color:#BF360C;text-align:center">
@@ -338,4 +395,7 @@ function confirm (o) {
 .ask { border: 2px solid #C2410C; padding: 12px; }
 .menu-lines { background: #F6F6F6; border-radius: 8px; padding: 8px 10px; font-family: monospace; font-size: 12px; max-height: 180px; overflow: auto; }
 .live { border: 2px solid #0E7490; padding: 12px; }
+.automix { border: 2px solid #1D4ED8; padding: 12px; }
+.amounts { display: flex; flex-wrap: wrap; gap: 8px; }
+.amounts .q-btn { min-width: 72px; min-height: 44px; }
 </style>

@@ -6,7 +6,7 @@
       <div class="small muted">اطلب من المحل تفعيله.</div>
     </div>
     <FlexySend v-else remember="shop" :open="access.open.value" :max-amount="access.maxAmount.value" :offers="access.offers.value"
-      :credit-prefixes="access.creditPrefixes.value" note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer"
+      :credit-prefixes="access.creditPrefixes.value" note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer" :available-offers="availableOffers"
       :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <q-badge :color="access.open.value ? 'positive' : 'negative'" class="q-pa-sm self-start">
@@ -110,6 +110,7 @@ const lostAnswer = (e) => {
 }
 const send = (p, v, { key }) => api.flexySend(customer.token, p, v, key).catch(lostAnswer)
 const lookupOffers = (p) => api.flexyOffers(customer.token, p)
+const availableOffers = (names) => api.flexyAvailable(customer.token, names)
 const sendOffer = (p, label, key) => api.flexyOffer(customer.token, p, label, key).catch(lostAnswer)
 
 // Something went out (credit or offer): the balance changed, follow it in «آخر العمليات»
