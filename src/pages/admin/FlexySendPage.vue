@@ -83,7 +83,7 @@ import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import FlexySend from 'src/components/FlexySend.vue'
-import { explain } from 'src/api/flexyExplain'
+import { explain, offerTitle } from 'src/api/flexyExplain'
 import { useBell } from 'src/composables/useBell'
 
 // The owner's side of the shared send screen (FlexySend): real Mobilis from his own SIMs through
@@ -391,7 +391,7 @@ const BADGES = {
 }
 const rows = ref([])
 const ops = computed(() => rows.value.map((o) => ({
-  id: o.idempotency_key, title: o.offer || money(o.amount), phone: o.phone,
+  id: o.idempotency_key, title: o.offer ? offerTitle(o.offer) : money(o.amount), phone: o.phone,
   kind: [OFFER_KEY, ARSSELLI_OFFER_KEY, DJEZZY_OFFER_KEY, OOREDOO_OFFER_KEY].includes(o.operation_key) ? 'offer' : '630', amount: o.amount, offer: o.offer,
   badge: BADGES[o.status] || { label: 'جارٍ', color: 'info' }, at: o.created_at, reply: o.network_reply,
   running: ['queued', 'running'].includes(o.status), explain: explain(o.outcome_code, o.status),

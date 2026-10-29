@@ -23,6 +23,7 @@ import { useBuyer } from 'src/composables/useBuyer'
 import { useFlexyAccess } from 'src/composables/useFlexyAccess'
 import * as api from 'src/api/customer'
 import { money } from 'src/api/format'
+import { offerTitle } from 'src/api/flexyExplain'
 import FlexySend from 'src/components/FlexySend.vue'
 
 // The shop's side of the shared send screen (FlexySend): its balance pays through store-flexy.
@@ -53,7 +54,7 @@ function writeCache (list) {
 }
 const rows = ref(readCache())
 const ops = computed(() => rows.value.map((j) => ({
-  id: j.job_id, title: j.kind === 'offer' ? j.offer_label : money(j.amount), phone: j.phone,
+  id: j.job_id, title: j.kind === 'offer' ? offerTitle(j.offer_label) : money(j.amount), phone: j.phone,
   kind: j.kind === 'offer' ? 'offer' : '630', amount: j.amount, offer: j.offer_label,
   badge: view(j), at: j.created_at, reply: j.network_reply,
   running: ['queued', 'sent'].includes(j.status), stopped: j.status === 'not_sent'
