@@ -51,13 +51,15 @@ export const ownerOfferSend760 = (phone, offer, idempotencyKey, extra = {}) => o
 export const ownerOfferStatus760 = (idempotencyKey) => owner('760/offer/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Ooredoo offers (*585*, Flexy Core 0059): the catalog narrowed to the number's last menu; no USSD to look
 export const ownerOffers585 = (phone, retry = false) => owner('585/offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}) } })
-// The offers screen (Flexy Core 0060): every recorded offer of an operator, one control each
+// The offers screen (Flexy Core 0062): each group's approved offers and its «جديدة» (draft, negative ids).
+// set: origin mode {active, audience, price} and display mode {name_display, details, category, hidden};
+// arrange: display mode, the shown offers in their new order [{id, category}]
 export const ownerOfferCatalog = (operator) => owner('offers/catalog?operator=' + encodeURIComponent(operator), { method: 'GET' })
 export const ownerOfferCatalogSet = (id, patch) => owner('offers/catalog/set', { method: 'POST', body: { id, ...patch } })
-// Groups (Flexy Core 0061): state and versions; freeze / approve / restore / on_change / unblock; a changed offer's decision
+export const ownerOfferArrange = (operator, group, items) => owner('offers/catalog/arrange', { method: 'POST', body: { operator, group, items } })
+// Groups: approved version, «جديدة» with what changed, archived versions; approve / raise {version} / discard
 export const ownerOfferGroups = (operator) => owner('offers/groups?operator=' + encodeURIComponent(operator), { method: 'GET' })
 export const ownerOfferGroupAction = (operator, group, action, value = null) => owner('offers/groups/action', { method: 'POST', body: { operator, group, action, value } })
-export const ownerOfferDrift = (id, accept) => owner('offers/catalog/drift', { method: 'POST', body: { id, accept } })
 export const ownerOfferSend585 = (phone, offer, idempotencyKey, extra = {}) => owner('585/offer/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey, ...extra } })
 export const ownerOfferStatus585 = (idempotencyKey) => owner('585/offer/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Ooredoo ordinary credit (*590*, Flexy Core 0050, owner 2026-10-27): its own path, its own switch

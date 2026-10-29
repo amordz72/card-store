@@ -43,8 +43,7 @@
     <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
          owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
     <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
-      <div class="text-weight-bold">{{ newGroup.frozen ? '❄️ مجموعة مجمّدة' : '⚡ مجموعة جديدة' }}: {{ newGroup.group || 'غير معروفة' }} · الصفحات التالية</div>
-      <div v-if="newGroup.frozen" class="small text-deep-orange">لا يُباع منها شيء حتى تعتمد نسختها الجديدة في شاشة العروض. تنقّل في الصفحات لتُسجَّل.</div>
+      <div class="text-weight-bold">⚡ مجموعة جديدة: {{ newGroup.group || 'غير معروفة' }} · الصفحات التالية</div>
       <ModemPanel v-if="newGroup.sim" :sim-uuid="newGroup.sim" sim-type="ooredoo-flexy" ussd-only :start-code="'*585*' + phone + '#'" />
       <q-btn flat no-caps color="primary" icon="local_offer" label="شاشة العروض" to="/flexy/offers" />
     </div>
@@ -99,8 +98,10 @@ let loadedFor = ''
 let runId = 0
 const group = ref('')
 
-// Prices rising; the catalog's order only between equal prices (owner 2026-10-28: by amount by default)
-const byPrice = (a, b) => a.amount - b.amount || (a.order ?? 0) - (b.order ?? 0)
+// Prices rising; the catalog's order only between equal prices (owner 2026-10-28: by amount by default).
+// `ordered` (Ooredoo, Flexy Core 0062): the owner's own order from the offers screen, one for everybody.
+const ordered = ref(false)
+const byPrice = (a, b) => (ordered.value ? (a.order ?? 0) - (b.order ?? 0) : a.amount - b.amount || (a.order ?? 0) - (b.order ?? 0))
 const shown = computed(() => offers.value.filter((x) => x.available !== false && x.amount <= props.maxAmount))
 // Bundles: by family in the catalog's order (Mix, Talk, Net…). An offer without a category is a bundle.
 const families = computed(() => {
@@ -137,6 +138,7 @@ async function load ({ retry = false } = {}) {
       r = await props.lookup(p)
     }
     if (mine !== runId) return
+    ordered.value = r?.ordered === true
     if (r?.status === 'ready') {
       loadedFor = p
       offers.value = r.offers || []
@@ -147,7 +149,7 @@ async function load ({ retry = false } = {}) {
       looked.value = true
       offers.value = r.offers || []
       group.value = r.group || ''
-      newGroup.value = { group: r.group || '', sim: r.sim_uuid || '', frozen: r.frozen === true }
+      newGroup.value = { group: r.group || '', sim: r.sim_uuid || '' }
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
       loadedFor = p
