@@ -48,16 +48,24 @@
       <div class="small muted">محل له نسبة لا يتغير. النسبة المكتوبة تبقى للمحلات التي تُفعَّل لاحقًا. نسبة فارغة لمتعامل = مقفل لذلك المحل.</div>
     </div>
 
+    <!-- «تحديد» (owner 2026-10-29): pick shops (e.g. every trader through the filter and «الكل»), then
+         «نسبة…» opens the same window as one shop's, saved at once for all of them. 10 per page. -->
     <div class="card column q-gutter-sm">
       <div class="row items-center q-gutter-sm">
         <div class="col section-title">نسب المحلات</div>
-        <q-select v-model="roleFilter" dense outlined emit-value map-options :options="ROLE_FILTER" style="min-width: 130px" />
+        <q-btn v-if="!selecting" outline no-caps color="primary" label="تحديد" @click="selecting = true" />
+        <q-btn v-else flat no-caps color="primary" label="إلغاء" @click="stopSelect" />
       </div>
-      <q-input v-model="search" dense outlined clearable placeholder="بحث بالاسم" />
-      <div class="shop-head small muted">
-        <span>المحل</span><span>موبيليس</span><span>عروض</span><span>أوريدو</span><span>جازي</span>
+      <div class="row items-center q-gutter-sm">
+        <q-select v-model="roleFilter" dense outlined emit-value map-options :options="ROLE_FILTER" style="min-width: 110px" />
+        <q-input v-model="search" dense outlined clearable placeholder="بحث بالاسم" class="col" />
       </div>
-      <button v-for="c in shown" :key="c.customer_id" type="button" class="shop-row" @click="edit(c)">
+      <div class="shop-head small muted" :class="{ sel: selecting }">
+        <q-checkbox v-if="selecting" dense :model-value="allPicked" @update:model-value="toggleAll" />
+        <span>{{ selecting ? `الكل (${filtered.length})` : 'المحل' }}</span><span>موبيليس</span><span>عروض</span><span>أوريدو</span><span>جازي</span>
+      </div>
+      <button v-for="c in page" :key="c.customer_id" type="button" class="shop-row" :class="{ sel: selecting }" @click="selecting ? toggle(c) : openRates(c)">
+        <q-checkbox v-if="selecting" dense :model-value="picked.has(c.customer_id)" @update:model-value="toggle(c)" @click.stop />
         <span class="column items-start">
           <span>{{ c.name }}</span>
           <span class="row q-gutter-xs">
@@ -65,11 +73,23 @@
             <q-badge v-if="!c.enabled" color="grey-6" label="غير مفعّل" />
           </span>
         </span>
-        <span v-for="k in ['rate_630', 'rate_offer', 'rate_630_ooredoo', 'rate_630_djezzy']" :key="k">
-          <span v-if="c[k] != null" class="rate">{{ c[k] }}%</span><span v-else class="muted">—</span>
+        <span v-for="sv in SERVICES" :key="sv.key">
+          <span v-if="c[sv.rate] != null" class="rate" :class="{ off: c[sv.block] }">{{ c[sv.rate] }}%</span><span v-else class="muted">—</span>
         </span>
       </button>
-      <div v-if="!shown.length" class="text-center muted q-pa-md">لا محلات</div>
+      <div v-if="!filtered.length" class="text-center muted q-pa-md">لا محلات</div>
+      <div v-else class="row items-center justify-between q-pt-xs">
+        <q-btn flat dense no-caps color="primary" label="التالي" icon-right="chevron_left" :disable="(pageNo + 1) * pageSize >= filtered.length" @click="pageNo++" />
+        <span class="small muted">{{ pageNo * pageSize + 1 }}–{{ Math.min((pageNo + 1) * pageSize, filtered.length) }} من {{ filtered.length }}</span>
+        <q-btn-toggle v-model="pageSize" dense no-caps unelevated toggle-color="dark" color="grey-3" text-color="dark" size="sm" :options="SIZES" />
+        <q-btn flat dense no-caps color="primary" label="السابق" icon="chevron_right" :disable="pageNo === 0" @click="pageNo--" />
+      </div>
+    </div>
+    <div v-if="selecting" class="bulk row items-center q-gutter-sm">
+      <span class="text-weight-bold">{{ picked.size }} محدَّدة</span>
+      <q-btn unelevated no-caps color="primary" label="نسبة…" :disable="!picked.size" class="col" @click="openRates(null)" />
+      <q-btn outline no-caps color="primary" label="تفعيل" :disable="!picked.size" :loading="busy" @click="bulkEnabled(true)" />
+      <q-btn outline no-caps color="primary" label="إيقاف" :disable="!picked.size" :loading="busy" @click="bulkEnabled(false)" />
     </div>
 
     <div class="card q-pa-none">
@@ -84,22 +104,29 @@
       <div v-if="!jobs.length" class="text-center muted q-pa-lg">لا عمليات بعد</div>
     </div>
 
+    <!-- The same window for the selection and for one shop: each change is saved at once (no save button) -->
     <q-dialog v-model="editing">
-      <q-card v-if="form" style="min-width: 300px">
-        <q-card-section class="text-weight-bold">{{ form.name }}</q-card-section>
-        <q-card-section class="column q-gutter-sm">
-          <q-toggle v-model="form.enabled" label="تفعيل الفليكسي" />
-          <q-select v-model="form.role" dense outlined emit-value map-options label="الدور" :options="ROLE_OPTIONS" />
-          <q-input v-model.number="form.rate630" dense outlined type="number" step="0.25" label="نسبة موبيليس %" />
-          <q-input v-model.number="form.rateOffer" dense outlined type="number" step="0.25" label="نسبة العروض %" />
-          <q-input v-model.number="form.rateOoredoo" dense outlined type="number" step="0.25" label="نسبة أوريدو %" />
-          <q-input v-model.number="form.rateDjezzy" dense outlined type="number" step="0.25" label="نسبة جازي %" />
-          <q-input v-model.number="form.max" dense outlined type="number" label="أكبر مبلغ للعملية" />
-          <div class="small muted">المحل لا يرى نسبته ولا دوره. نسبة فارغة لجازي أو أوريدو = مقفل لهذا المحل.</div>
+      <q-card v-if="form" style="min-width: 320px">
+        <q-card-section class="text-weight-bold">{{ form.title }}</q-card-section>
+        <q-card-section class="column q-gutter-xs">
+          <template v-if="form.single">
+            <q-toggle :model-value="form.enabled" label="تفعيل الفليكسي" :disable="busy" @update:model-value="setEnabled" />
+            <q-select :model-value="form.role" dense outlined emit-value map-options label="الدور" :options="ROLE_OPTIONS" :disable="busy" @update:model-value="setRole" />
+          </template>
+          <div v-for="sv in SERVICES" :key="sv.key" class="svc-row">
+            <span class="text-weight-bold">{{ sv.name }} <q-icon v-if="form.saved[sv.key]" name="check" color="positive" /></span>
+            <q-option-group dense inline :model-value="form.block[sv.key] ? 'block' : 'allow'" :options="ALLOW" :disable="busy" @update:model-value="setBlock(sv, $event)" />
+            <q-input v-model.number="form.rate[sv.key]" dense outlined type="number" step="0.25" suffix="%" :disable="busy || form.block[sv.key] === true"
+              @blur="saveRate(sv)" @keyup.enter="$event.target.blur()" />
+          </div>
+          <div class="svc-row">
+            <span class="text-weight-bold">أكبر مبلغ</span><span></span>
+            <q-input v-model.number="form.max" dense outlined type="number" :disable="busy" @blur="saveMaxShop" @keyup.enter="$event.target.blur()" />
+          </div>
+          <div class="small muted">اكتب واخرج من الحقل: يُحفظ فورًا{{ form.single ? '' : ' عند المحدَّدين كلهم' }}. «منع» يقفل الخدمة ويحفظ النسبة جانبًا. المحل لا يرى نسبته ولا دوره.</div>
         </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat no-caps label="إلغاء" v-close-popup />
-          <q-btn unelevated no-caps color="primary" label="حفظ" :loading="busy" @click="saveShop" />
+        <q-card-actions align="left">
+          <q-btn flat no-caps color="primary" label="إغلاق" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -107,7 +134,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import * as api from 'src/api/admin'
 import * as flexy from 'src/api/flexy'
@@ -147,18 +174,50 @@ const OPERATORS = [
 ]
 // The owner's order (2026-10-29): Mobilis, offers, Ooredoo, Djezzy; the key is the store's service name
 const SERVICES = [
-  { key: 'mobilis', name: 'موبيليس' }, { key: 'offer', name: 'عروض' }, { key: 'ooredoo', name: 'أوريدو' }, { key: 'djezzy', name: 'جازي' }
+  { key: 'mobilis', name: 'موبيليس', rate: 'rate_630', block: 'block_630' },
+  { key: 'offer', name: 'عروض', rate: 'rate_offer', block: 'block_offer' },
+  { key: 'ooredoo', name: 'أوريدو', rate: 'rate_630_ooredoo', block: 'block_ooredoo' },
+  { key: 'djezzy', name: 'جازي', rate: 'rate_630_djezzy', block: 'block_djezzy' }
 ]
+const ALLOW = [{ label: 'سماح', value: 'allow' }, { label: 'منع', value: 'block' }]
+const SIZES = [{ label: '10', value: 10 }, { label: '20', value: 20 }, { label: '50', value: 50 }]
+// Only conveniences on this phone: the page size and the role filter. No rates, no names.
+const PAGE_KEY = 'flexy-shops-page-size'
+const ROLE_KEY = 'flexy-shops-role'
+function remembered (key, allowed, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return allowed.includes(v) ? v : fallback } catch { return fallback }
+}
+function remember (key, v) { try { localStorage.setItem(key, JSON.stringify(v)) } catch { /* private mode */ } }
 const defaults = reactive({ mobilis: null, offer: null, max: null, djezzy: null, ooredoo: null })
 const shops = ref([])
 const jobs = ref([])
 const reviews = ref([])
-const roleFilter = ref(null)
+const roleFilter = ref(remembered(ROLE_KEY, [null, 'trader', 'wholesale'], null))
 const search = ref('')
+const pageSize = ref(remembered(PAGE_KEY, [10, 20, 50], 10))
+const pageNo = ref(0)
 // Enabled shops first (owner 2026-10-29 «ترتيب»), then by name
-const shown = computed(() => shops.value.filter((c) => (!roleFilter.value || c.role === roleFilter.value) &&
+const filtered = computed(() => shops.value.filter((c) => (!roleFilter.value || c.role === roleFilter.value) &&
   (!search.value || c.name.includes(search.value)))
   .sort((a, b) => Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name, 'ar')))
+const page = computed(() => filtered.value.slice(pageNo.value * pageSize.value, (pageNo.value + 1) * pageSize.value))
+watch([roleFilter, search, pageSize], () => { pageNo.value = 0; remember(ROLE_KEY, roleFilter.value); remember(PAGE_KEY, pageSize.value) })
+
+// Selection: «الكل» takes every shop matching the filter and the search, not only this page
+const selecting = ref(false)
+const picked = ref(new Set())
+const allPicked = computed(() => filtered.value.length > 0 && filtered.value.every((c) => picked.value.has(c.customer_id)))
+function toggle (c) {
+  const next = new Set(picked.value)
+  if (next.has(c.customer_id)) next.delete(c.customer_id); else next.add(c.customer_id)
+  picked.value = next
+}
+function toggleAll () {
+  const next = new Set(picked.value)
+  filtered.value.forEach((c) => (allPicked.value ? next.delete(c.customer_id) : next.add(c.customer_id)))
+  picked.value = next
+}
+function stopSelect () { selecting.value = false; picked.value = new Set() }
 
 async function load () {
   const [s, c, j, r, k] = await Promise.all([api.flexySettings(), api.flexyCustomers(), api.flexyJobs(null, 20), api.flexyJobs('review', 50), flexy.ownerSwitch()])
@@ -217,15 +276,69 @@ function fillRate (sv) {
 
 const editing = ref(false)
 const form = ref(null)
-function edit (c) {
-  const num = (v) => (v == null ? null : Number(v))
-  form.value = { id: c.customer_id, name: c.name, enabled: c.enabled, role: c.role, rate630: num(c.rate_630), rateOffer: num(c.rate_offer), max: c.max_amount, rateDjezzy: num(c.rate_630_djezzy), rateOoredoo: num(c.rate_630_ooredoo) }
+const num = (v) => (v == null ? null : Number(v))
+async function reloadShops () { shops.value = await api.flexyCustomers() }
+// One shop (prefilled) or the selection (empty fields: the shops may differ; a radio shows «منع» only when all are blocked)
+function openRates (c) {
+  const ids = c ? [c.customer_id] : [...picked.value]
+  const rows = c ? [c] : shops.value.filter((x) => picked.value.has(x.customer_id))
+  const rate = {}; const block = {}; const last = {}
+  SERVICES.forEach((sv) => {
+    rate[sv.key] = c ? num(c[sv.rate]) : null
+    block[sv.key] = rows.length > 0 && rows.every((x) => x[sv.block] === true)
+    last[sv.key] = rate[sv.key]
+  })
+  form.value = { ids, single: !!c, title: c ? c.name : `${ids.length} محلات محدَّدة`, enabled: c?.enabled ?? null, role: c?.role ?? null, rate, block, last, max: c ? c.max_amount : null, lastMax: c ? c.max_amount : null, saved: {} }
   editing.value = true
 }
-async function saveShop () {
+async function applyBulk (change, done) {
   const f = form.value
-  const ok = await run(() => api.setCustomerFlexy(f.id, { enabled: f.enabled, role: f.role, rate630: f.rate630, rateOffer: f.rateOffer, max: f.max, rateDjezzy: f.rateDjezzy, rateOoredoo: f.rateOoredoo }).then(() => true), { success: 'حُفظ.' })
-  if (ok) { editing.value = false; load() }
+  const ok = await run(async () => {
+    const n = await api.flexyBulk(f.ids, change)
+    Notify.create({ type: 'positive', message: done(n), timeout: 1500 })
+    await reloadShops()
+    return true
+  })
+  if (!ok) await reloadShops()
+  return ok
+}
+// Typed a rate and left the field: saved at once. An empty field saves nothing for a selection (no accidental closing).
+async function saveRate (sv) {
+  const f = form.value
+  const v = f.rate[sv.key] === '' ? null : f.rate[sv.key]
+  if (v === f.last[sv.key] || (v == null && !f.single)) return
+  if (v != null && (v < 0 || v >= 100)) return
+  if (await applyBulk({ service: sv.key, rate: v }, (n) => v == null ? `${sv.name}: بلا نسبة (مقفل).` : `${sv.name} ${v}% لـ ${n} محل.`)) { f.last[sv.key] = v; f.saved[sv.key] = true }
+}
+async function setBlock (sv, v) {
+  const f = form.value
+  const block = v === 'block'
+  if (await applyBulk({ service: sv.key, block }, (n) => `${sv.name} ${block ? 'ممنوع' : 'مسموح'} لـ ${n} محل.`)) { f.block[sv.key] = block; f.saved[sv.key] = true }
+}
+async function saveMaxShop () {
+  const f = form.value
+  if (f.max == null || f.max === '' || f.max === f.lastMax || f.max < 10) return
+  if (await applyBulk({ max: f.max }, (n) => `أكبر مبلغ ${money(f.max)} لـ ${n} محل.`)) f.lastMax = f.max
+}
+async function setEnabled (on) {
+  if (await applyBulk({ enabled: on }, () => on ? 'فُعّل الفليكسي.' : 'أُوقف الفليكسي.')) {
+    form.value.enabled = on
+    const c = shops.value.find((x) => x.customer_id === form.value.ids[0])
+    if (c) SERVICES.forEach((sv) => { form.value.rate[sv.key] = num(c[sv.rate]); form.value.last[sv.key] = form.value.rate[sv.key] })
+  }
+}
+async function setRole (role) {
+  if (await applyBulk({ role }, () => 'حُفظ الدور.')) form.value.role = role
+}
+function bulkEnabled (on) {
+  const ids = [...picked.value]
+  Dialog.create({ title: on ? 'تفعيل الفليكسي' : 'إيقاف الفليكسي', message: `${on ? 'يُفعَّل' : 'يُوقَف'} الفليكسي لـ ${ids.length} محل.`, cancel: 'لا', ok: 'نعم' })
+    .onOk(() => run(async () => {
+      const n = await api.flexyBulk(ids, { enabled: on })
+      Notify.create({ type: 'positive', message: `${on ? 'فُعّل' : 'أُوقف'} لـ ${n} محل.` })
+      await reloadShops()
+      return true
+    }))
 }
 
 function resolve (j, done) {
@@ -245,6 +358,10 @@ onMounted(() => run(load))
 <style scoped>
 .review { border: 1px solid #F3D9B8; background: #FFF8EE; border-radius: 12px; padding: 10px; }
 .shop-head, .shop-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 4px; align-items: center; }
+.shop-head.sel, .shop-row.sel { grid-template-columns: 28px 2fr 1fr 1fr 1fr 1fr; }
+.rate.off { background: #E5E7EB; color: #9CA3AF; text-decoration: line-through; }
+.svc-row { display: grid; grid-template-columns: 64px 1fr 86px; gap: 6px; align-items: center; }
+.bulk { position: sticky; bottom: 0; z-index: 2; background: #FFF; border-top: 2px solid #C2410C; margin: 0 -4px; padding: 8px 10px; }
 .shop-row { width: 100%; border: 0; border-top: 1px solid #EEF0F4; background: transparent; padding: 8px 0; text-align: right; font: inherit; color: inherit; cursor: pointer; }
 .rate-row { display: grid; grid-template-columns: 72px 86px 1fr; gap: 8px; align-items: center; }
 .dim { opacity: .45; }
