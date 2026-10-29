@@ -45,6 +45,15 @@
       <div class="small muted">{{ t.what }} · {{ t.every }}</div>
       <div v-if="t.last" class="small">آخر مرة: {{ when(t.last.at) }} · {{ t.last.target }}<template v-if="t.last.reason"> · {{ REASONS[t.last.reason] || t.last.reason }}</template></div>
     </div>
+    <!-- The alerts' numbers (Flexy Core 0077): the owner changes them; 0 turns that alert off -->
+    <div v-if="limits.length" class="card column q-gutter-sm">
+      <div class="text-weight-bold">حدود التنبيهات (0 = مطفأ)</div>
+      <div v-for="l in limits" :key="l.key" class="row items-center no-wrap q-gutter-sm">
+        <span class="col small">{{ l.name }}</span>
+        <q-input :model-value="l.value" dense outlined type="number" inputmode="numeric" style="width:96px" :min="0" :max="l.max"
+          :loading="busy === l.key" @change="(e) => setLimit(l, e?.target ? e.target.value : e)" />
+      </div>
+    </div>
     <q-expansion-item v-if="actions.length" dense class="card q-pa-none" label="آخر ما فعله البرنامج وحده" header-class="text-weight-bold">
       <div v-for="(a, i) in actions" :key="i" class="row small q-px-md q-py-xs line">
         <span class="col-4 muted">{{ when(a.at) }}</span><span class="col">{{ TASKS[a.task] || a.task }} · {{ a.target }}<template v-if="a.reason"> · {{ REASONS[a.reason] || a.reason }}</template></span>
@@ -109,6 +118,7 @@ const flipSama = (on) => run('sama', () => flexy.setSamaOffersSwitch(on))
 
 // «المهام الآلية»
 const tasks = ref([])
+const limits = ref([])
 const actions = ref([])
 const changes = ref([])
 const autoError = ref('')
@@ -125,10 +135,18 @@ const shown = (v) => (v === true ? 'مفتوح' : v === false ? 'مقفل' : v =
 function showAuto (res) {
   if (res.status === 200 && res.body?.ok) {
     tasks.value = res.body.tasks || []
+    limits.value = res.body.limits || []
     actions.value = res.body.actions || []
     changes.value = res.body.settings || []
     autoError.value = ''
   } else autoError.value = res.body?.error === 'AUTO_LOG_NOT_READY' ? 'المهام الآلية لم تُفعَّل بعد (migration 0076).' : (res.body?.error || 'تعذّر الاتصال.')
+}
+async function setLimit (l, raw) {
+  const v = Number(raw)
+  if (!Number.isInteger(v) || v < 0 || v > l.max) return $q.notify({ type: 'negative', message: 'رقم بين 0 و' + l.max })
+  if (v === l.value) return
+  busy.value = l.key
+  try { showAuto(await flexy.setAutoLimit(l.key, v)) } finally { busy.value = null }
 }
 async function flipTask (t, on) {
   busy.value = t.key

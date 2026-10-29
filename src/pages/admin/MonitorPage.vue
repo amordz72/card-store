@@ -31,7 +31,9 @@
       <div class="text-weight-bold">{{ a.title }}</div>
       <div class="small">{{ a.text }}</div>
       <div class="row q-gutter-sm">
-        <q-btn v-if="a.kind !== 'unavailable' && a.kind !== 'low_balance'" outline no-caps color="primary" label="المحطات والشرائح" to="/flexy/devices" class="col" />
+        <q-btn v-if="['sim_gone', 'no_reply', 'none_ready', 'difference'].includes(a.kind)" outline no-caps color="primary" label="المحطات والشرائح" to="/flexy/devices" class="col" />
+        <q-btn v-if="a.kind === 'overdue'" outline no-caps color="primary" label="آخر العمليات" to="/flexy/send" class="col" />
+        <q-btn v-if="a.kind === 'tick'" outline no-caps color="primary" label="المهام الآلية" to="/flexy/switches" class="col" />
         <q-btn v-if="a.kind === 'unavailable'" outline no-caps color="primary" label="فليكسي المحلات" to="/flexy/shops" class="col" />
         <q-btn unelevated no-caps color="grey-4" text-color="dark" label="تم" :loading="acking === a.key" class="col" @click="ack(a)" />
       </div>
@@ -140,7 +142,7 @@ import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 
-const KIND = { sim_gone: 'أجهزة', no_reply: 'أجهزة', none_ready: 'أجهزة', low_balance: 'رصيد', unavailable: 'المحلات' }
+const KIND = { sim_gone: 'أجهزة', no_reply: 'أجهزة', none_ready: 'أجهزة', low_balance: 'رصيد', unavailable: 'المحلات', difference: 'مال', overdue: 'مال', tick: 'البرنامج' }
 const SHORT = {
   NOT_APPROVED: 'غير معتمدة', NO_PIN: 'بلا PIN', STATION_OFF: 'الكمبيوتر مطفأ', STATION_NOT_APPROVED: 'كمبيوتر غير معتمد',
   MODEM_MISSING: 'المودم غائب', SIM_MISSING: 'غائبة', NO_REPLY: 'لا ترد', EMPTY: 'الرصيد نفد'
