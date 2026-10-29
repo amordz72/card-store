@@ -136,6 +136,10 @@ export const ownerDevices = () => owner('devices', { method: 'GET' })
 export const ownerMonitor = () => owner('monitor', { method: 'GET' })
 // The connection log (Flexy Core 0070): what was offline at that minute, and the changes 15 min around it
 export const ownerPresence = (at) => owner('presence?at=' + encodeURIComponent(at), { method: 'GET' })
+// «ذاكرة الأرقام» (Flexy Core 0073): what is remembered about one number, and «انسَ» (archived, not lost)
+export const numberMemory = (phone) => owner('numbers?phone=' + encodeURIComponent(phone), { method: 'GET' })
+export const numberForget = (phone) => owner('numbers', { method: 'POST', body: { forget: phone } })
+export const numberForgetRecent = (days, confirm) => owner('numbers', { method: 'POST', body: { recent_days: days, confirm: !!confirm } })
 export const ownerMonitorAck = (key) => owner('monitor', { method: 'POST', body: { ack: key } })
 // A SIM's PIN, name and note (owner only). The PIN is never sent back; fields left out are not changed.
 export const saveSimSettings = (simUuid, fields) => owner('sims/settings', { method: 'POST', body: { sim_uuid: simUuid, ...fields } })
