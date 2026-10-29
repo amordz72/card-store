@@ -54,26 +54,38 @@
       <template v-if="startedHere || sessionOpen">
         <div v-for="p in explored.pages" :key="p.key" class="xpage">
           <div class="xpg" :class="{ cur: sessionOpen && p.key === explored.current }" role="button" tabindex="0" @click="toggle(p.key)">
-            <span>{{ pageLabel(p.path) }}<span v-if="sessionOpen && p.key === explored.current && !hasNext"> · الأخيرة</span></span>
+            <span>{{ pageLabel(p.path) }}<span v-if="sessionOpen && p.key === explored.current && !hasNext && !asked.pin"> · الأخيرة</span></span>
             <span>{{ offersCount(p.items.length) }}<span v-if="!isOpen(p.key)"> ▾</span></span>
           </div>
           <template v-if="isOpen(p.key)">
-            <div v-for="o in p.items" :key="o.value + o.label" class="xrow">
+            <div v-for="o in p.items" :key="o.value + o.label" class="xrow" :class="{ picked: probeCode === o.value && p.key === explored.current }"
+              role="button" tabindex="0" @click="pick(o, p)">
               <span class="xr"><span class="xc ltr">{{ o.value }}</span><bdi dir="auto">{{ o.label }}</bdi></span>
               <span class="xok">سُجّل ✓</span>
             </div>
           </template>
         </div>
-        <div v-if="explored.price" class="small text-deep-orange q-px-sm">
-          الرمز {{ explored.price.code }}: الشبكة تقول {{ explored.price.amount }} دج (سُجّل). الاستكشاف لا يشتري: أنهِ الجلسة، والبيع من القائمة فوق.
+        <!-- «اكشف»: the price the network names for the code sent, beside the page's offers holding that code -->
+        <div v-if="explored.price" class="xcmp">
+          <div class="text-weight-bold">الرمز <span class="ltr">{{ explored.price.code }}</span> ← الشبكة قالت {{ explored.price.amount }} دج</div>
+          <div v-for="c in comparison" :key="c.label" :class="c.match ? 'text-positive' : 'text-negative'">
+            {{ c.match ? '✓ يطابق' : '✗ لا يطابق' }}: <bdi dir="auto">{{ c.label }}</bdi> ({{ c.price ?? '—' }})
+          </div>
+          <div v-if="comparison.length > 1" class="small muted">الرمز مكرر في القائمة: يُحفظ هذا كدليل، ويبقى العرضان «مشكوكين» لا يُباعان.</div>
+          <div class="small text-deep-orange">الشبكة تطلب الـPIN الآن: الاستكشاف لا يشتري، أنهِ الجلسة. لكشف رمز آخر افتح القائمة من جديد.</div>
         </div>
         <div v-if="anyWaiting" class="small muted q-px-sm">… بانتظار رد الشبكة</div>
         <div v-else-if="steps.length && !lastOk" class="small text-negative q-px-sm">لم تردّ الشبكة على آخر خطوة. أنهِ الجلسة وافتحها من جديد.</div>
         <template v-if="sessionOpen">
           <div class="row no-wrap q-gutter-xs">
-            <q-btn class="col" unelevated no-caps color="cyan-9" label="التالية" icon-right="chevron_left" :disable="!canMove || !hasNext" :loading="busy && !anyWaiting" @click="send(nextOpt.value)" />
-            <q-btn class="col" outline no-caps color="cyan-9" icon="chevron_right" label="رجوع" :disable="!canMove || !backOpt" @click="send(backOpt.value)" />
-            <q-btn class="col" outline no-caps color="negative" label="أنهِ" :disable="lab.status === 'closing'" @click="end" />
+            <q-btn class="col" unelevated no-caps color="cyan-9" label="التالية" icon-right="chevron_left" :disable="!canMove || !hasNext" :loading="busy && !anyWaiting" @click="move(nextOpt?.value)" />
+            <q-btn class="col" outline no-caps color="cyan-9" icon="chevron_right" label="رجوع" :disable="!canMove || !backOpt" @click="move(backOpt?.value)" />
+            <q-btn class="col" outline no-caps color="negative" label="أنهِ" :disable="lab.status === 'closing' || moving" @click="end" />
+          </div>
+          <!-- «اكشف»: a tap on an offer copies its code here; only «أرسل» sends it (never a PIN) -->
+          <div class="row no-wrap items-center q-gutter-xs">
+            <q-input v-model="probeCode" dense outlined class="col ltr" mask="###" inputmode="numeric" placeholder="رمز العرض" :disable="!canMove || asked.pin" />
+            <q-btn unelevated no-caps color="deep-orange" label="اكشف السعر" :disable="!canMove || asked.pin || !/^\d{1,3}$/.test(probeCode || '')" @click="move(probeCode)" />
           </div>
         </template>
         <template v-else-if="explored.pages.length">
@@ -305,11 +317,34 @@ const explored = computed(() => {
       current = key
       price = null
     } else if (r.pin) {
-      price = { code: path[path.length - 1], amount: (s.reply.match(/(\d[\d\s.,]*)\s*da/i)?.[1] || '—').trim() }
+      price = { code: path[path.length - 1], pageKey: path.slice(0, -1).join(','), amount: (s.reply.match(/(\d[\d\s.,]*)\s*da/i)?.[1] || '—').trim() }
     }
   })
   return { pages, current, price, total: pages.reduce((n, p) => n + p.items.length, 0) }
 })
+// The network's price for a code beside the offers of that page holding it (the core's priceFromName, by the name)
+const fold = (v) => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+function namePrice (name) {
+  const n = fold(name)
+  const m = /(?:^|[^0-9])([0-9]{2,5})\s*da\b/.exec(n) || /(?:^|[a-z+&]\s)([0-9]{2,5})(?![0-9])/.exec(n) || /^([0-9]{2,5})(?![0-9])/.exec(n)
+  return m ? Number(m[1]) : null
+}
+const comparison = computed(() => {
+  const pr = explored.value.price
+  if (!pr) return []
+  const p = explored.value.pages.find((x) => x.key === pr.pageKey)
+  return (p?.items || []).filter((o) => o.value === pr.code)
+    .map((o) => ({ label: o.label, price: namePrice(o.label), match: namePrice(o.label) === Number(pr.amount) }))
+})
+// One step at a time: a second tap before the network answers sends nothing (owner 2026-10-29)
+const moving = ref(false)
+async function move (value) {
+  if (moving.value || !canMove.value || !value) return
+  moving.value = true
+  try { await send(value) } finally { moving.value = false; probeCode.value = '' }
+}
+const probeCode = ref('')
+const pick = (o, p) => { if (canMove.value && !asked.value.pin && p.key === explored.value.current) probeCode.value = o.value }
 // «الصفحة 3 (المزيد ثم المزيد)», «قائمة 29», «قائمة 29 · الصفحة 2»
 function pageLabel (path) {
   let menu = ''
@@ -321,7 +356,7 @@ function pageLabel (path) {
 const nextOpt = computed(() => asked.value.options.find((o) => o.next) || null)
 const backOpt = computed(() => (asked.value.pin ? null : asked.value.options.find((o) => o.value === '00' || BACK.test(o.label)) || null))
 const hasNext = computed(() => Boolean(nextOpt.value) && !asked.value.pin)
-const canMove = computed(() => sessionOpen.value && lastOk.value && !anyWaiting.value && !busy.value)
+const canMove = computed(() => sessionOpen.value && lastOk.value && !anyWaiting.value && !busy.value && !moving.value)
 const offersCount = (n) => (n === 1 ? 'عرض واحد' : n === 2 ? 'عرضان' : n <= 10 ? n + ' عروض' : n + ' عرضًا')
 // Earlier pages fold; the current one stays open
 const opened = ref(new Set())
@@ -382,6 +417,8 @@ onBeforeUnmount(() => { alive = false; clearTimeout(timer) })
 .xrow { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; border-top: 1px solid #ECEEF3; font-size: 13px; }
 .xr { display: flex; align-items: center; gap: 8px; }
 .xc { font-weight: 800; color: #0E7490; background: #ECFEFF; border-radius: 5px; min-width: 26px; text-align: center; font-size: 12px; padding: 0 4px; }
+.xrow.picked { background: #FFF7ED; }
+.xcmp { border: 1px solid #FDBA74; background: #FFF7ED; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
 .xok { color: #16A34A; font-size: 11.5px; font-weight: 800; white-space: nowrap; }
 .xdone { padding: 9px 10px; font-weight: 800; color: #166534; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; }
 .console { background: #f6f6f6; border-radius: 6px; padding: 8px; min-height: 56px; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
