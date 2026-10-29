@@ -260,5 +260,7 @@ export const setCustomerFlexy = (customerId, { enabled = null, role = null, rate
 export const fillRate = (service, rate) => rpc('store_admin_flexy_fill_rate_v2', { p_service: service, p_rate: rate })
 export const flexyJobs = (status = null, limit = 20, before = null) => rpc('store_admin_flexy_jobs', { p_status: status, p_limit: limit, p_before: before })
 export const flexyReviewCount = () => rpc('store_admin_flexy_review_count')
+// v1.43: failed or not sent, and the shop's charge not back (5 minutes after)
+export const flexyUnrefunded = async () => (await rpc('store_admin_flexy_unrefunded'))?.[0] || { count: 0, amount: 0 }
 // A shop's job in review: sent (the charge stays) or not sent (full refund to the shop)
 export const flexyResolve = (jobId, done) => rpc('store_admin_flexy_resolve', { p_job_id: jobId, p_done: done })

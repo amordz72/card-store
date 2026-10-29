@@ -44,6 +44,11 @@
                 <q-item-section>حدث أثناء غيابك</q-item-section>
                 <q-item-section side><q-badge color="deep-orange" :label="monitorIncidents" /></q-item-section>
               </q-item>
+              <q-item v-if="flexyUnrefunded" v-close-popup clickable to="/flexy/shops">
+                <q-item-section avatar><q-icon name="money_off" color="negative" /></q-item-section>
+                <q-item-section>فليكسي فشل ولم يُرجع للمحل ({{ money(flexyUnrefundedAmount) }})</q-item-section>
+                <q-item-section side><q-badge color="negative" :label="flexyUnrefunded" /></q-item-section>
+              </q-item>
               <q-item v-if="flexyReview" v-close-popup clickable to="/flexy/shops">
                 <q-item-section avatar><q-icon name="send_to_mobile" /></q-item-section>
                 <q-item-section>فليكسي المحلات تحتاج حكمك</q-item-section>
@@ -263,7 +268,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
