@@ -153,8 +153,10 @@ const jobs = ref([])
 const reviews = ref([])
 const roleFilter = ref(null)
 const search = ref('')
+// Enabled shops first (owner 2026-10-29 «ترتيب»), then by name
 const shown = computed(() => shops.value.filter((c) => (!roleFilter.value || c.role === roleFilter.value) &&
-  (!search.value || c.name.includes(search.value))))
+  (!search.value || c.name.includes(search.value)))
+  .sort((a, b) => Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name, 'ar')))
 
 async function load () {
   const [s, c, j, r, k] = await Promise.all([api.flexySettings(), api.flexyCustomers(), api.flexyJobs(null, 20), api.flexyJobs('review', 50), flexy.ownerSwitch()])
