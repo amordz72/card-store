@@ -82,6 +82,8 @@
             </q-list>
           </q-menu>
         </q-btn>
+        <!-- «نسخ الشاشة» (owner 2026-10-29): the page as text to paste in the chat instead of a screenshot -->
+        <q-btn v-if="canCopyScreen" flat round icon="content_copy" class="q-ml-xs" aria-label="نسخ الشاشة" @click="copyScreen" />
         <q-btn round unelevated color="grey-7" class="q-ml-sm" :icon="buyer.hide.value ? 'visibility_off' : 'visibility'"
           :aria-label="buyer.hide.value ? 'إظهار المبالغ' : 'إخفاء المبالغ'" @click="buyer.toggleHide()" />
       </q-toolbar>
@@ -131,7 +133,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { copyToClipboard, useQuasar } from 'quasar'
 import { useSessionStore } from 'stores/session'
 import { useCustomerStore } from 'stores/customer'
 import { useAdminStore } from 'stores/admin'
@@ -160,6 +162,28 @@ const $q = useQuasar()
 const drawer = ref(false)
 
 const subtitle = computed(() => (session.isAdmin ? `المدير · ${admin.email || ''}` : customer.profile?.name || ''))
+// The owner, and his test shop «حساب 2» (owner 2026-10-29: «احربه كعميل»)
+const COPY_SCREEN_SHOPS = ['حساب 2']
+const canCopyScreen = computed(() => session.isAdmin || COPY_SCREEN_SHOPS.includes(customer.profile?.name))
+// Customer numbers leave the screen as «…25» only; amounts stay hidden when hidden
+async function copyScreen () {
+  const page = document.querySelector('.q-page')?.innerText || ''
+  const text = [
+    title.value + ' · ' + new Date().toLocaleString('ar-DZ'),
+    session.isAdmin && monitorBar.value ? '⚠ ' + monitorBar.value.text : '',
+    page
+  ].filter(Boolean).join('\n')
+    .replace(/(?:\+?213|0)[5-7](?:\s?\d){8}/g, (m) => '…' + m.replace(/\D/g, '').slice(-2))
+    // Icon names (storefront, local_offer…) are not the screen's words
+    .split('\n').filter((l) => !/^[a-z_]+$/.test(l.trim())).join('\n')
+    .replace(/\n{3,}/g, '\n\n').trim()
+  try {
+    await copyToClipboard(text)
+    $q.notify({ message: 'نُسخت الشاشة: الصقها في المحادثة', color: 'positive', position: 'top', timeout: 1500 })
+  } catch {
+    $q.notify({ message: 'تعذّر النسخ', color: 'negative', position: 'top' })
+  }
+}
 const title = computed(() => (session.isAdmin && route.path === '/transfers' ? 'التحويلات الواردة' : route.meta.title || 'متجر البطاقات'))
 
 // Items marked admin: true exist only for the owner
