@@ -65,11 +65,26 @@
         <div v-for="s in sortedSims" :key="s.sim_uuid" class="sim small">
           <span class="column"><span class="text-weight-bold"><span class="dot" :class="s.ready ? 'ok' : s.approved ? 'down' : 'muted'" /> {{ s.code || 'شريحة' }}</span>
             <span class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></span></span>
-          <span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
+          <span class="column"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
+            <span v-if="s.balance_checked_at" class="tiny muted">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
           <span>{{ s.available == null ? '؟' : money(s.available) }}</span>
           <span :class="s.ready ? 'text-positive' : 'text-negative'">{{ s.ready ? 'جاهزة' : SHORT[s.reason] || 'غير متاحة' }}</span>
         </div>
       </div>
+      <!-- The admin phone's SIMs (owner 2026-10-29): the owner's own, never counted with the shops' -->
+      <template v-if="view?.admin_sims?.length">
+        <div class="section-title q-mt-md">الإدارة (هاتفك) · لا تدخل في أرصدة المحلات</div>
+        <div class="card q-pa-none sims">
+          <div v-for="s in view.admin_sims" :key="s.sim_uuid" class="sim small">
+            <span class="column"><span class="text-weight-bold"><q-icon name="smartphone" size="14px" /> {{ s.code || 'شريحة' }}</span>
+              <span class="tiny muted">{{ s.operator_name }}</span></span>
+            <span class="column"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
+              <span v-if="s.balance_checked_at" class="tiny muted">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
+            <span />
+            <span class="muted">للإدارة فقط</span>
+          </div>
+        </div>
+      </template>
     </template>
     <div v-else class="card q-mt-sm small muted">
       {{ tab === 'stock' ? 'المخزون (أيام التغطية لكل منتج وبطاقات التعبئة)' : 'الأكثر استهلاكًا (اليوم، 7 أيام، 30 يومًا)' }}: المرحلة التالية، بعد الأرصدة.
@@ -103,7 +118,7 @@ import { useBell } from 'src/composables/useBell'
 const KIND = { sim_gone: 'أجهزة', no_reply: 'أجهزة', none_ready: 'أجهزة', low_balance: 'رصيد', unavailable: 'المحلات' }
 const SHORT = {
   NOT_APPROVED: 'غير معتمدة', NO_PIN: 'بلا PIN', STATION_OFF: 'الكمبيوتر مطفأ', STATION_NOT_APPROVED: 'كمبيوتر غير معتمد',
-  MODEM_MISSING: 'المودم غائب', SIM_MISSING: 'غائبة', NO_REPLY: 'لا ترد',
+  MODEM_MISSING: 'المودم غائب', SIM_MISSING: 'غائبة', NO_REPLY: 'لا ترد', EMPTY: 'الرصيد نفد'
 }
 
 const { refreshBell } = useBell()
