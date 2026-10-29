@@ -78,9 +78,9 @@
           <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th></tr></thead>
           <tbody>
             <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
-              <td><span class="text-weight-bold">{{ r.m.sim.code || 'جديدة' }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
+              <td><span class="text-weight-bold">{{ simName(r.m.sim, r.st) || 'جديدة' }}</span><span v-if="adminName(r.m.sim)" class="small muted"> · {{ r.m.sim.code }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
               <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
-              <td>{{ r.st.code || '—' }}</td>
+              <td>{{ stName(r.st) || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
               <td><q-badge :color="r.old ? 'grey-6' : STATE[simState(r)]?.color || LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : STATE[simState(r)]?.label || LEVEL[r.m.level].label" />
                 <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim)" size="12px" class="q-mr-xs" />{{ statusText(r) }}</div></td>
@@ -159,12 +159,12 @@
       <div class="section-title q-pa-sm">هاتف الإدارة</div>
       <div v-for="st in phones" :key="st.station_uuid" class="phone-row">
         <div class="row items-center q-gutter-sm">
-          <span class="col text-weight-bold">{{ st.code || 'الهاتف' }}<span class="muted small"> · {{ st.computer_name || '' }}</span></span>
+          <span class="col text-weight-bold">{{ stName(st) }}<span class="muted small"> · {{ st.code }}</span><span class="muted small"> · {{ st.computer_name || '' }}</span></span>
           <q-badge :color="isAbsent(st) ? 'grey-6' : 'positive'" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
         </div>
         <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
         <button v-for="m in st.modems.filter((x) => x.sim && x.level !== 'old')" :key="m.sim.sim_uuid" type="button" class="phone-sim" @click="open(st, m)">
-          <span class="text-weight-bold">{{ m.sim.code }}</span><span class="muted"> · {{ m.sim.label || m.sim.sim_type_name }}</span>
+          <span class="text-weight-bold">{{ simName(m.sim, st) }}</span><span class="muted"> · <template v-if="adminName(m.sim)">{{ m.sim.code }} · </template>{{ m.sim.label || m.sim.sim_type_name }}</span>
           <span class="q-ml-sm">{{ m.sim.balance == null ? 'غير مقروء' : money(m.sim.balance) }}</span>
         </button>
       </div>
@@ -174,7 +174,7 @@
       <!-- On a phone the window never grows past the screen: long numbers and the tabs wrap or scroll inside it -->
       <q-card v-if="picked" class="sim-dialog">
         <q-card-section class="row items-center q-gutter-sm">
-          <span class="col text-weight-bold"><bdi class="ltr">{{ picked.m.ip || '—' }}</bdi> · {{ picked.st.code }}</span>
+          <span class="col text-weight-bold"><bdi class="ltr">{{ picked.m.ip || '—' }}</bdi> · {{ stName(picked.st) }}</span>
           <q-badge :color="LEVEL[picked.m.level].color" :label="LEVEL[picked.m.level].label" />
         </q-card-section>
         <q-card-section class="column q-gutter-xs q-pt-none">
@@ -186,7 +186,7 @@
           <span class="muted">الموديم</span><span>{{ picked.m.model || '—' }} · USB {{ picked.m.usb ?? '—' }}</span>
           <span class="muted">آخر ظهور</span><span>{{ picked.m.last_seen_at ? clock(picked.m.last_seen_at) : '—' }}</span>
           <template v-if="picked.m.sim">
-            <span class="muted">الشريحة</span><span>{{ picked.m.sim.code || 'بلا اسم' }}<span v-if="picked.m.sim.label"> · {{ picked.m.sim.label }}</span></span>
+            <span class="muted">الشريحة</span><span>{{ simName(picked.m.sim, picked.st) || 'بلا اسم' }}<template v-if="adminName(picked.m.sim)"> · {{ picked.m.sim.code }}</template><span v-if="picked.m.sim.label"> · {{ picked.m.sim.label }}</span></span>
             <span class="muted">النوع</span><span>{{ picked.m.sim.sim_type_name }} · {{ picked.m.sim.approved ? 'معتمدة' : 'غير معتمدة' }}</span>
             <span class="muted">PIN</span><span>{{ picked.m.sim.pin_present ? 'محفوظ' : 'غير محفوظ' }}</span>
             <span class="muted">ICCID</span><bdi class="ltr">…{{ picked.m.sim.iccid_tail || '—' }}</bdi>
@@ -279,6 +279,15 @@ const clock = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', t
 
 // The phone is apart (owner 2026-10-28): computers only in the counts, the tables and the SIMs.
 const computers = computed(() => (tree.value?.stations || []).filter((s) => !s.phone && !isPhone(s)))
+// Names the owner reads (owner 2026-10-29): the admin phone is «هاتف الإدارة», not a «server-N»; its SIMs are
+// «إدارة-1», «إدارة-2»… (by their codes, as on «المراقبة»). Display only: Station Connect's codes do not change.
+const adminNames = computed(() => {
+  const sims = (tree.value?.stations || []).filter((s) => s.phone || isPhone(s)).flatMap((s) => s.modems || []).map((m) => m.sim).filter(Boolean)
+  return Object.fromEntries([...sims].sort((a, b) => String(a.code).localeCompare(String(b.code))).map((x, i) => [x.sim_uuid, `إدارة-${i + 1}`]))
+})
+const adminName = (sim) => (sim ? adminNames.value[sim.sim_uuid] || '' : '')
+const stName = (st) => (st && (st.phone || isPhone(st)) ? 'هاتف الإدارة' : (st?.code || 'كمبيوتر'))
+const simName = (sim, st) => (sim ? adminName(sim) || (st && (st.phone || isPhone(st)) ? 'إدارة' : sim.code) : '')
 const phones = computed(() => (tree.value?.stations || []).filter((s) => (s.phone || isPhone(s)) && s.level !== 'old'))
 const current = computed(() => computers.value.filter((s) => s.level !== 'old'))
 const gone = computed(() => computers.value.filter((s) => s.level === 'old'))
