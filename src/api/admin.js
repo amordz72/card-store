@@ -242,15 +242,18 @@ export const setOfficialUrl = (url) => rpc('store_admin_set_official_url', { p_u
 export const setExtraOrigins = (origins) => rpc('store_admin_set_extra_origins', { p_origins: origins })
 
 // Flexy for shops (v1.33): the owner's settings, per-shop rates («نسب المحلات»), the shops' operations and reviews
+// v1.39: a rate per operator per shop (rate_630 = Mobilis, rate_630_djezzy, rate_630_ooredoo; null = closed for it)
 export async function flexySettings () {
-  const rows = await rpc('store_admin_flexy_settings')
+  const rows = await rpc('store_admin_flexy_settings_v2')
   return rows?.[0] || null
 }
-export const setFlexySettings = (open, rate630, rateOffer, max) =>
-  rpc('store_admin_set_flexy_settings', { p_open: open, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max })
-export const flexyCustomers = () => rpc('store_admin_flexy_customers')
-export const setCustomerFlexy = (customerId, { enabled = null, role = null, rate630 = null, rateOffer = null, max = null }) =>
-  rpc('store_admin_set_customer_flexy', { p_customer_id: customerId, p_enabled: enabled, p_role: role, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max })
+export const setFlexySettings = (open, rate630, rateOffer, max, rateDjezzy = null, rateOoredoo = null) =>
+  rpc('store_admin_set_flexy_settings_v2', { p_open: open, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max, p_rate_630_djezzy: rateDjezzy, p_rate_630_ooredoo: rateOoredoo })
+export const flexyCustomers = () => rpc('store_admin_flexy_customers_v2')
+export const setCustomerFlexy = (customerId, { enabled = null, role = null, rate630 = null, rateOffer = null, max = null, rateDjezzy = null, rateOoredoo = null }) =>
+  rpc('store_admin_set_customer_flexy_v2', { p_customer_id: customerId, p_enabled: enabled, p_role: role, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max, p_rate_630_djezzy: rateDjezzy, p_rate_630_ooredoo: rateOoredoo })
+// Gives the rate to every enabled shop that has none on that operator ('djezzy' | 'ooredoo'); returns how many
+export const fillOperatorRate = (operator, rate) => rpc('store_admin_flexy_fill_operator_rate', { p_operator: operator, p_rate: rate })
 export const flexyJobs = (status = null, limit = 20, before = null) => rpc('store_admin_flexy_jobs', { p_status: status, p_limit: limit, p_before: before })
 export const flexyReviewCount = () => rpc('store_admin_flexy_review_count')
 // A shop's job in review: sent (the charge stays) or not sent (full refund to the shop)

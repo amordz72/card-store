@@ -87,6 +87,14 @@ const CORE_EXPIRES_MS = 120_000;
 const UNDECIDED_REVIEW_MS = 3 * 60 * 60_000;
 const OP_630 = "mobilis.arsselli.ordinary.630";
 const OP_OFFER = "mobilis.sama.offer.665";
+// Ordinary credit on the other operators (owner 2026-10-29, v1.39): the key follows the number's prefix.
+const OP_760 = "djezzy.flexy.ordinary.760";
+const OP_590 = "ooredoo.flexy.ordinary.590";
+function creditKey(phone: string): string {
+  if (phone.startsWith("07")) return OP_760;
+  if (phone.startsWith("05")) return OP_590;
+  return OP_630;
+}
 
 async function serviceRpc(fn: string, args: Record<string, unknown>): Promise<Response> {
   return await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -122,7 +130,7 @@ async function sendToCore(job: Job): Promise<string | null> {
         // Sent again as what it is: an offer is never re-sent as ordinary credit.
         ...(job.kind === "offer"
           ? { operation_key: OP_OFFER, offer: job.offer_label }
-          : { operation_key: OP_630, amount: job.amount }),
+          : { operation_key: creditKey(job.phone), amount: job.amount }),
         idempotency_key: job.core_key,
         phone: job.phone,
         expires_at: new Date(Date.parse(job.created_at) + CORE_EXPIRES_MS).toISOString(),
@@ -184,7 +192,7 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     const kind = body.kind === "offer" ? "offer" : "630";
     const label = kind === "offer" ? String(body.offer ?? "").trim() : null;
     const amount = kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
-    const created = await serviceRpc("store_flexy_create", {
+    const created = await serviceRpc("store_flexy_create_v2", {
       p_token: token, p_kind: kind, p_phone: String(body.phone ?? ""), p_amount: amount,
       p_offer_code: null, p_offer_label: label, p_request_id: body.request_id ?? null,
     });

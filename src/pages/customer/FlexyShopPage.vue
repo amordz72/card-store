@@ -6,7 +6,7 @@
       <div class="small muted">اطلب من المحل تفعيله.</div>
     </div>
     <FlexySend v-else remember="shop" :open="access.open.value" :max-amount="access.maxAmount.value" :offers="access.offers.value"
-      note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer"
+      :credit-prefixes="access.creditPrefixes.value" note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer"
       :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <q-badge :color="access.open.value ? 'positive' : 'negative'" class="q-pa-sm self-start">
