@@ -19,6 +19,21 @@
     <div v-if="error" class="small text-negative">{{ error }}</div>
 
     <template v-if="!SIM_FILTERS.has(filter)">
+    <!-- «حدث أثناء غيابك» (Flexy Core 0079): what solved itself stays until «رأيته» -->
+    <template v-if="unseenIncidents.length">
+      <div class="row items-center q-mt-sm">
+        <div class="section-title col">حدث أثناء غيابك</div>
+        <q-btn flat dense no-caps size="sm" color="primary" label="رأيتها كلها" :loading="seeing === 'all'" @click="seeIncident('all')" />
+      </div>
+      <div v-for="i in unseenIncidents" :key="i.id" class="card row items-center no-wrap q-gutter-sm">
+        <q-icon :name="i.kind === 'sim_back' ? 'sim_card' : 'power_off'" :color="i.kind === 'site_outage' ? 'negative' : 'deep-orange'" size="20px" />
+        <div class="col column">
+          <span class="text-weight-bold small">{{ i.title }}</span>
+          <span class="tiny muted">{{ i.started_at ? when(i.started_at) + (i.ended_at ? ' – ' + when(i.ended_at) : '') : (i.ended_at ? when(i.ended_at) : '') }}</span>
+        </div>
+        <q-btn flat dense no-caps size="sm" color="primary" label="رأيته" :loading="seeing === i.id" @click="seeIncident(i.id)" />
+      </div>
+    </template>
     <div class="section-title q-mt-sm">يحتاجك الآن</div>
     <div v-if="view && !shownAlerts.length" class="card small muted">لا شيء يحتاجك الآن.</div>
     <div v-for="a in shownAlerts" :key="a.key" class="card column q-gutter-xs">
@@ -171,6 +186,16 @@ const filter = ref(null)
 function pick (key) {
   filter.value = filter.value === key ? null : key
   if (SIM_FILTERS.has(key) && filter.value) tab.value = 'balances'
+}
+const unseenIncidents = computed(() => (view.value?.incidents || []).filter((i) => !i.seen))
+const seeing = ref(null)
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
+async function seeIncident (id) {
+  seeing.value = id
+  try {
+    const res = await flexy.ownerIncidentSeen(id)
+    if (res.status === 200 && res.body?.ok) view.value = res.body
+  } finally { seeing.value = null }
 }
 const shownAlerts = computed(() => (view.value?.alerts || []).filter((a) => !filter.value || SIM_FILTERS.has(filter.value) || a.level === filter.value))
 const sortedSims = computed(() => [...(view.value?.sims || [])].filter((s) => (filter.value === 'ok' ? s.ready : filter.value === 'online' ? s.online : filter.value === 'offline' ? !s.online : true)).sort((a, b) =>
