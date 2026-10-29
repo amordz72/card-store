@@ -26,7 +26,7 @@
 
     <div v-if="error" class="small text-negative">{{ error }}</div>
     <div v-if="loading" class="row justify-center q-pa-lg"><q-spinner color="primary" size="28px" /></div>
-    <div v-else-if="operator !== 'ooredoo'" class="card text-center muted q-pa-lg">عروض هذا المتعامل تُضاف لاحقًا بنفس الطريقة.</div>
+    <div v-else-if="operator === 'mobilis'" class="card text-center muted q-pa-lg">عروض هذا المتعامل تُضاف لاحقًا بنفس الطريقة.</div>
     <div v-else-if="!group" class="card text-center muted q-pa-lg">لا مجموعة بعد: افتح رقمًا في «إرسال فليكسي» لتُستكشف قائمته.</div>
 
     <!-- الأصل -->
@@ -168,7 +168,7 @@
     </template>
 
     <!-- Old versions: at the bottom in both modes (owner 2026-10-29) -->
-    <div v-if="!loading && operator === 'ooredoo' && group && info.versions?.length" class="card">
+    <div v-if="!loading && operator !== 'mobilis' && group && info.versions?.length" class="card">
       <div class="pg">النسخ القديمة</div>
       <div v-for="v in info.versions" :key="v.version" class="orow">
         <span class="small">النسخة {{ v.version }} · {{ clock(v.archived_at) }} · {{ v.count }} عرضًا</span>

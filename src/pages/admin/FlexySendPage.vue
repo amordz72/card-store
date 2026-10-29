@@ -10,7 +10,7 @@
     <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
-      :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
+      :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :explore-offer="exploreOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
       <div v-if="newReplies.length" class="card column q-gutter-xs">
@@ -366,6 +366,13 @@ async function lookupOffers (p, { retry = false } = {}) {
 // «صيغ» (Flexy Core 0067): confirm this variant, a change in it, or a new variant of the label
 async function decideOffer (p, decision, group = null) {
   const r = await flexy.ownerOfferDecide585(p, decision, group)
+  if (r.status !== 200) throw new Error(errorText(r.body))
+  return r.body
+}
+// «اقرأ عروض الإنترنت» (Flexy Core 0075): Djezzy only, the line's «Offres Internet» pages, no money
+async function exploreOffer (p) {
+  if (!p.startsWith('07')) return null
+  const r = await flexy.ownerOfferExplore760(p)
   if (r.status !== 200) throw new Error(errorText(r.body))
   return r.body
 }

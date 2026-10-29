@@ -117,6 +117,10 @@
         <div v-else class="small text-deep-orange-9">العروض الأخرى غير متاحة الآن، حاول بعد دقيقة.</div>
       </template>
     </div>
+    <!-- Djezzy (Flexy Core 0075): the number's «Offres Internet» pages read once, no money; then its offers show -->
+    <q-btn v-if="internetMenu && explore && looked && !loading && !holding" outline no-caps color="cyan-9" icon="travel_explore"
+      :label="exploring ? 'جارٍ قراءة عروض الإنترنت…' : 'اقرأ عروض الإنترنت'" :loading="exploring" @click="readInternet" />
+    <div v-if="exploreError" class="small text-negative">{{ exploreError }}</div>
     <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
          owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
     <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
@@ -153,7 +157,9 @@ const props = defineProps({
   // «اكشف» (owner's page, Ooredoo): probe(phone, code, again) → { status: 'probing' | 'done', price, offers }
   probe: { type: Function, default: null },
   // «صيغ»: decide(phone, 'confirm' | 'change' | 'new', group) when a menu matched no variant exactly
-  decide: { type: Function, default: null }
+  decide: { type: Function, default: null },
+  // Djezzy: explore(phone) → { status: 'discovering' | 'done' }, the line's «Offres Internet» read once
+  explore: { type: Function, default: null }
 })
 const emit = defineEmits(['sent'])
 // The lab, only for the owner's live session on a new group (never loaded on a shop's page)
@@ -285,6 +291,29 @@ const justSent = ref(false)
 const justKnown = ref(false)
 // The network said this number takes no offers (its own reply, never a silence)
 const noOffers = ref(false)
+const internetMenu = ref(false)
+const exploring = ref(false)
+const exploreError = ref('')
+async function readInternet () {
+  if (exploring.value) return
+  const p = props.phone
+  exploring.value = true
+  exploreError.value = ''
+  try {
+    let r = await props.explore(p)
+    for (const end = Date.now() + 90_000; r?.status === 'discovering' && Date.now() < end;) {
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+      r = await props.explore(p)
+    }
+    if (r?.status !== 'done') throw new Error('لم تردّ الشبكة. أعد المحاولة.')
+    internetMenu.value = false
+    if (props.phone === p) await load()
+  } catch (e) {
+    exploreError.value = e?.message || 'تعذّرت قراءة عروض الإنترنت.'
+  } finally {
+    exploring.value = false
+  }
+}
 // Owner 2026-10-29: no «أعد المحاولة». A failed discovery under the automix is tried again by itself, quietly,
 // at most 3 times, spaced (Sama SIMs are not worn); the automix buttons keep working meanwhile.
 const RETRY_AFTER_MS = [20000, 40000, 60000]
@@ -340,6 +369,7 @@ async function load ({ retry = false } = {}) {
       offers.value = r.offers || []
       looked.value = true
       group.value = r.group || ''
+      internetMenu.value = r.internet_menu === true
     } else if (r?.status === 'new_group') {
       loadedFor = p
       looked.value = true
