@@ -1,5 +1,6 @@
 <template>
   <q-page class="page">
+    <SectionTabs :tabs="MONITOR_TABS" />
     <!-- «المراقبة» (owner 2026-10-29, Flexy Core 0068): what needs the owner now, then the balances.
          One request to Flexy Core; refreshed every 30 seconds while this page is open and visible. -->
     <!-- The three tiles filter what is below (owner 2026-10-29): critical or orange alerts only, or the ready SIMs
@@ -129,6 +130,8 @@
 </template>
 
 <script setup>
+import SectionTabs from 'src/components/SectionTabs.vue'
+import { MONITOR_TABS } from 'src/api/sections'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'

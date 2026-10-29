@@ -1,5 +1,6 @@
 <template>
   <q-page class="page">
+    <SectionTabs :tabs="MONITOR_TABS" />
     <!-- The admin phone (owner 2026-10-26): Rech-Doom on his phone asks to be linked; he approves it here -->
     <div v-for="p in pendingPhones" :key="p.station_uuid" class="card row items-center q-gutter-sm">
       <q-icon name="smartphone" color="primary" size="24px" />
@@ -239,6 +240,8 @@
 </template>
 
 <script setup>
+import SectionTabs from 'src/components/SectionTabs.vue'
+import { MONITOR_TABS } from 'src/api/sections'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Dialog } from 'quasar'
 import * as flexy from 'src/api/flexy'

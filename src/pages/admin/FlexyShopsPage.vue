@@ -1,5 +1,6 @@
 <template>
   <q-page class="page">
+    <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
     <!-- Review first: these hold a shop's money until the owner decides -->
     <div v-if="reviews.length" class="card column q-gutter-sm">
       <div class="row items-center">
@@ -134,6 +135,8 @@
 </template>
 
 <script setup>
+import SectionTabs from 'src/components/SectionTabs.vue'
+import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import * as api from 'src/api/admin'
