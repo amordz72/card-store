@@ -16,7 +16,10 @@
     </q-tabs>
 
     <template v-if="tab === '630'">
-      <div class="card column q-gutter-sm">
+      <!-- The amounts show once the number is whole (owner 2026-10-29, as the other app): then they are this
+           operator's own (Ooredoo from 10, Mobilis 40, Djezzy 100) and do not change under the hand -->
+      <div v-if="!phoneFull" class="card text-center muted q-pa-md">اكتب رقم الزبون لتظهر المبالغ.</div>
+      <div v-else class="card column q-gutter-sm">
         <div class="amounts">
           <q-btn v-for="a in amounts" :key="a" dense unelevated no-caps class="chip"
             :outline="amount !== a" :color="amount === a ? 'primary' : 'grey-7'" :label="money(a)" @click="pick(a)" />
@@ -216,6 +219,11 @@ const minAmount = computed(() => (digits.value.startsWith('05') ? 10 : digits.va
 const amounts = computed(() => [...new Set([minAmount.value, 50, 100, 200, 500, 1000, 2000, 5000])]
   .filter((a) => a >= minAmount.value && a <= props.maxAmount))
 const value = computed(() => amount.value || Number(other.value) || 0)
+// A number of another operator: an amount under its smallest is dropped, never sent
+watch(minAmount, (min) => {
+  if (amount.value !== null && amount.value < min) amount.value = null
+  if (other.value && Number(other.value) < min) other.value = null
+})
 const canSend = computed(() => props.open && phoneFull.value && value.value >= minAmount.value && value.value <= props.maxAmount)
 const spaced = (d) => (d || '').replace(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5')
 const when = (t) => algeriaTime(t)
