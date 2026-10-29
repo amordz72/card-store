@@ -3,7 +3,7 @@
     <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
-      :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow"
+      :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
       <div v-if="newReplies.length" class="card column q-gutter-xs">
@@ -411,6 +411,12 @@ async function seenReplies (seen) {
   await flexy.ownerNewRepliesSeen(seen).catch(() => null)
   await loadNewReplies()
   refreshBell()
+}
+// A complaint (owner 2026-10-29): what was offline at the minute this operation ran (Flexy Core 0070)
+async function presenceAt (at) {
+  const res = await flexy.ownerPresence(at)
+  if (res.status === 200 && res.body?.ok) return res.body
+  throw new Error(res.body?.error === 'PRESENCE_LOG_NOT_READY' ? 'سجل الانقطاعات لم يبدأ بعد (migration 0070).' : 'تعذّرت القراءة.')
 }
 async function settleRow (j, to) {
   const words = { success: 'نجحت', failed: 'فشلت', not_sent: 'لم تُرسل' }

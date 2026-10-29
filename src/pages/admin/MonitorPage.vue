@@ -44,18 +44,24 @@
     </q-tabs>
 
     <template v-if="tab === 'balances'">
+      <div class="small muted q-mt-sm">«تبيع الآن» = متصلة الآن، معتمدة، الـPIN محفوظ، ترد على الشبكة، ورصيدها 100 دج فما فوق. المتصلة التي لا تبيع يظهر سببها في عمود الحالة.</div>
+      <!-- Owner 2026-10-29: never one «غير متاح» mixing connected and disconnected SIMs; the online/offline
+           filter applies to these cards and their window too (built here from the SIM rows). -->
       <div class="ops q-mt-sm">
-        <div v-for="o in view?.operators || []" :key="o.operator" class="card op" :class="{ bad: o.level === 'down' }">
+        <div v-for="o in cards" :key="o.operator" class="card op" :class="{ bad: o.level === 'down' }">
           <div class="small muted">{{ o.name }} · متاح الآن</div>
-          <div class="big" :class="{ 'text-negative': o.ready === 0 }">{{ money(o.available) }}</div>
-          <div v-if="o.available_unknown" class="small text-deep-orange-9">{{ o.available_unknown }} شريحة جاهزة بلا رصيد مقروء</div>
-          <div class="small muted">محجوز {{ money(o.reserved) }}</div>
-          <button v-if="o.unavailable_sims" type="button" class="link small text-negative" @click="openUnavailable(o)">
-            غير متاح {{ money(o.unavailable) }} · {{ o.unavailable_sims }} شريحة ‹
+          <div class="big" :class="{ 'text-negative': o.ready === 0 && filter !== 'offline' }">{{ filter === 'offline' ? '—' : money(o.available) }}</div>
+          <div v-if="o.unknown" class="small text-deep-orange-9">{{ o.unknown }} شريحة تبيع بلا رصيد مقروء</div>
+          <div v-if="o.reserved" class="small muted">محجوز {{ money(o.reserved) }}</div>
+          <button v-if="o.stuck.length" type="button" class="link small text-deep-orange-9" @click="openUnavailable(o, 'stuck')">
+            متصلة لا تبيع {{ money(o.stuckSum) }} · {{ o.stuck.length }} ‹
           </button>
-          <div v-else class="small text-positive">كل الشرائح متاحة ({{ o.ready }})</div>
+          <button v-if="o.off.length" type="button" class="link small text-negative" @click="openUnavailable(o, 'off')">
+            غير متصلة {{ money(o.offSum) }} · {{ o.off.length }} ‹
+          </button>
+          <div v-if="!o.stuck.length && !o.off.length" class="small text-positive">كل شرائحها تبيع ({{ o.ready }})</div>
           <div class="tiny muted">المجموع {{ money(o.total) }}</div>
-          <div v-if="o.ready === 0" class="small text-negative text-weight-bold">حرج: لا شريحة جاهزة</div>
+          <div v-if="o.ready === 0 && filter !== 'offline'" class="small text-negative text-weight-bold">حرج: لا شريحة تبيع</div>
         </div>
       </div>
       <div class="small muted q-mt-xs"><span class="dot ok" /> متصلة الآن · <span class="dot down" /> غير متصلة (منزوعة أو الكمبيوتر مطفأ). «متاح الآن» = شرائح معتمدة ومتصلة وترد، ناقص المحجوز في عمليات جارية. الحرج أقل من {{ money(view?.limits.critical || 2000) }}، وقبل الحرج أقل من {{ money(view?.limits.beforeCritical || 4000) }}.</div>
@@ -65,11 +71,14 @@
         <div v-for="s in sortedSims" :key="s.sim_uuid" class="sim small">
           <span class="column"><span class="text-weight-bold"><span class="dot" :class="s.online ? 'ok' : 'down'" :title="s.online ? 'متصلة الآن' : 'غير متصلة'" /> {{ s.code || 'شريحة' }}</span>
             <span v-if="!s.online" class="tiny text-negative">غير متصلة<template v-if="s.last_seen_at"> منذ {{ ago(s.last_seen_at).replace('منذ ', '') }}</template></span>
-            <span class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></span></span>
+            <span class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></span>
+            <!-- The connection log (Flexy Core 0070) -->
+            <span v-if="s.outages_7d" class="tiny" :class="s.unstable ? 'text-negative text-weight-bold' : 'text-deep-orange-9'">
+              <template v-if="s.unstable">غير مستقرة · </template>انقطعت {{ s.outages_24h }} اليوم · {{ s.outages_7d }} في 7 أيام ({{ s.offline_minutes_7d }} د)</span></span>
           <span class="column"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
             <span v-if="s.balance_checked_at" class="tiny muted">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
           <span>{{ s.available == null ? '؟' : money(s.available) }}</span>
-          <span :class="s.ready ? 'text-positive' : 'text-negative'">{{ s.ready ? 'جاهزة' : SHORT[s.reason] || 'غير متاحة' }}</span>
+          <span :class="s.ready ? 'text-positive' : 'text-negative'">{{ s.ready ? 'تبيع' : !s.online ? 'غير متصلة' : SHORT[s.reason] || 'لا تبيع' }}</span>
         </div>
       </div>
       <!-- The admin phone's SIMs (owner 2026-10-29): the owner's own, never counted with the shops' -->
@@ -94,9 +103,9 @@
     <q-dialog v-model="unavailableOpen">
       <q-card v-if="picked" style="min-width: 300px">
         <q-card-section class="column q-gutter-xs">
-          <div class="text-weight-bold">{{ picked.name }} · غير متاح الآن</div>
+          <div class="text-weight-bold">{{ picked.name }} · {{ picked.which === 'off' ? 'غير متصلة' : 'متصلة لا تبيع' }}</div>
           <!-- Owner 2026-10-29: the amount is money still inside a SIM that cannot send now, not money available -->
-          <div class="small muted">رصيد موجود في هذه الشرائح، لكنها لا تستطيع الإرسال الآن. لا يدخل في «متاح الآن».</div>
+          <div class="small muted">{{ picked.which === 'off' ? 'رصيد في شرائح لا يراها الكمبيوتر الآن (منزوعة، أو المودم أو الكمبيوتر مطفأ).' : 'رصيد في شرائح متصلة لكنها لا تبيع، والسبب تحت كل واحدة.' }} لا يدخل في «متاح الآن».</div>
         </q-card-section>
         <q-card-section class="column q-gutter-sm q-pt-none">
           <div v-for="s in pickedSims" :key="s.sim_uuid" class="column">
@@ -137,7 +146,7 @@ const picked = ref(null)
 const unavailableOpen = ref(false)
 
 // «متصلة» / «غير متصلة» (owner 2026-10-29): what is really connected now, whatever its other state
-const TILES = [{ key: 'down', label: 'حرج' }, { key: 'warn', label: 'قبل الحرج' }, { key: 'ok', label: 'شريحة جاهزة' },
+const TILES = [{ key: 'down', label: 'حرج' }, { key: 'warn', label: 'قبل الحرج' }, { key: 'ok', label: 'تبيع الآن' },
   { key: 'online', label: 'متصلة' }, { key: 'offline', label: 'غير متصلة' }]
 const SIM_FILTERS = new Set(['ok', 'online', 'offline'])
 function tileCount (key) {
@@ -154,7 +163,21 @@ function pick (key) {
 const shownAlerts = computed(() => (view.value?.alerts || []).filter((a) => !filter.value || SIM_FILTERS.has(filter.value) || a.level === filter.value))
 const sortedSims = computed(() => [...(view.value?.sims || [])].filter((s) => (filter.value === 'ok' ? s.ready : filter.value === 'online' ? s.online : filter.value === 'offline' ? !s.online : true)).sort((a, b) =>
   (a.ready === b.ready ? 0 : a.ready ? 1 : -1) || (a.approved === b.approved ? 0 : a.approved ? -1 : 1) || String(a.code).localeCompare(String(b.code))))
-const pickedSims = computed(() => (view.value?.sims || []).filter((s) => picked.value && s.operator === picked.value.operator && !s.ready))
+// The SIMs the filter keeps (online / offline), the cards and the window are built from them
+const filteredSims = computed(() => (view.value?.sims || []).filter((s) => filter.value === 'online' ? s.online : filter.value === 'offline' ? !s.online : true))
+const sum = (xs, f) => xs.reduce((a, x) => a + (Number(f(x)) || 0), 0)
+const cards = computed(() => (view.value?.operators || []).map((o) => {
+  const mine = filteredSims.value.filter((s) => s.operator === o.operator)
+  const selling = mine.filter((s) => s.ready)
+  const stuck = mine.filter((s) => !s.ready && s.online)
+  const off = mine.filter((s) => !s.online)
+  return {
+    operator: o.operator, name: o.name, level: o.level, ready: selling.length,
+    available: sum(selling, (s) => s.available), reserved: sum(selling, (s) => s.reserved), unknown: selling.filter((s) => s.available == null).length,
+    stuck, stuckSum: sum(stuck, (s) => s.balance), off, offSum: sum(off, (s) => s.balance), total: sum(mine, (s) => s.balance)
+  }
+}).filter((c) => c.stuck.length + c.off.length + c.ready > 0))
+const pickedSims = computed(() => (picked.value ? picked.value.list : []))
 
 const clock = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 function ago (t) {
@@ -193,8 +216,8 @@ async function ack (a) {
     acking.value = ''
   }
 }
-function openUnavailable (o) {
-  picked.value = o
+function openUnavailable (o, which) {
+  picked.value = { ...o, which, list: which === 'off' ? o.off : o.stuck }
   unavailableOpen.value = true
 }
 
