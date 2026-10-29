@@ -171,7 +171,8 @@
     </div>
 
     <q-dialog v-model="details">
-      <q-card v-if="picked" style="min-width: 300px; max-width: 420px">
+      <!-- On a phone the window never grows past the screen: long numbers and the tabs wrap or scroll inside it -->
+      <q-card v-if="picked" class="sim-dialog">
         <q-card-section class="row items-center q-gutter-sm">
           <span class="col text-weight-bold"><bdi class="ltr">{{ picked.m.ip || '—' }}</bdi> · {{ picked.st.code }}</span>
           <q-badge :color="LEVEL[picked.m.level].color" :label="LEVEL[picked.m.level].label" />
@@ -223,7 +224,7 @@
           <q-separator />
           <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" :sim-type="picked.m.sim.sim_type" :phone="String(picked.st.agent_version || '').startsWith('phone-')" /></q-card-section>
         </template>
-        <q-card-actions align="right">
+        <q-card-actions align="right" class="wrap">
           <!-- The admin phone (Flexy Core 0037): «اكتشاف الرصيد» = one *222# from the phone; its reply is the
                starting point of the phone's cumulative, which the send from the phone is checked against -->
           <q-btn v-if="picked.m.sim?.approved || canRetryFirstBalance(picked.m.sim) || (picked.m.sim && isPhone(picked.st))" outline no-caps color="primary"
@@ -654,7 +655,10 @@ onMounted(load)
 .station { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .modem { width: 100%; border: 0; border-top: 1px solid #EEF0F4; background: transparent; padding: 10px 14px; text-align: right; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .op-row { padding: 10px 14px; border-top: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
-.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; }
+.kv > * { min-width: 0; overflow-wrap: anywhere; }
+.sim-dialog { width: 420px; max-width: calc(100vw - 24px); overflow-x: hidden; }
+.sim-dialog :deep(.q-tabs) { max-width: 100%; }
 .table-wrap { overflow-x: auto; }
 .sims td { white-space: nowrap; }
 .sims tbody tr.static { cursor: default; }

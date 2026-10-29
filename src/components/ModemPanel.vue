@@ -2,8 +2,8 @@
   <!-- Modem page (owner, 2026-10-26): what the modem's own page shows, from the stations page.
        Read-only status, a message reader, and a USSD lab where no code is blocked; a code
        carrying a PIN waits 60 s and its reply. «{PIN}» is filled in by the server. -->
-  <div class="column q-gutter-sm">
-    <q-tabs v-if="!ussdOnly" v-model="tab" dense no-caps align="justify" class="text-primary">
+  <div class="column q-gutter-sm" style="min-width: 0; max-width: 100%">
+    <q-tabs v-if="!ussdOnly" v-model="tab" dense no-caps align="justify" mobile-arrows outside-arrows class="text-primary">
       <!-- The admin phone (agent «phone-*») has no HiLink modem and no SMS reader: only the USSD lab works there -->
       <q-tab v-if="!phone" name="status" label="حالة المودم" />
       <q-tab v-if="!phone" name="sms" label="الرسائل" />
@@ -405,7 +405,8 @@ onBeforeUnmount(() => { alive = false; clearTimeout(timer) })
 </script>
 
 <style scoped>
-.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; }
+.kv > * { min-width: 0; overflow-wrap: anywhere; }
 .ltr { direction: ltr; unicode-bidi: isolate; }
 .small { font-size: 12px; }
 .muted { color: #777; }

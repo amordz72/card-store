@@ -2,20 +2,25 @@
   <q-page class="page">
     <!-- «المراقبة» (owner 2026-10-29, Flexy Core 0068): what needs the owner now, then the balances.
          One request to Flexy Core; refreshed every 30 seconds while this page is open and visible. -->
+    <!-- The three tiles filter what is below (owner 2026-10-29): critical or orange alerts only, or the ready SIMs
+         with their details. A second press, or ✕, shows everything again. -->
     <div class="counts">
-      <div class="count down"><div class="n">{{ view?.counts.down ?? '—' }}</div><div class="small">حرج</div></div>
-      <div class="count warn"><div class="n">{{ view?.counts.warn ?? '—' }}</div><div class="small">قبل الحرج</div></div>
-      <div class="count ok"><div class="n">{{ view?.counts.ok ?? '—' }}</div><div class="small">شريحة جاهزة</div></div>
+      <button v-for="t in TILES" :key="t.key" type="button" class="count" :class="[t.key, { picked: filter === t.key, dim: filter && filter !== t.key }]"
+        :aria-pressed="filter === t.key" @click="pick(t.key)">
+        <q-icon name="filter_alt" size="14px" class="funnel" />
+        <div class="n">{{ view?.counts[t.key] ?? '—' }}</div><div class="small">{{ t.label }}</div>
+      </button>
     </div>
     <div class="row items-center q-mt-sm">
-      <div class="col small muted">آخر تحديث {{ view ? clock(view.checked_at) : '—' }}</div>
+      <div class="col small muted">آخر تحديث {{ view ? clock(view.checked_at) : '—' }}<template v-if="filter"> · <button type="button" class="link text-primary" @click="filter = null">مفلتر: {{ TILES.find((t) => t.key === filter).label }} ✕</button></template></div>
       <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy" @click="load" />
     </div>
     <div v-if="error" class="small text-negative">{{ error }}</div>
 
+    <template v-if="filter !== 'ok'">
     <div class="section-title q-mt-sm">يحتاجك الآن</div>
-    <div v-if="view && !view.alerts.length" class="card small muted">لا شيء يحتاجك الآن.</div>
-    <div v-for="a in view?.alerts || []" :key="a.key" class="card column q-gutter-xs">
+    <div v-if="view && !shownAlerts.length" class="card small muted">لا شيء يحتاجك الآن.</div>
+    <div v-for="a in shownAlerts" :key="a.key" class="card column q-gutter-xs">
       <div class="row items-center q-gutter-xs">
         <span class="dot" :class="a.level" />
         <span class="small text-weight-bold" :class="a.level === 'down' ? 'text-negative' : 'text-deep-orange-9'">{{ a.level === 'down' ? 'حرج' : 'قبل الحرج' }} · {{ KIND[a.kind] }}</span>
@@ -30,6 +35,7 @@
         <q-btn unelevated no-caps color="grey-4" text-color="dark" label="تم" :loading="acking === a.key" class="col" @click="ack(a)" />
       </div>
     </div>
+    </template>
 
     <q-tabs v-model="tab" dense no-caps class="card q-mt-md q-pa-none" active-color="white" active-bg-color="primary" indicator-color="transparent">
       <q-tab name="balances" label="الأرصدة" />
@@ -57,7 +63,8 @@
       <div class="card q-mt-sm q-pa-none sims">
         <div class="sim head small"><span>الشريحة</span><span>الرصيد</span><span>المتاح</span><span>الحالة</span></div>
         <div v-for="s in sortedSims" :key="s.sim_uuid" class="sim small">
-          <span class="text-weight-bold"><span class="dot" :class="s.ready ? 'ok' : s.approved ? 'down' : 'muted'" /> {{ s.code || 'شريحة' }}</span>
+          <span class="column"><span class="text-weight-bold"><span class="dot" :class="s.ready ? 'ok' : s.approved ? 'down' : 'muted'" /> {{ s.code || 'شريحة' }}</span>
+            <span class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></span></span>
           <span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
           <span>{{ s.available == null ? '؟' : money(s.available) }}</span>
           <span :class="s.ready ? 'text-positive' : 'text-negative'">{{ s.ready ? 'جاهزة' : SHORT[s.reason] || 'غير متاحة' }}</span>
@@ -108,7 +115,14 @@ const tab = ref('balances')
 const picked = ref(null)
 const unavailableOpen = ref(false)
 
-const sortedSims = computed(() => [...(view.value?.sims || [])].sort((a, b) =>
+const TILES = [{ key: 'down', label: 'حرج' }, { key: 'warn', label: 'قبل الحرج' }, { key: 'ok', label: 'شريحة جاهزة' }]
+const filter = ref(null)
+function pick (key) {
+  filter.value = filter.value === key ? null : key
+  if (key === 'ok' && filter.value) tab.value = 'balances'
+}
+const shownAlerts = computed(() => (view.value?.alerts || []).filter((a) => !filter.value || a.level === filter.value))
+const sortedSims = computed(() => [...(view.value?.sims || [])].filter((s) => filter.value !== 'ok' || s.ready).sort((a, b) =>
   (a.ready === b.ready ? 0 : a.ready ? 1 : -1) || (a.approved === b.approved ? 0 : a.approved ? -1 : 1) || String(a.code).localeCompare(String(b.code))))
 const pickedSims = computed(() => (view.value?.sims || []).filter((s) => picked.value && s.operator === picked.value.operator && !s.ready))
 
@@ -164,7 +178,10 @@ onBeforeUnmount(() => clearInterval(timer))
 
 <style scoped>
 .counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.count { border-radius: 10px; padding: 10px; text-align: center; }
+.count { position: relative; border: 2px solid transparent; border-radius: 10px; padding: 10px; text-align: center; font: inherit; cursor: pointer; min-height: 44px; }
+.count.picked { border-color: currentColor; }
+.count.dim { opacity: 0.55; }
+.funnel { position: absolute; top: 6px; inset-inline-start: 6px; opacity: 0.6; }
 .count .n { font-size: 22px; font-weight: 700; }
 .count.down { background: #FEE2E2; color: #991B1B; }
 .count.warn { background: #FFEDD5; color: #9A3412; }
