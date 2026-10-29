@@ -55,6 +55,9 @@
                   <span v-if="o.status === 'doubt'" class="text-negative"> · الرمز ظهر مرتين في القائمة: لا يُرسل</span>
                 </div>
                 <div v-if="o.probe" class="meta" :class="o.probe.price === o.price ? 'text-positive' : 'text-negative'">{{ probeText(o) }}</div>
+                <!-- «اعتماد الرمز» (Flexy Core 0065): the probe named this offer's price for its code shown twice -->
+                <q-btn v-if="canApproveProbe(o)" dense unelevated no-caps size="sm" color="positive" class="q-mt-xs"
+                  :label="'اعتماد الرمز ' + o.code + ' لهذا العرض'" :loading="busy === o.id" @click="approveProbe(o)" />
               </div>
               <div v-if="!editing" class="row items-center no-wrap q-gutter-xs">
                 <span class="price">{{ o.price ? num(o.price) : '—' }}</span>
@@ -198,7 +201,8 @@ const ERRORS = {
   CATALOG_BAD_REQUEST: 'قيمة غير صحيحة.',
   NOTHING_TO_APPROVE: 'لا نسخة جديدة لتعتمدها.',
   NOTHING_APPROVED: 'لا نسخة معتمدة لتلغيها.',
-  VERSION_NOT_FOUND: 'النسخة غير موجودة.'
+  VERSION_NOT_FOUND: 'النسخة غير موجودة.',
+  PROBE_NOT_MATCHING: 'آخر كشف لا يطابق سعر هذا العرض: اكشف من جديد.'
 }
 
 const operator = ref('ooredoo')
@@ -245,7 +249,10 @@ function pagesOf (list) {
   }
   return out
 }
-const tagOf = (o) => (o.status === 'doubt' ? { label: 'مشكوك', cls: 't-off' }
+// A code shown twice, resolved by an approved probe of this code and price (Flexy Core 0065)
+const resolved = (o) => o.probeOk && o.probe && o.probe.code === o.code && o.probe.price === o.price
+const canApproveProbe = (o) => !o.draft && o.status === 'doubt' && !resolved(o) && o.probe && o.probe.code === o.code && o.probe.price === o.price
+const tagOf = (o) => (o.status === 'doubt' && !resolved(o) ? { label: 'مشكوك', cls: 't-off' }
   : !o.active ? { label: 'غير مفعّل', cls: 't-off' }
     : o.audience === 'all' ? { label: 'الكل', cls: 't-all' } : { label: 'إدارة', cls: 't-adm' })
 // In «جديدة»: the decision the offer will keep after «اعتماد» (the approved row's, or the raised version's own)
@@ -265,7 +272,26 @@ function markOf (o) {
 }
 // «اكشف» on a code shown twice (Flexy Core 0064): the network's price, kept beside the offer as evidence
 const probeText = (o) => 'كشف ' + clock(o.probe.at) + ': الرمز ' + o.probe.code + ' = ' + num(o.probe.price) + ' دج' +
-  (o.probe.price === o.price ? ' ✓ يطابق هذا العرض' : ' ✗ لا يطابق هذا العرض')
+  (o.probe.price === o.price ? ' ✓ يطابق هذا العرض' : ' ✗ لا يطابق هذا العرض') + (resolved(o) ? ' · معتمد: يُباع بحراسة السعر' : '')
+async function approveProbe (o) {
+  Dialog.create({
+    title: 'اعتماد الرمز ' + o.code + ' لـ' + o.nameNetwork,
+    message: 'الكشف قال إن الرمز ' + o.code + ' يعطي ' + num(o.probe.price) + ' دج = هذا العرض. يُفتح لك أنت فقط (الإدارة)، والـPIN لا يُرسل إلا إذا قالت الشبكة نفس السعر. العرض الآخر بنفس الرمز يبقى موقوفًا.',
+    cancel: 'رجوع',
+    ok: 'اعتمد'
+  }).onOk(async () => {
+    busy.value = o.id
+    try {
+      const r = await flexy.ownerOfferProbeApprove(o.id)
+      if (r.status !== 200 || !r.body?.ok) throw new Error(ERRORS[r.body?.error] || r.body?.error || 'FLEXY_CORE')
+      await load()
+    } catch (e) {
+      Notify.create({ message: e.message, color: 'negative', position: 'top' })
+    } finally {
+      busy.value = null
+    }
+  })
+}
 function diffText (c) {
   const out = []
   if (c.from.code !== c.to.code) out.push('الرمز ' + c.from.code + ' ← ' + c.to.code)
