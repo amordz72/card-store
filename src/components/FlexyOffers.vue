@@ -39,7 +39,27 @@
         </div>
       </div>
     </template>
-    <div v-else-if="looked && !newGroup" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
+    <div v-else-if="looked && !newGroup && !blocked.length" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
+    <!-- Offers the index guard stops (Ooredoo, Flexy Core 0065): a code the menu shows twice. Never sold from here;
+         «اكشف» asks the network which offer that code gives (its price, before the PIN; no money). -->
+    <div v-if="blocked.length && !loading" class="card q-pa-none blocked">
+      <div class="net-head text-grey-8"><q-icon name="block" size="18px" /> موقوفة: رمزها مكرر في القائمة</div>
+      <div v-for="o in blocked" :key="o.id" class="offer-row column items-stretch">
+        <div class="row items-center justify-between no-wrap q-gutter-xs">
+          <span class="text-grey-7"><span class="ltr text-weight-bold">{{ o.code }}</span> · <bdi dir="auto">{{ o.label }}</bdi></span>
+          <span class="row items-center no-wrap q-gutter-xs">
+            <span class="price text-grey-7">{{ money(o.amount) }}</span>
+            <q-btn v-if="probe" dense no-caps unelevated size="sm" color="deep-orange" label="اكشف" :loading="probing === o.code"
+              :disable="Boolean(probing)" @click="runProbe(o.code)" />
+          </span>
+        </div>
+        <div v-if="verdictOf(o)" class="small" :class="verdictOf(o).match ? 'text-positive' : 'text-negative'">{{ verdictOf(o).text }}</div>
+      </div>
+      <div v-if="probeError" class="small text-negative q-px-md q-pb-sm">{{ probeError }}</div>
+      <div v-if="anyMatch" class="small muted q-px-md q-pb-sm">
+        للبيع: {{ newGroup ? 'اعتمد المجموعة في شاشة العروض، ثم' : 'في شاشة العروض ←' }} «اعتماد الرمز» على العرض المطابق. الآخر يبقى موقوفًا.
+      </div>
+    </div>
     <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
          owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
     <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
@@ -68,7 +88,9 @@ const props = defineProps({
   maxAmount: { type: Number, default: Infinity },
   lookup: { type: Function, required: true },
   send: { type: Function, required: true },
-  repeatOf: { type: Function, default: () => null }
+  repeatOf: { type: Function, default: () => null },
+  // «اكشف» (owner's page, Ooredoo): probe(phone, code, again) → { status: 'probing' | 'done', price, offers }
+  probe: { type: Function, default: null }
 })
 const emit = defineEmits(['sent'])
 // The lab, only for the owner's live session on a new group (never loaded on a shop's page)
@@ -92,6 +114,39 @@ const DETAILS = {
 const spaced = (d) => (d || '').replace(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5')
 
 const loading = ref(false)
+// Offers the index guard stops, and what «اكشف» learnt this time (by code)
+const blocked = ref([])
+const probing = ref('')
+const probeError = ref('')
+const probed = ref({})
+function verdictOf (o) {
+  const r = probed.value[o.code]
+  const price = r ? r.price : o.probe?.code === o.code ? o.probe.price : null
+  if (price === null || price === undefined) return r ? { match: false, text: 'الشبكة لم تذكر سعرًا: ' + (r.text || r.result || '—') } : null
+  const match = Number(price) === Number(o.amount)
+  const when = r ? 'الآن' : 'كشف سابق'
+  return { match, text: (match ? '✓ ' : '✗ ') + when + ': الرمز ' + o.code + ' يعطي ' + money(price) + (match ? ' = هذا العرض' : ' ≠ هذا العرض') }
+}
+const anyMatch = computed(() => blocked.value.some((o) => verdictOf(o)?.match))
+async function runProbe (code) {
+  const p = props.phone
+  if (!props.probe || probing.value) return
+  probing.value = code
+  probeError.value = ''
+  try {
+    let r = await props.probe(p, code, Boolean(probed.value[code]))
+    for (let i = 0; r?.status === 'probing' && i < 30; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+      r = await props.probe(p, code)
+    }
+    if (r?.status !== 'done') throw new Error('لم تردّ الشبكة. أعد «اكشف».')
+    probed.value = { ...probed.value, [code]: r }
+  } catch (e) {
+    probeError.value = e?.message || 'تعذّر الكشف الآن.'
+  } finally {
+    probing.value = ''
+  }
+}
 const looked = ref(false)
 const error = ref('')
 const offers = ref([])
@@ -131,6 +186,9 @@ async function load ({ retry = false } = {}) {
   error.value = ''
   looked.value = false
   newGroup.value = null
+  blocked.value = []
+  probed.value = {}
+  probeError.value = ''
   loading.value = true
   try {
     let r = await props.lookup(p, { retry })
@@ -140,6 +198,7 @@ async function load ({ retry = false } = {}) {
     }
     if (mine !== runId) return
     ordered.value = r?.ordered === true
+    blocked.value = Array.isArray(r?.blocked) ? r.blocked : []
     if (r?.status === 'ready') {
       loadedFor = p
       offers.value = r.offers || []
@@ -171,7 +230,7 @@ async function load ({ retry = false } = {}) {
 // (owner 2026-10-26): a wait still running goes on, an answer or an error stays (its own button retries).
 watch(() => [props.active, props.phone, props.phoneOk], () => {
   if (!props.active) return
-  if (!props.phoneOk) { runId++; loading.value = false; loadingFor = ''; shownFor = ''; offers.value = []; looked.value = false; error.value = ''; newGroup.value = null; return }
+  if (!props.phoneOk) { runId++; loading.value = false; loadingFor = ''; shownFor = ''; offers.value = []; looked.value = false; error.value = ''; newGroup.value = null; blocked.value = []; return }
   if (loading.value && loadingFor === props.phone) return
   if (shownFor === props.phone && (looked.value || error.value)) return
   load()
@@ -228,5 +287,6 @@ function confirm (o) {
 .net-card { border-inline-start: 4px solid #0E7490; }
 .net-head { display: flex; align-items: center; gap: 6px; padding: 10px 14px; font-weight: 700; color: #0E7490; }
 .net-price { color: #0E7490; }
+.blocked { border-style: dashed; }
 .live { border: 2px solid #0E7490; padding: 12px; }
 </style>

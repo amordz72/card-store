@@ -3,7 +3,7 @@
     <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
-      :send-offer="sendOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow"
+      :send-offer="sendOffer" :probe-offer="probeOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
       <div v-if="newReplies.length" class="card column q-gutter-xs">
@@ -344,6 +344,12 @@ async function lookupOffers (p, { retry = false } = {}) {
   if (res.status === 409 && res.body?.error === 'DISCOVERY_DEFERRED') return { status: 'discovering' }
   if (res.status !== 200) throw new Error(errorText(res.body))
   return res.body
+}
+// «اكشف» (Flexy Core 0065): Ooredoo only; {status: 'probing'} while it runs, then the price and the offers holding the code
+async function probeOffer (p, code, again = false) {
+  const r = await flexy.ownerOfferProbe585(p, code, again)
+  if (r.status !== 200) throw new Error(errorText(r.body))
+  return r.body
 }
 async function sendOffer (p, label, key) {
   // SOURCE_BUSY: the SIM frees within the queue limit (owner 2026-10-27); nothing was created, the same key
