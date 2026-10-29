@@ -82,7 +82,7 @@
       </div>
     </div>
     <!-- «أوتوميكس» (owner 2026-10-29): a Mobilis number whose line is not known yet sells at once, without waiting
-         for the discovery. 50 and 100 go by Arsselli (the network gives the line's own offer at that price); «مختلط»
+         for the discovery. 100 goes by Arsselli first (the network gives the line's own offer at that price); «مختلط»
          and «إنترنت» open a Sama session that buys only when the line has that offer, else stops before any money and
          the line's offers show. Each row only while a SIM can take it; otherwise «حاول بعد دقيقة» (the owner is told). -->
     <div v-if="showAutomix" class="card column q-gutter-sm automix">
@@ -96,7 +96,7 @@
             <q-btn v-for="o in AUTO.small.filter(fits)" :key="o.label" unelevated no-caps color="primary" :label="money(o.amount)" :disable="busy" @click="confirm(o, true)" />
           </div>
         </div>
-        <div v-else class="small text-deep-orange-9">50 و100 غير متاحة الآن، حاول بعد دقيقة.</div>
+        <div v-else class="small text-deep-orange-9">100 غير متاح الآن، حاول بعد دقيقة.</div>
         <template v-if="automix.big">
           <div class="small muted">مختلط (مكالمات ورسائل وإنترنت)</div>
           <div class="amounts">
@@ -153,7 +153,8 @@ const newGroup = ref(null)
 // «أوتوميكس»: the quick offers by their catalog names (Flexy Core sends each by its known route)
 const autoOffer = (family, amount, display, category = 'bundle') => ({ label: `${family} ${amount}`, amount, display, category })
 const AUTO = {
-  small: [50, 100].map((a) => autoOffer('Sama Mix', a, `عرض ${a} دج (حسب خط الزبون)`)),
+  // 50 dropped (owner 2026-10-29): the network refuses 50 DA to Sama Mix and Revolution lines
+  small: [100].map((a) => autoOffer('Sama Mix', a, `عرض ${a} دج (حسب خط الزبون)`)),
   mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Mix', a, `مختلط ${a} دج`)),
   net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `إنترنت ${a} دج`, 'internet'))
 }
@@ -165,8 +166,8 @@ async function checkAutomix (p) {
   automix.value = { for: p, small: null, big: null }
   if (!props.available) { automix.value = { for: p, small: true, big: true }; return }
   try {
-    const a = await props.available(['Sama Mix 50', 'Sama Net 500'])
-    if (mine === automixRun) automix.value = { for: p, small: a['Sama Mix 50'] !== false, big: a['Sama Net 500'] !== false }
+    const a = await props.available(['Sama Mix 100', 'Sama Net 500'])
+    if (mine === automixRun) automix.value = { for: p, small: a['Sama Mix 100'] !== false, big: a['Sama Net 500'] !== false }
   } catch {
     // Not known: the rows show, the send itself still refuses («غير متاح») without taking anything
     if (mine === automixRun) automix.value = { for: p, small: true, big: true }
