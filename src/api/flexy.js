@@ -103,6 +103,7 @@ export const ownerAppOperations = (app, keys) =>
 // «المهام الآلية» (Flexy Core 0076): what the program does by itself, its switches, and what it did
 export const ownerAuto = () => owner('auto', { method: 'GET' })
 export const setAutoTask = (key, on) => owner('auto', { method: 'POST', body: { key, on } })
+export const setAutoLimit = (limit, value) => owner('auto', { method: 'POST', body: { limit, value } })
 export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
 // The shops' switch in Flexy Core (apps.630.send_enabled), read with ownerSwitch().
