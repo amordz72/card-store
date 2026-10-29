@@ -35,8 +35,11 @@
         كل رقم عُرفت مجموعته أو عائلته أو بدأ استكشافه خلال 30 يومًا يُنسى، فيُستكشف من جديد عند إرساله القادم.
         يظهر العدد قبل التأكيد.
       </div>
-      <q-btn outline no-caps color="negative" icon="delete_sweep" label="انسَ آخر 30 يومًا"
-        :loading="busy === 'recent'" @click="forgetRecent" />
+      <q-btn outline no-caps color="deep-orange" icon="person" label="انسَ الأرقام التي أرسلتُ لها أنا"
+        :loading="busy === 'mine'" @click="forgetMany('mine')" />
+      <div class="small muted">من شاشتك أو من هاتف الإدارة، في آخر 30 يومًا. أرقام المحلات لا تُمسّ.</div>
+      <q-btn outline no-caps color="negative" icon="delete_sweep" label="انسَ آخر 30 يومًا (كل الأرقام)"
+        :loading="busy === 'recent'" @click="forgetMany('recent')" />
     </div>
   </q-page>
 </template>
@@ -52,7 +55,7 @@ const SOURCES = { mobilis: 'موبيليس', discovery: 'الاستكشاف', dj
 const ERRORS = {
   PHONE_INVALID: 'رقم غير صحيح: 10 أرقام يبدأ بـ 05 أو 06 أو 07.',
   DAYS_INVALID: 'عدد الأيام غير صحيح.',
-  NUMBER_MEMORY_NOT_READY: 'ذاكرة الأرقام لم تُفعَّل بعد (migration 0073).',
+  NUMBER_MEMORY_NOT_READY: 'ذاكرة الأرقام لم تُفعَّل بعد (migration 0073 و0074).',
   OWNER_REQUIRED: 'للمالك فقط.'
 }
 
@@ -113,11 +116,13 @@ function forgetOne () {
     })
 }
 
-async function forgetRecent () {
-  busy.value = 'recent'
+async function forgetMany (kind) {
+  const fn = kind === 'mine' ? flexy.numberForgetMine : flexy.numberForgetRecent
+  const title = kind === 'mine' ? 'انسَ الأرقام التي أرسلتُ لها أنا' : 'انسَ آخر 30 يومًا'
+  busy.value = kind
   let n = 0
   try {
-    n = (await call(() => flexy.numberForgetRecent(30, false))).preview?.numbers ?? 0
+    n = (await call(() => fn(30, false))).preview?.numbers ?? 0
   } catch (e) {
     Notify.create({ message: e.message, color: 'negative', position: 'top' })
     return
@@ -128,11 +133,11 @@ async function forgetRecent () {
     Notify.create({ message: 'لا شيء عُرف في آخر 30 يومًا.', color: 'info', position: 'top' })
     return
   }
-  Dialog.create({ title: 'انسَ آخر 30 يومًا', message: 'سيُنسى ' + n + ' رقمًا ويُستكشف كل منها عند إرساله القادم. متأكد؟', cancel: 'إلغاء', ok: 'انسَ ' + n })
+  Dialog.create({ title, message: 'سيُنسى ' + n + ' رقمًا ويُستكشف كل منها عند إرساله القادم. متأكد؟', cancel: 'إلغاء', ok: 'انسَ ' + n })
     .onOk(async () => {
-      busy.value = 'recent'
+      busy.value = kind
       try {
-        await call(() => flexy.numberForgetRecent(30, true))
+        await call(() => fn(30, true))
         Notify.create({ message: 'نُسي ' + n + ' رقمًا.', color: 'positive', position: 'top' })
         if (mem.value) await look()
       } catch (e) {

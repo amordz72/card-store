@@ -95,7 +95,7 @@
       <template v-else>
         <div v-if="raised" class="small text-purple-8 q-px-sm">النسخة {{ raised }} مرفوعة من الأرشيف كما كانت. لا يتغير شيء حتى تضغط «اعتماد».</div>
         <div v-else-if="approved.length" class="small muted q-px-sm">هذا ما تُظهره الشبكة الآن. المعتمدة تبقى تُباع حتى تعتمد هذه.</div>
-        <div v-else class="small muted q-px-sm">مجموعة جديدة: {{ draft.length }} عرضًا من الشبكة. تبيع منها أنت (الإدارة) حتى تعتمدها.</div>
+        <div v-else class="small muted q-px-sm">{{ variantNo ? 'صيغة جديدة حُفظت وحدها' : 'مجموعة جديدة' }}: {{ draft.length }} عرضًا من الشبكة. تراها أنت (الإدارة) وحدك حتى تفتحها.</div>
         <div v-if="approved.length && !raised" class="card chg">
           <div class="chg-h">ماذا تغيّر عن المعتمدة</div>
           <div v-if="!changeCount" class="chg-r muted">لا فرق بعد.</div>
@@ -107,6 +107,9 @@
           <q-btn class="col" unelevated no-caps color="positive" icon="check" :label="'اعتماد النسخة ' + nextVersion" :loading="acting" @click="approve" />
           <q-btn outline no-caps color="grey-8" label="إلغاء" :disable="acting" @click="discard" />
         </div>
+        <!-- «افتح للمحلات كما هي» (Flexy Core 0074): a quick approval, the network's names and prices, from the smallest -->
+        <q-btn v-if="!approved.length && !raised" unelevated no-caps color="cyan-9" icon="storefront" label="افتح للمحلات كما هي"
+          :loading="acting" @click="openAll" />
         <div class="small muted q-px-sm">
           قراراتك (التفعيل، من يراه، النص الظاهر، الترتيب) تبقى للعروض التي بقيت؛ العرض الجديد يُفتح للإدارة إن كان له سعر.
         </div>
@@ -197,6 +200,9 @@
           <div class="row items-center q-gutter-sm">
             <span class="small muted">القسم</span>
             <q-btn-toggle v-model="sheet.category" dense no-caps unelevated toggle-color="cyan-9" :options="SECTIONS.map((s) => ({ label: s.label, value: s.key }))" />
+            <!-- A suggestion from the network's name, never applied by itself (owner 2026-10-29) -->
+            <q-btn v-if="sheet.category !== 'internet' && /\d+\s*go\b/i.test(sheet.row?.nameNetwork || '')" flat dense no-caps size="sm"
+              color="cyan-9" label="مقترح: إنترنت" @click="sheet.category = 'internet'" />
           </div>
           <q-toggle v-model="sheet.hidden" label="إخفاء مؤقت (يبقى مفعّلًا في الأصل)" color="deep-orange" />
         </q-card-section>
@@ -457,6 +463,16 @@ function approve () {
     cancel: 'رجوع',
     ok: 'اعتمد'
   }).onOk(() => act('approve'))
+}
+// «GOLD 2»…: a variant saved by itself (Flexy Core 0067, 0074)
+const variantNo = computed(() => /\s\d+$/.test(group.value || ''))
+function openAll () {
+  Dialog.create({
+    title: 'افتح ' + group.value + ' للمحلات كما هي',
+    message: 'يرى المحل عروض ' + group.value + ' بأسماء الشبكة وأسعارها، مرتبة من الأصغر، بلا وصف ولا قسم. تضيف الوصف والقسم لاحقًا بالتعديل.',
+    cancel: 'رجوع',
+    ok: 'افتح'
+  }).onOk(() => act('open_all'))
 }
 // «إلغاء» of «جديدة»: a raised version goes back to the archive; a network reading is dropped (a real change comes back)
 function discard () {
