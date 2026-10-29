@@ -12,7 +12,7 @@
     </div>
     <!-- Sections come from the offers themselves (owner 2026-10-28): each offer's category (bundle /
          internet); no category = bundle, so an operator without categories (Sama) looks as before. -->
-    <template v-else-if="families.length || internet.length">
+    <template v-else-if="!holding && (families.length || internet.length)">
       <div v-if="families.length" class="card q-pa-none">
         <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
           group="families" header-class="family" expand-separator>
@@ -87,24 +87,25 @@
          the line's offers show. Each row only while a SIM can take it; otherwise «حاول بعد دقيقة» (the owner is told). -->
     <div v-if="showAutomix" class="card column q-gutter-sm automix">
       <div class="text-weight-bold">اختر مباشرة دون انتظار</div>
+      <div v-if="holding" class="row items-center q-gutter-sm small text-primary"><q-spinner size="16px" /><span>جارٍ تنفيذ العرض… النتيجة في «آخر العمليات». لا تُرسل غيره حتى ينتهي.</span></div>
       <div v-if="automix.small === null" class="row items-center q-gutter-sm small muted"><q-spinner size="16px" /><span>جارٍ التحقق من الشرائح…</span></div>
       <div v-else-if="!automix.small && !automix.big" class="small text-negative">لا توجد عروض الآن، حاول بعد دقيقة.</div>
       <template v-else>
         <div v-if="automix.small" class="column q-gutter-xs">
           <div class="small muted">عرض الخط بهذا المبلغ</div>
           <div class="amounts">
-            <q-btn v-for="o in AUTO.small.filter(fits)" :key="o.label" unelevated no-caps color="primary" :label="money(o.amount)" :disable="busy" @click="confirm(o, true)" />
+            <q-btn v-for="o in AUTO.small.filter(fits)" :key="o.label" unelevated no-caps color="primary" :label="money(o.amount)" :disable="busy || holding" @click="confirm(o, true)" />
           </div>
         </div>
         <div v-else class="small text-deep-orange-9">100 غير متاح الآن، حاول بعد دقيقة.</div>
         <template v-if="automix.big">
           <div class="small muted">مختلط (مكالمات ورسائل وإنترنت)</div>
           <div class="amounts">
-            <q-btn v-for="o in AUTO.mix.filter(fits)" :key="o.label" outline no-caps color="primary" :label="money(o.amount)" :disable="busy" @click="confirm(o, true)" />
+            <q-btn v-for="o in AUTO.mix.filter(fits)" :key="o.label" outline no-caps color="primary" :label="money(o.amount)" :disable="busy || holding" @click="confirm(o, true)" />
           </div>
           <div class="small muted">إنترنت</div>
           <div class="amounts">
-            <q-btn v-for="o in AUTO.net.filter(fits)" :key="o.label" outline no-caps color="cyan-9" :label="money(o.amount)" :disable="busy" @click="confirm(o, true)" />
+            <q-btn v-for="o in AUTO.net.filter(fits)" :key="o.label" outline no-caps color="cyan-9" :label="money(o.amount)" :disable="busy || holding" @click="confirm(o, true)" />
           </div>
         </template>
         <div v-else class="small text-deep-orange-9">العروض الأخرى غير متاحة الآن، حاول بعد دقيقة.</div>
@@ -141,6 +142,8 @@ const props = defineProps({
   repeatOf: { type: Function, default: () => null },
   // «أوتوميكس»: available(names) → { name: bool } (the shop's page); absent = every row shown (the owner's page)
   available: { type: Function, default: null },
+  // An offer of this number is running (from «آخر العمليات»): the automix screen stays as it is until it ends
+  running: { type: Boolean, default: false },
   // «اكشف» (owner's page, Ooredoo): probe(phone, code, again) → { status: 'probing' | 'done', price, offers }
   probe: { type: Function, default: null },
   // «صيغ»: decide(phone, 'confirm' | 'change' | 'new', group) when a menu matched no variant exactly
@@ -154,8 +157,9 @@ const newGroup = ref(null)
 const autoOffer = (family, amount, display, category = 'bundle') => ({ label: `${family} ${amount}`, amount, display, category })
 const AUTO = {
   // 50 dropped (owner 2026-10-29): the network refuses 50 DA to Sama Mix and Revolution lines
-  small: [100].map((a) => autoOffer('Sama Mix', a, `عرض ${a} دج (حسب خط الزبون)`)),
-  mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Mix', a, `مختلط ${a} دج`)),
+  small: [100].map((a) => autoOffer('Mixed', a, `عرض ${a} دج (حسب خط الزبون)`)),
+  // «Mixed N» (Flexy Core): the line's own offer of kind «مختلط» and that amount, whatever its group
+  mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Mixed', a, `مختلط ${a} دج`)),
   net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `إنترنت ${a} دج`, 'internet'))
 }
 const fits = (o) => o.amount <= props.maxAmount
@@ -166,8 +170,8 @@ async function checkAutomix (p) {
   automix.value = { for: p, small: null, big: null }
   if (!props.available) { automix.value = { for: p, small: true, big: true }; return }
   try {
-    const a = await props.available(['Sama Mix 100', 'Sama Net 500'])
-    if (mine === automixRun) automix.value = { for: p, small: a['Sama Mix 100'] !== false, big: a['Sama Net 500'] !== false }
+    const a = await props.available(['Mixed 100', 'Sama Net 500'])
+    if (mine === automixRun) automix.value = { for: p, small: a['Mixed 100'] !== false, big: a['Sama Net 500'] !== false }
   } catch {
     // Not known: the rows show, the send itself still refuses («غير متاح») without taking anything
     if (mine === automixRun) automix.value = { for: p, small: true, big: true }
@@ -267,7 +271,17 @@ const families = computed(() => {
 const internet = computed(() => shown.value.filter((x) => x.category === 'internet').sort(byPrice))
 const detailOf = (o) => DETAILS[o.label] || o.details || ''
 // Only while this Mobilis number's line is not known: waiting for it, or its discovery failed
-const showAutomix = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone && (loading.value || Boolean(error.value)))
+// Owner 2026-10-29: while an automix send of this number runs, nothing appears or disappears; when it ends,
+// the line's offers are read again (its group is known by then).
+const autoSent = ref('')
+// Until its row shows in «آخر العمليات» (a few seconds), the send counts as running
+const justSent = ref(false)
+const holding = computed(() => autoSent.value !== '' && autoSent.value === props.phone && (props.running || justSent.value))
+const showAutomix = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
+  (loading.value || Boolean(error.value) || holding.value))
+watch(() => props.running, (now, before) => {
+  if (before && !now && autoSent.value && autoSent.value === props.phone) { autoSent.value = ''; load() }
+})
 
 // One request; while the core discovers the line, ask again every 3 s (at most 90 s).
 // `retry` («أعد المحاولة») asks the core for a new discovery when the last one ended.
@@ -378,7 +392,10 @@ function confirm (o, auto = false) {
     ok: last ? 'نعم، أرسل مرة ثانية' : 'نعم، أرسل'
   }).onDismiss(() => { asking = false }).onOk(async () => {
     const r = await run(() => props.send(p, o.label))
-    if (r) emit('sent', { phone: p, offer: o, result: r })
+    if (r) {
+      if (auto) { autoSent.value = p; justSent.value = true; setTimeout(() => { justSent.value = false }, 10000) }
+      emit('sent', { phone: p, offer: o, result: r, auto })
+    }
   })
 }
 </script>

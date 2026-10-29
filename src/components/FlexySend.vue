@@ -32,7 +32,7 @@
     <div v-else-if="!offers" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
     <div v-else-if="phoneFull && !phoneOk" class="card text-center muted q-pa-lg">قريبًا: عروض هذا المتعامل غير متوفرة بعد.</div>
     <FlexyOffers v-else ref="offersRef" :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="maxAmount"
-      :lookup="lookup" :send="sendOffer" :available="availableOffers" :probe="probeOffer" :decide="decideOffer" :repeat-of="repeatOf" @sent="sentOffer" />
+      :lookup="lookup" :send="sendOffer" :available="availableOffers" :running="offerRunning" :probe="probeOffer" :decide="decideOffer" :repeat-of="repeatOf" @sent="sentOffer" />
 
     <div>
       <div class="row items-center justify-between">
@@ -313,7 +313,11 @@ function pressSend () {
 }
 
 const sendOffer = (p, label) => keyed('offer:' + p + ':' + label, (key) => props.sendOffer(p, label, key))
+// An offer of the typed number still running (the automix screen holds until it ends)
+const offerRunning = computed(() => (props.rows || []).some((j) => j.kind === 'offer' && j.running && j.phone === digits.value))
 function sentOffer (e) {
+  // The automix keeps the number and the offers tab while it runs (owner 2026-10-29): its result decides
+  if (e.auto) { emit('sent', e); return }
   phone.value = ''
   // Back to ordinary credit, ready for the next customer (owner 2026-10-26)
   tab.value = '630'
