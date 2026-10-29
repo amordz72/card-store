@@ -252,8 +252,9 @@ export const setFlexySettings = (open, rate630, rateOffer, max, rateDjezzy = nul
 export const flexyCustomers = () => rpc('store_admin_flexy_customers_v2')
 export const setCustomerFlexy = (customerId, { enabled = null, role = null, rate630 = null, rateOffer = null, max = null, rateDjezzy = null, rateOoredoo = null }) =>
   rpc('store_admin_set_customer_flexy_v2', { p_customer_id: customerId, p_enabled: enabled, p_role: role, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max, p_rate_630_djezzy: rateDjezzy, p_rate_630_ooredoo: rateOoredoo })
-// Gives the rate to every enabled shop that has none on that operator ('djezzy' | 'ooredoo'); returns how many
-export const fillOperatorRate = (operator, rate) => rpc('store_admin_flexy_fill_operator_rate', { p_operator: operator, p_rate: rate })
+// v1.40: keeps the rate as the default and gives it to every enabled shop that has none for the service
+// ('mobilis' | 'offer' | 'ooredoo' | 'djezzy'); returns how many shops got it
+export const fillRate = (service, rate) => rpc('store_admin_flexy_fill_rate_v2', { p_service: service, p_rate: rate })
 export const flexyJobs = (status = null, limit = 20, before = null) => rpc('store_admin_flexy_jobs', { p_status: status, p_limit: limit, p_before: before })
 export const flexyReviewCount = () => rpc('store_admin_flexy_review_count')
 // A shop's job in review: sent (the charge stays) or not sent (full refund to the shop)
