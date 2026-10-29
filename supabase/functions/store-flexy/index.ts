@@ -7,7 +7,8 @@
 //   GET  /store-flexy/capabilities → flexy-api GET  /v1/capabilities
 //   POST /store-flexy/validate     → flexy-api POST /v1/validate
 // Shop (customer session token in the body; the database checks it):
-//   POST /store-flexy/shop/send    → take the charge, send to flexy-api POST /v1/operations
+//   POST /store-flexy/shop/send    → ask flexy-api POST /v1/availability («غير متاح» = nothing taken),
+//                                    then take the charge, send to flexy-api POST /v1/operations
 //   POST /store-flexy/shop/refresh → follow up this shop's open requests
 //   POST /store-flexy/shop/offers  → the offers a number can take (Flexy Core: line group, no money)
 // Database tick (pg_cron, only while a request is open; body {secret} from Vault, checked by the database):
@@ -94,6 +95,26 @@ function creditKey(phone: string): string {
   if (phone.startsWith("07")) return OP_760;
   if (phone.startsWith("05")) return OP_590;
   return OP_630;
+}
+
+// Before any charge (owner 2026-10-29): is there a SIM the core could send on, with enough balance?
+// «غير متاح» = nothing taken, nothing written for the shop; the core tells the owner. The core not
+// answering never blocks a sale (the send itself still decides, and refunds, as before).
+async function coreAvailable(operationKey: string, amount: number): Promise<boolean> {
+  if (!Number.isFinite(amount) || amount <= 0) return true;
+  try {
+    const res = await fetch(`${FLEXY_API}/availability`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${FLEXY_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({ operation_key: operationKey, amount }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return true;
+    const body = await res.json().catch(() => null);
+    return body?.available !== false;
+  } catch {
+    return true;
+  }
 }
 
 async function serviceRpc(fn: string, args: Record<string, unknown>): Promise<Response> {
@@ -192,6 +213,10 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     const kind = body.kind === "offer" ? "offer" : "630";
     const label = kind === "offer" ? String(body.offer ?? "").trim() : null;
     const amount = kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
+    const phone = String(body.phone ?? "");
+    if (!(await coreAvailable(kind === "offer" ? OP_OFFER : creditKey(phone), amount))) {
+      return json(req, 422, { ok: false, error: "FLEXY_UNAVAILABLE" });
+    }
     const created = await serviceRpc("store_flexy_create_v3", {
       p_token: token, p_kind: kind, p_phone: String(body.phone ?? ""), p_amount: amount,
       p_offer_code: null, p_offer_label: label, p_request_id: body.request_id ?? null,

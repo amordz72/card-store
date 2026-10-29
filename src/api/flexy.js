@@ -132,6 +132,9 @@ export const ownerSmsWipes = () => owner('sims/wipe', { method: 'GET' })
 export const ownerSmsWipe = (simUuid) => owner('sims/wipe', { method: 'POST', body: simUuid ? { sim_uuid: simUuid, confirm: true } : { all: true, confirm: true } })
 // Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).
 export const ownerDevices = () => owner('devices', { method: 'GET' })
+// «المراقبة» (Flexy Core 0068): available / unavailable balance, each SIM's reason, the alerts and the red bar; «تم» = ack
+export const ownerMonitor = () => owner('monitor', { method: 'GET' })
+export const ownerMonitorAck = (key) => owner('monitor', { method: 'POST', body: { ack: key } })
 // A SIM's PIN, name and note (owner only). The PIN is never sent back; fields left out are not changed.
 export const saveSimSettings = (simUuid, fields) => owner('sims/settings', { method: 'POST', body: { sim_uuid: simUuid, ...fields } })
 // An approved SIM's balance read once more: one balance code, no money (Flexy Core 0018).

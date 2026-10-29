@@ -21,10 +21,13 @@ const offerAlerts = ref(0)
 const simAlerts = ref(0)
 // Replies and offers the network showed that no path knows yet (Flexy Core 0056), until marked seen
 const newReplies = ref(0)
+// «المراقبة» (Flexy Core 0068): the red / orange bar on every admin page, and its alerts in the bell
+const monitorBar = ref(null)
+const monitorAlerts = ref(0)
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
 const repoKeyAlert = computed(() => (repoKeyLevel.value === 'dead' || repoKeyLevel.value === 'expiring' ? 1 : 0))
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
@@ -54,11 +57,18 @@ async function refreshBell () {
     if (res.status === 200) newReplies.value = Number(res.body?.unseen) || 0
   } catch { /* keep the last value */ }
   try {
+    const res = await flexyApi.ownerMonitor()
+    if (res.status === 200) {
+      monitorBar.value = res.body?.bar || null
+      monitorAlerts.value = (res.body?.alerts || []).length
+    }
+  } catch { /* keep the last value */ }
+  try {
     const res = await flexyApi.ownerRepoKey()
     if (res.status === 200) repoKeyLevel.value = res.body?.repo_key?.level || ''
   } catch { /* keep the last value */ }
 }
 
 export function useBell () {
-  return { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, bellTotal, refreshBell }
+  return { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, bellTotal, refreshBell }
 }
