@@ -17,36 +17,35 @@
       </div>
     </div>
 
-    <div class="card column q-gutter-sm">
-      <div class="section-title">لكل المحلات</div>
+    <!-- Switches on top (owner 2026-10-29): the store's master, then Ooredoo and Djezzy for the shops -->
+    <div class="card column q-gutter-xs">
+      <div class="section-title">المفاتيح</div>
       <q-toggle :model-value="isOpen" color="primary" :disable="busy || core.apps === null || core.forcedOff"
         :label="isOpen ? 'فليكسي المحلات مفتوح' : 'فليكسي المحلات مقفل'" @update:model-value="setOpen" />
+      <q-toggle v-for="op in OPERATORS" :key="op.key" :model-value="core[op.key] === true" color="primary"
+        :disable="busy || core[op.key] === null || core.forcedOff" :class="{ 'dim': !isOpen }"
+        :label="`${op.name} للمحلات`" @update:model-value="setOperator(op, $event)" />
       <div v-if="core.forcedOff" class="small text-negative">الإرسال موقوف من الخادم (طوارئ).</div>
       <div v-else-if="core.apps === null" class="small text-negative">تعذّرت قراءة مفتاح Flexy Core.</div>
       <div v-else-if="settings.open !== core.apps" class="small text-deep-orange">نصف مفتوح: المتجر {{ settings.open ? 'مفتوح' : 'مقفل' }} وFlexy Core {{ core.apps ? 'مفتوح' : 'مقفل' }}. أعد الضغط لتوحيدهما.</div>
-      <div class="small muted">إقفاله يوقف إرسال كل المحلات فورًا. إرسالك أنت من «إرسال فليكسي» له مفتاحه الخاص.</div>
-      <div class="grid-3">
-        <q-input v-model.number="defaults.rate630" dense outlined type="number" step="0.25" label="نسبة موبيليس %" />
-        <q-input v-model.number="defaults.rateOffer" dense outlined type="number" step="0.25" label="نسبة العروض %" />
-        <q-input v-model.number="defaults.max" dense outlined type="number" label="أكبر مبلغ" />
-      </div>
-      <div class="small muted">الافتراضية تُنسخ مرة واحدة عند تفعيل محل. تغييرها لاحقًا لا يغيّر المحلات المفعّلة.</div>
-      <q-btn flat no-caps color="primary" label="حفظ الافتراضية" :loading="busy" @click="saveDefaults" />
+      <div class="small muted">الرئيسي يوقف إرسال كل المحلات فورًا. مفتاح متعامل مقفل = «قريبًا» عند المحل. إرسالك أنت له مفتاحه الخاص.</div>
     </div>
 
-    <!-- Djezzy and Ooredoo ordinary credit for the shops (owner 2026-10-29): a Flexy Core switch each,
-         a default rate, and one press that gives it to every shop that has none -->
-    <div v-for="op in OPERATORS" :key="op.key" class="card column q-gutter-sm">
-      <div class="section-title">{{ op.name }} للمحلات (فليكسي عادي)</div>
-      <q-toggle :model-value="core[op.key] === true" color="primary" :disable="busy || core[op.key] === null || core.forcedOff"
-        :label="core[op.key] ? `${op.name} مفتوح للمحلات` : `${op.name} مقفل للمحلات`" @update:model-value="setOperator(op, $event)" />
-      <div class="row items-center q-gutter-sm">
-        <q-input v-model.number="defaults[op.key]" dense outlined type="number" step="0.25" :label="`نسبة ${op.name} %`" class="col" />
-        <q-btn flat no-caps color="primary" label="حفظ" :loading="busy" @click="saveDefaults" />
+    <!-- Rates, one row per service in the owner's order: the rate is kept as the default (shops enabled
+         later) and «أعطِ» gives it to every enabled shop that has none for that service -->
+    <div class="card column q-gutter-xs">
+      <div class="section-title">النسب</div>
+      <div v-for="sv in SERVICES" :key="sv.key" class="rate-row">
+        <span class="text-weight-bold">{{ sv.name }}</span>
+        <q-input v-model.number="defaults[sv.key]" dense outlined type="number" step="0.25" suffix="%" />
+        <q-btn outline no-caps color="primary" label="أعطِ لمن بلا نسبة" :loading="busy" :disable="defaults[sv.key] == null" @click="fillRate(sv)" />
       </div>
-      <q-btn outline no-caps color="primary" :label="`أعطِ هذه النسبة لكل المحلات التي بلا نسبة ${op.name}`" :loading="busy"
-        :disable="defaults[op.key] == null" @click="fillOperator(op)" />
-      <div class="small muted">محل بلا نسبة {{ op.name }} لا يرسل إليه. العروض على {{ op.name }} ليست للمحلات بعد.</div>
+      <div class="rate-row">
+        <span class="text-weight-bold">أكبر مبلغ</span>
+        <q-input v-model.number="defaults.max" dense outlined type="number" />
+        <q-btn flat no-caps color="primary" label="حفظ" :loading="busy" @click="saveMax" />
+      </div>
+      <div class="small muted">محل له نسبة لا يتغير. النسبة المكتوبة تبقى للمحلات التي تُفعَّل لاحقًا. نسبة فارغة لمتعامل = مقفل لذلك المحل.</div>
     </div>
 
     <div class="card column q-gutter-sm">
@@ -56,7 +55,7 @@
       </div>
       <q-input v-model="search" dense outlined clearable placeholder="بحث بالاسم" />
       <div class="shop-head small muted">
-        <span>المحل</span><span>موبيليس</span><span>جازي</span><span>أوريدو</span><span>عروض</span>
+        <span>المحل</span><span>موبيليس</span><span>عروض</span><span>أوريدو</span><span>جازي</span>
       </div>
       <button v-for="c in shown" :key="c.customer_id" type="button" class="shop-row" @click="edit(c)">
         <span class="column items-start">
@@ -66,10 +65,9 @@
             <q-badge v-if="!c.enabled" color="grey-6" label="غير مفعّل" />
           </span>
         </span>
-        <span><span v-if="c.rate_630 != null" class="rate">{{ c.rate_630 }}%</span><span v-else class="muted">—</span></span>
-        <span><span v-if="c.rate_630_djezzy != null" class="rate">{{ c.rate_630_djezzy }}%</span><span v-else class="muted">—</span></span>
-        <span><span v-if="c.rate_630_ooredoo != null" class="rate">{{ c.rate_630_ooredoo }}%</span><span v-else class="muted">—</span></span>
-        <span><span v-if="c.rate_offer != null" class="rate">{{ c.rate_offer }}%</span><span v-else class="muted">—</span></span>
+        <span v-for="k in ['rate_630', 'rate_offer', 'rate_630_ooredoo', 'rate_630_djezzy']" :key="k">
+          <span v-if="c[k] != null" class="rate">{{ c[k] }}%</span><span v-else class="muted">—</span>
+        </span>
       </button>
       <div v-if="!shown.length" class="text-center muted q-pa-md">لا محلات</div>
     </div>
@@ -93,9 +91,9 @@
           <q-toggle v-model="form.enabled" label="تفعيل الفليكسي" />
           <q-select v-model="form.role" dense outlined emit-value map-options label="الدور" :options="ROLE_OPTIONS" />
           <q-input v-model.number="form.rate630" dense outlined type="number" step="0.25" label="نسبة موبيليس %" />
-          <q-input v-model.number="form.rateDjezzy" dense outlined type="number" step="0.25" label="نسبة جازي %" />
-          <q-input v-model.number="form.rateOoredoo" dense outlined type="number" step="0.25" label="نسبة أوريدو %" />
           <q-input v-model.number="form.rateOffer" dense outlined type="number" step="0.25" label="نسبة العروض %" />
+          <q-input v-model.number="form.rateOoredoo" dense outlined type="number" step="0.25" label="نسبة أوريدو %" />
+          <q-input v-model.number="form.rateDjezzy" dense outlined type="number" step="0.25" label="نسبة جازي %" />
           <q-input v-model.number="form.max" dense outlined type="number" label="أكبر مبلغ للعملية" />
           <div class="small muted">المحل لا يرى نسبته ولا دوره. نسبة فارغة لجازي أو أوريدو = مقفل لهذا المحل.</div>
         </q-card-section>
@@ -144,10 +142,14 @@ function showCore (res) {
   core.forcedOff = res.body.forced_off === true
 }
 const OPERATORS = [
-  { key: 'djezzy', name: 'جازي', set: flexy.setAppsDjezzySwitch },
-  { key: 'ooredoo', name: 'أوريدو', set: flexy.setAppsOoredooSwitch }
+  { key: 'ooredoo', name: 'أوريدو', set: flexy.setAppsOoredooSwitch },
+  { key: 'djezzy', name: 'جازي', set: flexy.setAppsDjezzySwitch }
 ]
-const defaults = reactive({ rate630: null, rateOffer: null, max: null, djezzy: null, ooredoo: null })
+// The owner's order (2026-10-29): Mobilis, offers, Ooredoo, Djezzy; the key is the store's service name
+const SERVICES = [
+  { key: 'mobilis', name: 'موبيليس' }, { key: 'offer', name: 'عروض' }, { key: 'ooredoo', name: 'أوريدو' }, { key: 'djezzy', name: 'جازي' }
+]
+const defaults = reactive({ mobilis: null, offer: null, max: null, djezzy: null, ooredoo: null })
 const shops = ref([])
 const jobs = ref([])
 const reviews = ref([])
@@ -163,11 +165,12 @@ async function load () {
   try { showCore(k) } catch { core.apps = null }
   if (s) {
     settings.open = s.open
-    defaults.rate630 = Number(s.default_rate_630)
-    defaults.rateOffer = s.default_rate_offer == null ? null : Number(s.default_rate_offer)
+    const num = (v) => (v == null ? null : Number(v))
+    defaults.mobilis = num(s.default_rate_630)
+    defaults.offer = num(s.default_rate_offer)
     defaults.max = s.default_max
-    defaults.djezzy = s.default_rate_630_djezzy == null ? null : Number(s.default_rate_630_djezzy)
-    defaults.ooredoo = s.default_rate_630_ooredoo == null ? null : Number(s.default_rate_630_ooredoo)
+    defaults.djezzy = num(s.default_rate_630_djezzy)
+    defaults.ooredoo = num(s.default_rate_630_ooredoo)
   }
   shops.value = c
   jobs.value = j
@@ -189,23 +192,23 @@ async function setOpen (on) {
   if (!on) return apply()
   Dialog.create({ title: 'فتح فليكسي المحلات', message: 'كل «أرسل» من محل مفعّل يُخرج رصيدًا حقيقيًا من الشريحة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
 }
-async function saveDefaults () {
-  if (await run(() => api.setFlexySettings(null, defaults.rate630, defaults.rateOffer, defaults.max, defaults.djezzy, defaults.ooredoo).then(() => true), { success: 'حُفظت الافتراضية.' })) load()
+async function saveMax () {
+  if (await run(() => api.setFlexySettings(null, null, null, defaults.max).then(() => true), { success: 'حُفظ.' })) load()
 }
-// The operator's switch in Flexy Core for the shops (the store's one switch above stays the master)
+// The operator's switch in Flexy Core for the shops (the store's master switch stays the master)
 function setOperator (op, on) {
   const apply = () => run(async () => { showCore(await op.set(on)); return true })
   if (!on) return apply()
   Dialog.create({ title: `فتح ${op.name} للمحلات`, message: `كل «أرسل» إلى رقم ${op.name} من محل له نسبة يُخرج رصيدًا حقيقيًا من شريحة ${op.name}. متأكد؟`, cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
 }
-// The default goes to every enabled shop that has no rate on this operator (a shop with its own keeps it)
-function fillOperator (op) {
-  Dialog.create({ title: `نسبة ${op.name} لكل المحلات`, message: `تُعطى ${defaults[op.key]}% لكل محل مفعّل ليس له نسبة ${op.name}. المحلات التي لها نسبة لا تتغير.`, cancel: 'لا', ok: 'نعم' })
+// The rate becomes the default (shops enabled later) and goes to every enabled shop that has none for this service
+function fillRate (sv) {
+  const rate = defaults[sv.key]
+  Dialog.create({ title: `نسبة ${sv.name} لمن بلا نسبة`, message: `تُعطى ${rate}% لكل محل مفعّل ليس له نسبة ${sv.name}. المحلات التي لها نسبة لا تتغير.`, cancel: 'لا', ok: 'نعم' })
     .onOk(async () => {
       await run(async () => {
-        await api.setFlexySettings(null, null, null, null, op.key === 'djezzy' ? defaults.djezzy : null, op.key === 'ooredoo' ? defaults.ooredoo : null)
-        const n = await api.fillOperatorRate(op.key, defaults[op.key])
-        Notify.create({ type: 'positive', message: `أُعطيت النسبة لـ ${n} محل.` })
+        const n = await api.fillRate(sv.key, rate)
+        Notify.create({ type: 'positive', message: `أُعطيت نسبة ${sv.name} ${rate}% لـ ${n} محل.` })
         return true
       })
       load()
@@ -243,6 +246,8 @@ onMounted(() => run(load))
 .review { border: 1px solid #F3D9B8; background: #FFF8EE; border-radius: 12px; padding: 10px; }
 .shop-head, .shop-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 4px; align-items: center; }
 .shop-row { width: 100%; border: 0; border-top: 1px solid #EEF0F4; background: transparent; padding: 8px 0; text-align: right; font: inherit; color: inherit; cursor: pointer; }
+.rate-row { display: grid; grid-template-columns: 72px 86px 1fr; gap: 8px; align-items: center; }
+.dim { opacity: .45; }
 .rate { background: #1E293B; color: #FFF; border-radius: 6px; padding: 2px 6px; font-weight: 700; font-size: 12px; }
 .op-row { padding: 10px 14px; border-top: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
 </style>
