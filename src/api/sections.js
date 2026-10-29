@@ -7,6 +7,7 @@ export const ADMIN_TABS = [
   { to: '/flexy/shops', label: 'المحلات', icon: 'storefront' },
   { to: '/flexy/offers', label: 'العروض', icon: 'local_offer' },
   { to: '/flexy/numbers', label: 'ذاكرة الأرقام', icon: 'psychology' },
+  { to: '/flexy/switches', label: 'المفاتيح', icon: 'toggle_on' },
   { to: '/flexy', label: 'اختبار', icon: 'bolt' }
 ]
 export const ADMIN_LINKS = [{ href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy' }]

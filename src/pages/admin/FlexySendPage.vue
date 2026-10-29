@@ -24,35 +24,13 @@
           <q-btn flat dense no-caps size="sm" color="primary" label="رأيته" @click="seenReplies([n.id])" />
         </div>
       </div>
-      <div class="card row items-center q-gutter-sm">
-        <q-toggle :model-value="switchOn" :disable="switchOn === null || switchBusy || forcedOff" color="positive"
-          :label="forcedOff ? 'الإرسال موقوف من الخادم (طوارئ)' : switchOn ? 'الإرسال الحقيقي مفتوح' : 'الإرسال الحقيقي مقفل'"
-          @update:model-value="flip" />
-        <q-spinner v-if="switchBusy" size="16px" />
-      </div>
-      <!-- Djezzy (*760*, owner 2026-10-27): its own switch in Flexy Core, off; discovery phase, every
-           reply stays «قيد المراجعة» with its raw text. Not on the phone screen. -->
-      <div v-if="!phoneMode" class="card row items-center q-gutter-sm">
-        <q-toggle :model-value="djezzyOn" :disable="djezzyOn === null || djezzyBusy || forcedOff" color="positive"
-          :label="djezzyOn ? 'إرسال جيزي (07) مفتوح' : 'إرسال جيزي (07) مقفل'" @update:model-value="flipDjezzy" />
-        <q-spinner v-if="djezzyBusy" size="16px" />
-        <div class="col-12 small muted">جيزي (<bdi dir="ltr">*760*</bdi>): تأكيد ثم تحويل فوري، والنجاح يظهر من نص الشبكة. ردّ غير معروف يبقى «قيد المراجعة» حتى تقرأه.</div>
-      </div>
-      <!-- Ooredoo (*590*, owner 2026-10-27): its own switch in Flexy Core, off; its own path, never Djezzy's. -->
-      <div v-if="!phoneMode" class="card row items-center q-gutter-sm">
-        <q-toggle :model-value="ooredooOn" :disable="ooredooOn === null || ooredooBusy || forcedOff" color="positive"
-          :label="ooredooOn ? 'إرسال أوريدو (05) مفتوح' : 'إرسال أوريدو (05) مقفل'" @update:model-value="flipOoredoo" />
-        <q-spinner v-if="ooredooBusy" size="16px" />
-        <div class="col-12 small muted">أوريدو (<bdi dir="ltr">*590*</bdi>): تأكيد ثم شحن فوري برقم عملية، والنجاح يظهر من نص الشبكة.</div>
-      </div>
-      <!-- «عروض سما» (owner 2026-10-27): kept in Flexy Core for every send, his and the shops'.
-           Under 500 DA Arsselli goes first, from 500 Sama; off = Arsselli only. Not on the phone screen. -->
-      <div v-if="!phoneMode" class="card row items-center q-gutter-sm">
-        <q-toggle :model-value="samaOn" :disable="samaOn === null || samaBusy" color="primary"
-          :label="samaOn ? 'عروض سما مفعّلة' : 'عروض سما ملغاة: العروض من أرسلي فقط'" @update:model-value="flipSama" />
-        <q-spinner v-if="samaBusy" size="16px" />
-        <div class="col-12 small muted">أقل من 500 دج: أرسلي أولًا وسما عند الضرورة. 500 فما فوق: سما أولًا وأرسلي عند الضرورة.</div>
-      </div>
+      <!-- The switches live in «الإدارة ← المفاتيح» (owner 2026-10-29: the send page starts at the number).
+           One line here, only when something is closed, or the server's emergency stop. -->
+      <router-link v-if="closedLine" to="/flexy/switches" class="card row items-center q-gutter-sm closed-line"
+        :class="forcedOff ? 'bg-red-1 text-negative' : 'text-deep-orange-9'">
+        <span class="col text-weight-bold">{{ closedLine }}</span>
+        <span class="small text-underline">المفاتيح ←</span>
+      </router-link>
       <!-- Offers sent from their second source, and why (Flexy Core 0036): what to fix, one line per reason -->
       <div v-if="offerAlerts.length" class="card q-gutter-xs">
         <div class="row items-center">
@@ -221,45 +199,19 @@ async function alertsSeen () {
   } finally { alertsBusy.value = false }
 }
 
-// Djezzy's own switch (owner.760.send_enabled): read with the money switch, flipped alone, off by default.
+// Read only here: flipped in «المفاتيح» (SwitchesPage.vue)
 const djezzyOn = ref(null)
-const djezzyBusy = ref(false)
-function flipDjezzy (on) {
-  const apply = async () => {
-    djezzyBusy.value = true
-    try { showSwitch(await flexy.setDjezzySwitch(on)) } finally { djezzyBusy.value = false }
-  }
-  if (!on) return apply()
-  $q.dialog({ title: 'فتح إرسال جيزي الحقيقي', message: 'كل «إرسال» إلى 07 يُخرج رصيدًا حقيقيًا من شريحة جيزي فورًا عند تأكيد الشبكة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
-}
-
-// Ooredoo's own switch (owner.590.send_enabled): read with the money switch, flipped alone, off by default.
 const ooredooOn = ref(null)
-const ooredooBusy = ref(false)
-function flipOoredoo (on) {
-  const apply = async () => {
-    ooredooBusy.value = true
-    try { showSwitch(await flexy.setOoredooSwitch(on)) } finally { ooredooBusy.value = false }
-  }
-  if (!on) return apply()
-  $q.dialog({ title: 'فتح إرسال أوريدو الحقيقي', message: 'كل «إرسال» إلى 05 يُخرج رصيدًا حقيقيًا من شريحة أوريدو فورًا عند تأكيد الشبكة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
-}
-
-// «عروض سما»: read with the money switch, flipped alone.
 const samaOn = ref(null)
-const samaBusy = ref(false)
-async function flipSama (on) {
-  samaBusy.value = true
-  try { showSwitch(await flexy.setSamaOffersSwitch(on)) } finally { samaBusy.value = false }
-}
-function flip (on) {
-  const apply = async () => {
-    switchBusy.value = true
-    try { showSwitch(await flexy.setOwnerSwitch(on)) } finally { switchBusy.value = false }
-  }
-  if (!on) return apply()
-  $q.dialog({ title: 'فتح الإرسال الحقيقي', message: 'كل «إرسال» بعدها يُخرج رصيدًا حقيقيًا من الشريحة. متأكد؟', cancel: 'لا', ok: 'نعم، افتح' }).onOk(apply)
-}
+const closedLine = computed(() => {
+  if (forcedOff.value) return '🔴 الإرسال موقوف من الخادم (طوارئ)'
+  const off = []
+  if (switchOn.value === false) off.push('الإرسال الحقيقي')
+  if (!phoneMode && djezzyOn.value === false) off.push('جيزي')
+  if (!phoneMode && ooredooOn.value === false) off.push('أوريدو')
+  if (!phoneMode && samaOn.value === false) off.push('عروض سما')
+  return off.length ? '🔴 مقفل: ' + off.join('، ') : ''
+})
 
 // A stale balance is refreshed by the server (one 632, no money) and nothing is created meanwhile,
 // so the same press is asked again with the same key until a SIM is ready: one operation at most.
@@ -536,4 +488,5 @@ onUnmounted(() => { clearTimeout(timer); clearInterval(phoneTimer) })
 .new-reply { border-top: 1px solid #ECEEF3; padding-top: 6px; }
 .reply { white-space: pre-wrap; direction: ltr; text-align: left; color: #4B5563; }
 .via-phone { border: 2px solid var(--q-primary); }
+.closed-line { text-decoration: none; }
 </style>
