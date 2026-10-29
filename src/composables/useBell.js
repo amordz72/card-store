@@ -14,6 +14,9 @@ const openReports = ref(0)
 const idoomReview = ref(0)
 const gameWaiting = ref(0)
 const flexyReview = ref(0)
+// v1.43: a shop's failed flexy whose charge did not come back
+const flexyUnrefunded = ref(0)
+const flexyUnrefundedAmount = ref(0)
 const devicesDown = ref(0)
 // Offers that left their first source (Flexy Core 0036): one per reason, until seen on «إرسال فليكسي».
 const offerAlerts = ref(0)
@@ -29,7 +32,7 @@ const monitorIncidents = ref(0)
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
 const repoKeyAlert = computed(() => (repoKeyLevel.value === 'dead' || repoKeyLevel.value === 'expiring' ? 1 : 0))
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
@@ -42,6 +45,11 @@ async function refreshBell () {
     if (b?.me_available) await customerApi.gamePresence(null, null)
   } catch { /* the games page keeps its own */ }
   try { flexyReview.value = Number(await adminApi.flexyReviewCount()) || 0 } catch { /* keep the last value */ }
+  try {
+    const u = await adminApi.flexyUnrefunded()
+    flexyUnrefunded.value = Number(u.count) || 0
+    flexyUnrefundedAmount.value = Number(u.amount) || 0
+  } catch { /* before v1.43, or keep the last value */ }
   try {
     const res = await flexyApi.ownerDevices()
     if (res.status === 200) devicesDown.value = Number(res.body?.summary?.down) || 0
@@ -73,5 +81,5 @@ async function refreshBell () {
 }
 
 export function useBell () {
-  return { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }

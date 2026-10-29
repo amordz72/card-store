@@ -26,7 +26,7 @@
         <q-btn flat dense no-caps size="sm" color="primary" label="رأيتها كلها" :loading="seeing === 'all'" @click="seeIncident('all')" />
       </div>
       <div v-for="i in unseenIncidents" :key="i.id" class="card row items-center no-wrap q-gutter-sm">
-        <q-icon :name="i.kind === 'sim_back' ? 'sim_card' : 'power_off'" :color="i.kind === 'site_outage' ? 'negative' : 'deep-orange'" size="20px" />
+        <q-icon :name="i.kind === 'sim_back' ? 'sim_card' : i.kind === 'update_failed' ? 'system_update' : 'power_off'" :color="i.kind === 'site_outage' ? 'negative' : 'deep-orange'" size="20px" />
         <div class="col column">
           <span class="text-weight-bold small">{{ i.title }}</span>
           <span class="tiny muted">{{ i.started_at ? when(i.started_at) + (i.ended_at ? ' – ' + when(i.ended_at) : '') : (i.ended_at ? when(i.ended_at) : '') }}</span>
@@ -46,7 +46,7 @@
       <div class="text-weight-bold">{{ a.title }}</div>
       <div class="small">{{ a.text }}</div>
       <div class="row q-gutter-sm">
-        <q-btn v-if="['sim_gone', 'no_reply', 'none_ready', 'difference'].includes(a.kind)" outline no-caps color="primary" label="المحطات والشرائح" to="/flexy/devices" class="col" />
+        <q-btn v-if="['sim_gone', 'no_reply', 'none_ready', 'difference', 'fail_streak'].includes(a.kind)" outline no-caps color="primary" label="المحطات والشرائح" to="/flexy/devices" class="col" />
         <q-btn v-if="a.kind === 'overdue'" outline no-caps color="primary" label="آخر العمليات" to="/flexy/send" class="col" />
         <q-btn v-if="a.kind === 'tick'" outline no-caps color="primary" label="المهام الآلية" to="/flexy/switches" class="col" />
         <q-btn v-if="a.kind === 'unavailable'" outline no-caps color="primary" label="فليكسي المحلات" to="/flexy/shops" class="col" />
@@ -157,7 +157,7 @@ import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 
-const KIND = { sim_gone: 'أجهزة', no_reply: 'أجهزة', none_ready: 'أجهزة', low_balance: 'رصيد', unavailable: 'المحلات', difference: 'مال', overdue: 'مال', tick: 'البرنامج' }
+const KIND = { sim_gone: 'أجهزة', no_reply: 'أجهزة', none_ready: 'أجهزة', low_balance: 'رصيد', unavailable: 'المحلات', difference: 'مال', overdue: 'مال', tick: 'البرنامج', fail_streak: 'أجهزة' }
 const SHORT = {
   NOT_APPROVED: 'غير معتمدة', NO_PIN: 'بلا PIN', STATION_OFF: 'الكمبيوتر مطفأ', STATION_NOT_APPROVED: 'كمبيوتر غير معتمد',
   MODEM_MISSING: 'المودم غائب', SIM_MISSING: 'غائبة', NO_REPLY: 'لا ترد', EMPTY: 'الرصيد نفد'
