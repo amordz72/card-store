@@ -104,29 +104,29 @@
       <div v-if="!jobs.length" class="text-center muted q-pa-lg">لا عمليات بعد</div>
     </div>
 
-    <!-- The same window for the selection and for one shop: each change is saved at once (no save button) -->
-    <q-dialog v-model="editing">
+    <!-- The same window for the selection and for one shop: edits stay in the window until «حفظ»; only what was changed is sent -->
+    <q-dialog v-model="editing" persistent>
       <q-card v-if="form" style="min-width: 320px">
         <q-card-section class="text-weight-bold">{{ form.title }}</q-card-section>
         <q-card-section class="column q-gutter-xs">
           <template v-if="form.single">
-            <q-toggle :model-value="form.enabled" label="تفعيل الفليكسي" :disable="busy" @update:model-value="setEnabled" />
-            <q-select :model-value="form.role" dense outlined emit-value map-options label="الدور" :options="ROLE_OPTIONS" :disable="busy" @update:model-value="setRole" />
+            <q-toggle v-model="form.enabled" label="تفعيل الفليكسي" :disable="busy" />
+            <q-select v-model="form.role" dense outlined emit-value map-options label="الدور" :options="ROLE_OPTIONS" :disable="busy" />
           </template>
           <div v-for="sv in SERVICES" :key="sv.key" class="svc-row">
-            <span class="text-weight-bold">{{ sv.name }} <q-icon v-if="form.saved[sv.key]" name="check" color="positive" /></span>
-            <q-option-group dense inline :model-value="form.block[sv.key] ? 'block' : 'allow'" :options="ALLOW" :disable="busy" @update:model-value="setBlock(sv, $event)" />
-            <q-input v-model.number="form.rate[sv.key]" dense outlined type="number" step="0.25" suffix="%" :disable="busy || form.block[sv.key] === true"
-              @blur="saveRate(sv)" @keyup.enter="$event.target.blur()" />
+            <span class="text-weight-bold">{{ sv.name }} <q-badge v-if="changedService(sv)" color="warning" label="معدَّل" /></span>
+            <q-option-group dense inline :model-value="form.block[sv.key] ? 'block' : 'allow'" :options="ALLOW" :disable="busy" @update:model-value="form.block[sv.key] = $event === 'block'" />
+            <q-input v-model.number="form.rate[sv.key]" dense outlined type="number" step="0.25" suffix="%" :disable="busy || form.block[sv.key] === true" />
           </div>
           <div class="svc-row">
             <span class="text-weight-bold">أكبر مبلغ</span><span></span>
-            <q-input v-model.number="form.max" dense outlined type="number" :disable="busy" @blur="saveMaxShop" @keyup.enter="$event.target.blur()" />
+            <q-input v-model.number="form.max" dense outlined type="number" :disable="busy" />
           </div>
-          <div class="small muted">اكتب واخرج من الحقل: يُحفظ فورًا{{ form.single ? '' : ' عند المحدَّدين كلهم' }}. «منع» يقفل الخدمة ويحفظ النسبة جانبًا. المحل لا يرى نسبته ولا دوره.</div>
+          <div class="small muted">لا يُحفظ شيء حتى «حفظ»، ويُرسل ما غيّرته فقط{{ form.single ? '' : ' عند المحدَّدين كلهم' }}؛ الحقل الذي لم تلمسه يبقى كما هو{{ form.single ? '' : ' عند كل محل' }}. «منع» يقفل الخدمة ويحفظ النسبة جانبًا. المحل لا يرى نسبته ولا دوره.</div>
         </q-card-section>
         <q-card-actions align="left">
-          <q-btn flat no-caps color="primary" label="إغلاق" v-close-popup />
+          <q-btn unelevated no-caps color="primary" label="حفظ" :loading="busy" :disable="!formChanges.length" @click="saveForm" />
+          <q-btn flat no-caps color="primary" label="إغلاق" :disable="busy" @click="closeForm" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -282,53 +282,68 @@ async function reloadShops () { shops.value = await api.flexyCustomers() }
 function openRates (c) {
   const ids = c ? [c.customer_id] : [...picked.value]
   const rows = c ? [c] : shops.value.filter((x) => picked.value.has(x.customer_id))
-  const rate = {}; const block = {}; const last = {}
+  const rate = {}; const block = {}
   SERVICES.forEach((sv) => {
     rate[sv.key] = c ? num(c[sv.rate]) : null
     block[sv.key] = rows.length > 0 && rows.every((x) => x[sv.block] === true)
-    last[sv.key] = rate[sv.key]
   })
-  form.value = { ids, single: !!c, title: c ? c.name : `${ids.length} محلات محدَّدة`, enabled: c?.enabled ?? null, role: c?.role ?? null, rate, block, last, max: c ? c.max_amount : null, lastMax: c ? c.max_amount : null, saved: {} }
+  form.value = { ids, single: !!c, title: c ? c.name : `${ids.length} محلات محدَّدة`, enabled: c?.enabled ?? null, role: c?.role ?? null, rate, block, max: c ? c.max_amount : null, orig: { enabled: c?.enabled ?? null, role: c?.role ?? null, rate: { ...rate }, block: { ...block }, max: c ? c.max_amount : null } }
   editing.value = true
 }
-async function applyBulk (change, done) {
+const blank = (v) => v == null || v === ''
+const rateOf = (f, sv) => (blank(f.rate[sv.key]) ? null : Number(f.rate[sv.key]))
+// A rate counts as changed only if it differs from what the window opened with; for a selection an empty field is never sent
+function rateChanged (f, sv) {
+  const v = rateOf(f, sv)
+  return v !== f.orig.rate[sv.key] && !(v == null && !f.single)
+}
+const changedService = (sv) => { const f = form.value; return rateChanged(f, sv) || f.block[sv.key] !== f.orig.block[sv.key] }
+// Only what was touched, in a safe order: enabled first (it may fill default rates), then the explicit values on top
+const formChanges = computed(() => {
   const f = form.value
+  if (!f) return []
+  const out = []
+  if (f.single && f.enabled !== f.orig.enabled) out.push({ change: { enabled: f.enabled }, done: () => f.enabled ? 'فُعّل الفليكسي' : 'أُوقف الفليكسي' })
+  if (f.single && f.role !== f.orig.role) out.push({ change: { role: f.role }, done: () => 'الدور' })
+  SERVICES.forEach((sv) => {
+    if (rateChanged(f, sv)) { const v = rateOf(f, sv); out.push({ sv, rate: v, change: { service: sv.key, rate: v }, done: () => v == null ? `${sv.name} بلا نسبة` : `${sv.name} ${v}%` }) }
+    if (f.block[sv.key] !== f.orig.block[sv.key]) { const b = f.block[sv.key]; out.push({ change: { service: sv.key, block: b }, done: () => `${sv.name} ${b ? 'ممنوع' : 'مسموح'}` }) }
+  })
+  if (!blank(f.max) && Number(f.max) !== f.orig.max) out.push({ max: Number(f.max), change: { max: Number(f.max) }, done: () => `أكبر مبلغ ${money(f.max)}` })
+  return out
+})
+function markSaved (f, ch) {
+  const c = ch.change
+  if ('enabled' in c && c.enabled !== null) f.orig.enabled = c.enabled
+  else if ('role' in c && c.role !== null) f.orig.role = c.role
+  else if (c.block != null) f.orig.block[c.service] = c.block
+  else if (c.service) f.orig.rate[c.service] = c.rate
+  else if (c.max != null) f.orig.max = c.max
+}
+// «حفظ»: sends each changed value once, refreshes the list once, closes. A failure stops there and keeps the rest to retry.
+async function saveForm () {
+  const f = form.value
+  const list = formChanges.value
+  const bad = list.find((x) => (x.rate != null && (x.rate < 0 || x.rate >= 100)) || (x.max != null && x.max < 10))
+  if (bad) { Notify.create({ type: 'negative', message: bad.rate != null ? 'النسبة بين 0 وأقل من 100.' : 'أكبر مبلغ 10 دج على الأقل.' }); return }
+  const done = []
+  let n = 0
   const ok = await run(async () => {
-    const n = await api.flexyBulk(f.ids, change)
-    Notify.create({ type: 'positive', message: done(n), timeout: 1500 })
-    await reloadShops()
+    for (const ch of list) {
+      n = await api.flexyBulk(f.ids, ch.change)
+      markSaved(f, ch)
+      done.push(ch.done())
+    }
     return true
   })
-  if (!ok) await reloadShops()
-  return ok
+  await reloadShops()
+  if (done.length) Notify.create({ type: 'positive', message: `حُفظ لـ ${n} محل: ${done.join('، ')}.` })
+  if (ok) editing.value = false
 }
-// Typed a rate and left the field: saved at once. An empty field saves nothing for a selection (no accidental closing).
-async function saveRate (sv) {
-  const f = form.value
-  const v = f.rate[sv.key] === '' ? null : f.rate[sv.key]
-  if (v === f.last[sv.key] || (v == null && !f.single)) return
-  if (v != null && (v < 0 || v >= 100)) return
-  if (await applyBulk({ service: sv.key, rate: v }, (n) => v == null ? `${sv.name}: بلا نسبة (مقفل).` : `${sv.name} ${v}% لـ ${n} محل.`)) { f.last[sv.key] = v; f.saved[sv.key] = true }
-}
-async function setBlock (sv, v) {
-  const f = form.value
-  const block = v === 'block'
-  if (await applyBulk({ service: sv.key, block }, (n) => `${sv.name} ${block ? 'ممنوع' : 'مسموح'} لـ ${n} محل.`)) { f.block[sv.key] = block; f.saved[sv.key] = true }
-}
-async function saveMaxShop () {
-  const f = form.value
-  if (f.max == null || f.max === '' || f.max === f.lastMax || f.max < 10) return
-  if (await applyBulk({ max: f.max }, (n) => `أكبر مبلغ ${money(f.max)} لـ ${n} محل.`)) f.lastMax = f.max
-}
-async function setEnabled (on) {
-  if (await applyBulk({ enabled: on }, () => on ? 'فُعّل الفليكسي.' : 'أُوقف الفليكسي.')) {
-    form.value.enabled = on
-    const c = shops.value.find((x) => x.customer_id === form.value.ids[0])
-    if (c) SERVICES.forEach((sv) => { form.value.rate[sv.key] = num(c[sv.rate]); form.value.last[sv.key] = form.value.rate[sv.key] })
-  }
-}
-async function setRole (role) {
-  if (await applyBulk({ role }, () => 'حُفظ الدور.')) form.value.role = role
+function closeForm () {
+  if (!formChanges.value.length) { editing.value = false; return }
+  Dialog.create({ title: 'خروج بلا حفظ؟', message: 'التغييرات في هذه النافذة لن تُحفظ.', cancel: 'رجوع', ok: 'خروج بلا حفظ' })
+    .onOk(() => { editing.value = false })
 }
 function bulkEnabled (on) {
   const ids = [...picked.value]
