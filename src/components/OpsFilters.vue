@@ -1,6 +1,6 @@
 <template>
   <!-- Every filter is a button on the screen, no pop-up list (owner 2026-10-26, like Hani Rohek) -->
-  <div class="card column q-gutter-sm">
+  <div class="card column q-gutter-sm filters">
     <div v-if="scopes" class="chips">
       <span class="lbl">عمليات</span>
       <q-btn v-for="s in SCOPES" :key="String(s.id)" v-bind="chip(f.scope === s.id)" :label="s.label" @click="f.scope = s.id" />
@@ -51,7 +51,9 @@ function clear () {
 </script>
 
 <style scoped>
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* never wider than the screen: a long row scrolls inside (2026-10-29: many customers pushed the page sideways) */
+.filters { min-width: 0; max-width: 100%; overflow: hidden; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; max-width: 100%; }
 /* many customers: one line that scrolls sideways */
 .chips.scroll { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; padding-bottom: 2px; }
 .chips > * { flex: 0 0 auto; }

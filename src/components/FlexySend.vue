@@ -22,7 +22,7 @@
             :outline="amount !== a" :color="amount === a ? 'primary' : 'grey-7'" :label="money(a)" @click="pick(a)" />
         </div>
         <q-input v-model.number="other" dense outlined type="number" inputmode="numeric"
-          :label="`أو اكتب مبلغًا (40 إلى ${money(maxAmount)})`" @update:model-value="amount = null" />
+          :label="`أو اكتب مبلغًا (${minAmount} إلى ${money(maxAmount)})`" @update:model-value="amount = null" />
       </div>
       <div v-if="note" class="small muted">{{ note }}</div>
       <q-btn unelevated color="primary" size="lg" icon="send" label="إرسال" :loading="busy"
@@ -171,9 +171,11 @@ const phoneOk = computed(() => phoneFull.value && props.offerPrefixes.includes(d
 const creditOk = computed(() => phoneFull.value && props.creditPrefixes.includes(digits.value.slice(0, 2)))
 const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
 const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]] : null))
-const amounts = computed(() => [40, 50, 100, 200, 500, 1000, 2000, 5000].filter((a) => a <= props.maxAmount))
+// The smallest credit: Ooredoo takes 10 DA (owner 2026-10-29, Flexy Core 0066), the others 40
+const minAmount = computed(() => (digits.value.startsWith('05') ? 10 : 40))
+const amounts = computed(() => [minAmount.value, 50, 100, 200, 500, 1000, 2000, 5000].filter((a) => a <= props.maxAmount))
 const value = computed(() => amount.value || Number(other.value) || 0)
-const canSend = computed(() => props.open && phoneFull.value && value.value >= 40 && value.value <= props.maxAmount)
+const canSend = computed(() => props.open && phoneFull.value && value.value >= minAmount.value && value.value <= props.maxAmount)
 const spaced = (d) => (d || '').replace(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5')
 const when = (t) => algeriaTime(t)
 function pick (a) { amount.value = a; other.value = null }

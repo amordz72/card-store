@@ -86,7 +86,7 @@ const CODES = {
   // Djezzy offers (760 without an amount), recorded live 2026-10-27: the confirmation SMS goes to the customer,
   // so the SIM's balance drop (*766#, a minute later) is the proof.
   // Ooredoo offers (*585*, Flexy Core 0059): the PIN after the network names the price is the money step
-  '585_NETWORK_OK': 'ردّت الشبكة «OK» للرقم: العرض مقبول؛ يُحسم بفرق رصيد الشريحة بعد دقيقة.',
+  '585_NETWORK_OK': 'ردّت الشبكة «OK» للرقم: نجح العرض.',
   '585_NEW_REPLY_BEFORE_PIN': 'ردّت الشبكة بنص غير مسجّل قبل الـPIN. لم يُخصم شيء، وأُبلغت الإدارة.',
   '585_CODE_SHOWN_TWICE': 'رمز العرض ظهر مرتين في القائمة، فلم يُختر. لم يُخصم شيء.',
   '585_OFFER_NOT_IN_MENU': 'قائمة الرقم لا تحمل هذا العرض برمزه واسمه. لم يُخصم شيء، وحُفظت قائمة الرقم.',
