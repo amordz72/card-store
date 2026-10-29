@@ -68,6 +68,23 @@
               <q-btn dense unelevated no-caps size="sm" color="negative" label="فشلت" @click.stop="settle(j, 'failed')" />
               <q-btn dense outline no-caps size="sm" color="grey-8" label="لم تُرسل" @click.stop="settle(j, 'not_sent')" />
             </div>
+            <!-- The owner only: what was offline at that minute, for a complaint (Flexy Core 0070) -->
+            <div v-if="presence" class="q-mt-xs" @click.stop>
+              <q-btn dense flat no-caps size="sm" color="primary" icon="history" label="ماذا كان منقطعًا وقتها" :loading="presenceBusy === j.id" @click.stop="loadPresence(j)" />
+              <div v-if="presenceOf[j.id]" class="small">
+                <div v-if="presenceOf[j.id].error" class="text-negative">{{ presenceOf[j.id].error }}</div>
+                <template v-else>
+                  <div v-if="!presenceOf[j.id].offline.length" class="text-positive">لا شيء كان منقطعًا في تلك الدقيقة.</div>
+                  <div v-for="(x, i) in presenceOf[j.id].offline" :key="'o' + i" class="text-negative">
+                    منقطع: {{ KIND_NAME[x.kind] }} {{ x.code }}<template v-if="x.station_code"> ({{ x.station_code }}<template v-if="x.usb != null"> · USB {{ x.usb }}</template>)</template>
+                    من <bdi dir="ltr">{{ algeriaTime(x.since) }}</bdi><template v-if="x.until"> إلى <bdi dir="ltr">{{ algeriaTime(x.until) }}</bdi></template><template v-else> وما زال</template>
+                  </div>
+                  <div v-for="(x, i) in presenceOf[j.id].events" :key="'e' + i" class="muted">
+                    <bdi dir="ltr">{{ algeriaTime(x.at) }}</bdi> · {{ KIND_NAME[x.kind] }} {{ x.code }} {{ x.state === 'online' ? 'رجع' : 'انقطع' }}
+                  </div>
+                </template>
+              </div>
+            </div>
             <template v-if="j.sims && j.sims.length">
               <div class="small">الشريحة: <bdi dir="ltr">{{ simLine(j.sims[j.sims.length - 1]) }}</bdi></div>
               <div v-for="(w, i) in j.sims.slice(0, -1)" :key="i" class="small moved">
@@ -109,6 +126,22 @@ import { money } from 'src/api/format'
 import FlexyOffers from 'src/components/FlexyOffers.vue'
 import { algeriaTime, movedWhy, simLine } from 'src/api/flexyExplain'
 
+// The connection log, per row opened by the owner
+const KIND_NAME = { station: 'الكمبيوتر', modem: 'المودم', sim: 'الشريحة' }
+const presenceOf = ref({})
+const presenceBusy = ref(null)
+async function loadPresence (j) {
+  presenceBusy.value = j.id
+  try {
+    const r = await props.presence(j.at)
+    presenceOf.value = { ...presenceOf.value, [j.id]: { offline: r.offline || [], events: r.events || [] } }
+  } catch (e) {
+    presenceOf.value = { ...presenceOf.value, [j.id]: { error: e?.message || 'تعذّرت القراءة.' } }
+  } finally {
+    presenceBusy.value = null
+  }
+}
+
 const props = defineProps({
   open: { type: Boolean, required: true },
   maxAmount: { type: Number, required: true },
@@ -125,6 +158,8 @@ const props = defineProps({
   decideOffer: { type: Function, default: null },
   // The owner's page only: settle(row, to) for an open operation (row.open)
   settle: { type: Function, default: null },
+  // The owner's page only: presence(at) → what was offline at that minute (the connection log)
+  presence: { type: Function, default: null },
   rows: { type: Array, required: true },
   hasMore: { type: Boolean, default: false },
   loadingMore: { type: Boolean, default: false },
