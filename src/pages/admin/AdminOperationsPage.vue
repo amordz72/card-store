@@ -38,7 +38,9 @@ const dbSource = () => offsetSource((limit, offset) => run(() => api.ops({ ...f.
 
 // The owner's own Flexy sends live in Flexy Core («إرسال فليكسي»): read page by page and filtered
 // here by type, dates and search, since that list has no filters of its own.
-const OFFER_KEYS = ['mobilis.sama.offer.665', 'mobilis.arsselli.offer.696']
+const OFFER_KEYS = ['mobilis.sama.offer.665', 'mobilis.arsselli.offer.696', 'djezzy.flexy.offer.760', 'ooredoo.flexy.offer.585']
+// The carrier by the number (owner 2026-10-29: an Ooredoo offer showed «Mobilis»)
+const BRAND = { '05': 'Ooredoo', '06': 'Mobilis', '07': 'Djezzy' }
 const coreFailed = ref(false)
 function coreSource () {
   const { from, to } = rangeDates(f.value)
@@ -54,7 +56,7 @@ function coreSource () {
     const last = list[list.length - 1]
     const older = from && last && day(last.created_at) < from
     const rows = list.filter((o) => !from || day(o.created_at) >= from).map((o) => ({
-      key: 'core:' + o.idempotency_key, source: 'core', op_id: o.idempotency_key, brand: 'Mobilis', is_shop: true,
+      key: 'core:' + o.idempotency_key, source: 'core', op_id: o.idempotency_key, brand: BRAND[(o.phone || '').slice(0, 2)] || 'Mobilis', is_shop: true,
       category: OFFER_KEYS.includes(o.operation_key) ? 'offer' : 'flexy', offer_label: o.offer, phone: o.phone,
       base_amount: o.amount, status: o.status, network_reply: o.network_reply, outcome_code: o.outcome_code,
       sims: o.sims || [], balance_before: o.balance_before || null, created_at: o.created_at
