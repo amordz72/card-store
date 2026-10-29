@@ -50,7 +50,10 @@
       <div class="ops q-mt-sm">
         <div v-for="o in cards" :key="o.operator" class="card op" :class="{ bad: o.level === 'down' }">
           <div class="small muted">{{ o.name }} · متاح الآن</div>
-          <div class="big" :class="{ 'text-negative': o.ready === 0 && filter !== 'offline' }">{{ filter === 'offline' ? '—' : money(o.available) }}</div>
+          <!-- Owner 2026-10-29: «which SIM holds this?» — pressing it lists the SIMs that sell, each with its reading -->
+          <button v-if="filter !== 'offline' && o.selling.length" type="button" class="link big" :class="{ 'text-negative': o.ready === 0 }" @click="openUnavailable(o, 'selling')">{{ money(o.available) }} ‹</button>
+          <div v-else class="big" :class="{ 'text-negative': o.ready === 0 && filter !== 'offline' }">{{ filter === 'offline' ? '—' : money(o.available) }}</div>
+          <div v-if="o.staleSum" class="small text-negative">منها {{ money(o.staleSum) }} من قراءة قديمة</div>
           <div v-if="o.unknown" class="small text-deep-orange-9">{{ o.unknown }} شريحة تبيع بلا رصيد مقروء</div>
           <div v-if="o.reserved" class="small muted">محجوز {{ money(o.reserved) }}</div>
           <button v-if="o.stuck.length" type="button" class="link small text-deep-orange-9" @click="openUnavailable(o, 'stuck')">
@@ -76,7 +79,7 @@
             <span v-if="s.outages_7d" class="tiny" :class="s.unstable ? 'text-negative text-weight-bold' : 'text-deep-orange-9'">
               <template v-if="s.unstable">غير مستقرة · </template>انقطعت {{ s.outages_24h }} اليوم · {{ s.outages_7d }} في 7 أيام ({{ s.offline_minutes_7d }} د)</span></span>
           <span class="column"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
-            <span v-if="s.balance_checked_at" class="tiny muted">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
+            <span v-if="s.balance_checked_at" class="tiny" :class="s.stale ? 'text-negative' : 'muted'">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
           <span>{{ s.available == null ? '؟' : money(s.available) }}</span>
           <span :class="s.ready ? 'text-positive' : 'text-negative'">{{ s.ready ? 'تبيع' : !s.online ? 'غير متصلة' : SHORT[s.reason] || 'لا تبيع' }}</span>
         </div>
@@ -103,15 +106,17 @@
     <q-dialog v-model="unavailableOpen">
       <q-card v-if="picked" style="min-width: 300px">
         <q-card-section class="column q-gutter-xs">
-          <div class="text-weight-bold">{{ picked.name }} · {{ picked.which === 'off' ? 'غير متصلة' : 'متصلة لا تبيع' }}</div>
+          <div class="text-weight-bold">{{ picked.name }} · {{ picked.which === 'off' ? 'غير متصلة' : picked.which === 'selling' ? 'متاح الآن' : 'متصلة لا تبيع' }}</div>
           <!-- Owner 2026-10-29: the amount is money still inside a SIM that cannot send now, not money available -->
-          <div class="small muted">{{ picked.which === 'off' ? 'رصيد في شرائح لا يراها الكمبيوتر الآن (منزوعة، أو المودم أو الكمبيوتر مطفأ).' : 'رصيد في شرائح متصلة لكنها لا تبيع، والسبب تحت كل واحدة.' }} لا يدخل في «متاح الآن».</div>
+          <div v-if="picked.which === 'selling'" class="small muted">الشرائح التي تبيع الآن ورصيد كل واحدة: آخر قراءة ناقص ما باعه البرنامج منها بعدها.</div>
+          <div v-else class="small muted">{{ picked.which === 'off' ? 'رصيد في شرائح لا يراها الكمبيوتر الآن (منزوعة، أو المودم أو الكمبيوتر مطفأ).' : 'رصيد في شرائح متصلة لكنها لا تبيع، والسبب تحت كل واحدة.' }} لا يدخل في «متاح الآن».</div>
         </q-card-section>
         <q-card-section class="column q-gutter-sm q-pt-none">
           <div v-for="s in pickedSims" :key="s.sim_uuid" class="column">
             <div class="row"><b class="col"><span class="dot" :class="s.online ? 'ok' : 'down'" /> {{ s.code || 'شريحة' }}<span class="small" :class="s.online ? 'text-positive' : 'text-negative'"> · {{ s.online ? 'متصلة' : 'غير متصلة' }}</span></b><span class="column items-end"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
-              <span class="tiny muted">رصيدها المحفوظ<template v-if="s.balance_checked_at">، قُرئ {{ ago(s.balance_checked_at) }}</template></span></span></div>
-            <div class="small text-negative">السبب: {{ s.reason_text }}</div>
+              <span class="tiny" :class="s.stale ? 'text-negative' : 'muted'">{{ picked.which === 'selling' ? 'رصيدها' : 'رصيدها المحفوظ' }}<template v-if="s.balance_checked_at">، قُرئ {{ ago(s.balance_checked_at) }}</template><template v-else>، لم يُقرأ</template><template v-if="s.stale"> · قراءة قديمة</template></span></span></div>
+            <div class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.spent_since_read"> · آخر قراءة {{ money(s.balance_read) }}، بيع بعدها {{ money(s.spent_since_read) }}</template><template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></div>
+            <div v-if="s.reason_text" class="small text-negative">السبب: {{ s.reason_text }}</div>
           </div>
         </q-card-section>
         <q-card-actions align="left">
@@ -174,7 +179,8 @@ const cards = computed(() => (view.value?.operators || []).map((o) => {
   return {
     operator: o.operator, name: o.name, level: o.level, ready: selling.length,
     available: sum(selling, (s) => s.available), reserved: sum(selling, (s) => s.reserved), unknown: selling.filter((s) => s.available == null).length,
-    stuck, stuckSum: sum(stuck, (s) => s.balance), off, offSum: sum(off, (s) => s.balance), total: sum(mine, (s) => s.balance)
+    stuck, stuckSum: sum(stuck, (s) => s.balance), off, offSum: sum(off, (s) => s.balance), total: sum(mine, (s) => s.balance),
+    selling, staleSum: sum(selling.filter((s) => s.stale), (s) => s.available)
   }
 }).filter((c) => c.stuck.length + c.off.length + c.ready > 0))
 const pickedSims = computed(() => (picked.value ? picked.value.list : []))
@@ -217,7 +223,7 @@ async function ack (a) {
   }
 }
 function openUnavailable (o, which) {
-  picked.value = { ...o, which, list: which === 'off' ? o.off : o.stuck }
+  picked.value = { ...o, which, list: which === 'off' ? o.off : which === 'selling' ? o.selling : o.stuck }
   unavailableOpen.value = true
 }
 
