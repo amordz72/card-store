@@ -58,12 +58,13 @@
           <div v-if="o.ready === 0" class="small text-negative text-weight-bold">حرج: لا شريحة جاهزة</div>
         </div>
       </div>
-      <div class="small muted q-mt-xs">«متاح الآن» = شرائح معتمدة ومتصلة وترد، ناقص المحجوز في عمليات جارية. الحرج أقل من {{ money(view?.limits.critical || 2000) }}، وقبل الحرج أقل من {{ money(view?.limits.beforeCritical || 4000) }}.</div>
+      <div class="small muted q-mt-xs"><span class="dot ok" /> متصلة الآن · <span class="dot down" /> غير متصلة (منزوعة أو الكمبيوتر مطفأ). «متاح الآن» = شرائح معتمدة ومتصلة وترد، ناقص المحجوز في عمليات جارية. الحرج أقل من {{ money(view?.limits.critical || 2000) }}، وقبل الحرج أقل من {{ money(view?.limits.beforeCritical || 4000) }}.</div>
 
       <div class="card q-mt-sm q-pa-none sims">
         <div class="sim head small"><span>الشريحة</span><span>الرصيد</span><span>المتاح</span><span>الحالة</span></div>
         <div v-for="s in sortedSims" :key="s.sim_uuid" class="sim small">
-          <span class="column"><span class="text-weight-bold"><span class="dot" :class="s.ready ? 'ok' : s.approved ? 'down' : 'muted'" /> {{ s.code || 'شريحة' }}</span>
+          <span class="column"><span class="text-weight-bold"><span class="dot" :class="s.online ? 'ok' : 'down'" :title="s.online ? 'متصلة الآن' : 'غير متصلة'" /> {{ s.code || 'شريحة' }}</span>
+            <span v-if="!s.online" class="tiny text-negative">غير متصلة<template v-if="s.last_seen_at"> منذ {{ ago(s.last_seen_at).replace('منذ ', '') }}</template></span>
             <span class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></span></span>
           <span class="column"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
             <span v-if="s.balance_checked_at" class="tiny muted">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
@@ -76,7 +77,7 @@
         <div class="section-title q-mt-md">الإدارة (هاتفك) · لا تدخل في أرصدة المحلات</div>
         <div class="card q-pa-none sims">
           <div v-for="s in view.admin_sims" :key="s.sim_uuid" class="sim small">
-            <span class="column"><span class="text-weight-bold"><q-icon name="smartphone" size="14px" /> {{ s.code || 'شريحة' }}</span>
+            <span class="column"><span class="text-weight-bold"><span class="dot" :class="s.online ? 'ok' : 'down'" /> <q-icon name="smartphone" size="14px" /> {{ s.code || 'شريحة' }}</span>
               <span class="tiny muted">{{ s.operator_name }}</span></span>
             <span class="column"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
               <span v-if="s.balance_checked_at" class="tiny muted">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
@@ -99,7 +100,7 @@
         </q-card-section>
         <q-card-section class="column q-gutter-sm q-pt-none">
           <div v-for="s in pickedSims" :key="s.sim_uuid" class="column">
-            <div class="row"><b class="col">{{ s.code || 'شريحة' }}</b><span class="column items-end"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
+            <div class="row"><b class="col"><span class="dot" :class="s.online ? 'ok' : 'down'" /> {{ s.code || 'شريحة' }}<span class="small" :class="s.online ? 'text-positive' : 'text-negative'"> · {{ s.online ? 'متصلة' : 'غير متصلة' }}</span></b><span class="column items-end"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
               <span class="tiny muted">رصيدها المحفوظ<template v-if="s.balance_checked_at">، قُرئ {{ ago(s.balance_checked_at) }}</template></span></span></div>
             <div class="small text-negative">السبب: {{ s.reason_text }}</div>
           </div>
