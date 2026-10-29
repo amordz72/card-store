@@ -139,6 +139,7 @@ export const ownerPresence = (at) => owner('presence?at=' + encodeURIComponent(a
 // «ذاكرة الأرقام» (Flexy Core 0073): what is remembered about one number, and «انسَ» (archived, not lost)
 export const numberMemory = (phone) => owner('numbers?phone=' + encodeURIComponent(phone), { method: 'GET' })
 export const numberForget = (phone) => owner('numbers', { method: 'POST', body: { forget: phone } })
+export const numberForgetMine = (days, confirm) => owner('numbers', { method: 'POST', body: { mine_days: days, confirm: !!confirm } })
 export const numberForgetRecent = (days, confirm) => owner('numbers', { method: 'POST', body: { recent_days: days, confirm: !!confirm } })
 export const ownerMonitorAck = (key) => owner('monitor', { method: 'POST', body: { ack: key } })
 // A SIM's PIN, name and note (owner only). The PIN is never sent back; fields left out are not changed.

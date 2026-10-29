@@ -120,7 +120,7 @@
     <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
          owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
     <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
-      <div class="text-weight-bold">⚡ مجموعة جديدة: {{ newGroup.group || 'غير معروفة' }} · استكشاف</div>
+      <div class="text-weight-bold">⚡ {{ /\s\d+$/.test(newGroup.group || '') ? 'صيغة جديدة حُفظت وحدها' : 'مجموعة جديدة' }}: {{ newGroup.group || 'غير معروفة' }} · استكشاف</div>
       <div class="small muted">تنقّل لتُسجَّل كل الصفحات. الاستكشاف لا يشتري: البيع من القائمة فوق.</div>
       <ModemPanel v-if="newGroup.sim" :sim-uuid="newGroup.sim" sim-type="ooredoo-flexy" ussd-only explore :start-code="'*585*' + phone + '#'" />
       <q-btn unelevated no-caps color="cyan-9" icon="local_offer" label="شاشة العروض ← اعتماد" to="/flexy/offers" />
