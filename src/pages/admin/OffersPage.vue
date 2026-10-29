@@ -54,6 +54,7 @@
                   يظهر: «<bdi dir="auto">{{ o.nameDisplay }}</bdi>»<span v-if="o.hidden"> · مخفي مؤقتًا</span><span v-if="o.status === 'tested'"> · مجرّب ✓</span>
                   <span v-if="o.status === 'doubt'" class="text-negative"> · الرمز ظهر مرتين في القائمة: لا يُرسل</span>
                 </div>
+                <div v-if="o.probe" class="meta" :class="o.probe.price === o.price ? 'text-positive' : 'text-negative'">{{ probeText(o) }}</div>
               </div>
               <div v-if="!editing" class="row items-center no-wrap q-gutter-xs">
                 <span class="price">{{ o.price ? num(o.price) : '—' }}</span>
@@ -85,6 +86,13 @@
           <div v-for="g in changes.gone" :key="'g' + g.name" class="chg-r"><span class="minus">− اختفى</span><span><bdi dir="auto">{{ g.name }}</bdi></span></div>
           <div v-for="c in changes.changed" :key="'c' + c.name" class="chg-r"><span class="mod">≠ تغيّر</span><span><bdi dir="auto">{{ c.name }}</bdi>: {{ diffText(c) }}</span></div>
         </div>
+        <div class="row q-gutter-sm">
+          <q-btn class="col" unelevated no-caps color="positive" icon="check" :label="'اعتماد النسخة ' + nextVersion" :loading="acting" @click="approve" />
+          <q-btn outline no-caps color="grey-8" label="إلغاء" :disable="acting" @click="discard" />
+        </div>
+        <div class="small muted q-px-sm">
+          قراراتك (التفعيل، من يراه، النص الظاهر، الترتيب) تبقى للعروض التي بقيت؛ العرض الجديد يُفتح للإدارة إن كان له سعر.
+        </div>
         <div class="card">
           <template v-for="p in pagesOf(draft)" :key="p.key">
             <div class="pg">{{ p.label }}</div>
@@ -97,6 +105,7 @@
                   يظهر: «<bdi dir="auto">{{ shownNameOf(o) }}</bdi>»
                   <span v-if="o.status === 'doubt'" class="text-negative"> · الرمز ظهر مرتين في القائمة: لا يُرسل</span>
                 </div>
+                <div v-if="o.probe" class="meta" :class="o.probe.price === o.price ? 'text-positive' : 'text-negative'">{{ probeText(o) }}</div>
               </div>
               <div class="row items-center no-wrap q-gutter-xs">
                 <span class="price">{{ (o.priceSeen ?? o.price) ? num(o.priceSeen ?? o.price) : '—' }}</span>
@@ -105,22 +114,8 @@
             </div>
           </template>
         </div>
-        <div class="row q-gutter-sm">
-          <q-btn class="col" unelevated no-caps color="positive" icon="check" :label="'اعتماد النسخة ' + nextVersion" :loading="acting" @click="approve" />
-          <q-btn outline no-caps color="grey-8" label="إلغاء" :disable="acting" @click="discard" />
-        </div>
-        <div class="small muted q-px-sm">
-          قراراتك (التفعيل، من يراه، النص الظاهر، الترتيب) تبقى للعروض التي بقيت؛ العرض الجديد يُفتح للإدارة إن كان له سعر.
-        </div>
       </template>
 
-      <div v-if="info.versions?.length" class="card">
-        <div class="pg">النسخ القديمة</div>
-        <div v-for="v in info.versions" :key="v.version" class="orow">
-          <span class="small">النسخة {{ v.version }} · {{ clock(v.archived_at) }} · {{ v.count }} عرضًا</span>
-          <q-btn dense outline no-caps size="sm" color="purple-7" icon="upload" label="رفع" :disable="acting" @click="raise(v)" />
-        </div>
-      </div>
     </template>
 
     <!-- المشاهدة: as the send page shows them -->
@@ -151,6 +146,15 @@
         </div>
       </template>
     </template>
+
+    <!-- Old versions: at the bottom in both modes (owner 2026-10-29) -->
+    <div v-if="!loading && operator === 'ooredoo' && group && info.versions?.length" class="card">
+      <div class="pg">النسخ القديمة</div>
+      <div v-for="v in info.versions" :key="v.version" class="orow">
+        <span class="small">النسخة {{ v.version }} · {{ clock(v.archived_at) }} · {{ v.count }} عرضًا</span>
+        <q-btn dense outline no-caps size="sm" color="purple-7" icon="upload" label="رفع" :disable="acting" @click="raise(v)" />
+      </div>
+    </div>
 
     <!-- An offer of the display mode: its display text, details, section and temporary hide -->
     <q-dialog v-model="sheetOpen" position="bottom">
@@ -259,6 +263,9 @@ function markOf (o) {
   if (changes.value.changed.some((c) => c.name === o.nameNetwork)) return { label: '≠ تغيّر', cls: 't-chg' }
   return null
 }
+// «اكشف» on a code shown twice (Flexy Core 0064): the network's price, kept beside the offer as evidence
+const probeText = (o) => 'كشف ' + clock(o.probe.at) + ': الرمز ' + o.probe.code + ' = ' + num(o.probe.price) + ' دج' +
+  (o.probe.price === o.price ? ' ✓ يطابق هذا العرض' : ' ✗ لا يطابق هذا العرض')
 function diffText (c) {
   const out = []
   if (c.from.code !== c.to.code) out.push('الرمز ' + c.from.code + ' ← ' + c.to.code)
