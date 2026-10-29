@@ -20,7 +20,7 @@ export function useFlexyAccess () {
       open.value = !!s.open
       maxAmount.value = s.max_amount || 0
       offers.value = !!s.offers
-      creditPrefixes.value = ['06', ...(s.djezzy ? ['07'] : []), ...(s.ooredoo ? ['05'] : [])]
+      creditPrefixes.value = [...(s.mobilis ? ['06'] : []), ...(s.djezzy ? ['07'] : []), ...(s.ooredoo ? ['05'] : [])]
     } catch { /* keep the last value; the page shows its own errors */ }
   }
   return { enabled, open, maxAmount, offers, creditPrefixes, refresh }

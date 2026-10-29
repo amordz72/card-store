@@ -192,7 +192,7 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     const kind = body.kind === "offer" ? "offer" : "630";
     const label = kind === "offer" ? String(body.offer ?? "").trim() : null;
     const amount = kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
-    const created = await serviceRpc("store_flexy_create_v2", {
+    const created = await serviceRpc("store_flexy_create_v3", {
       p_token: token, p_kind: kind, p_phone: String(body.phone ?? ""), p_amount: amount,
       p_offer_code: null, p_offer_label: label, p_request_id: body.request_id ?? null,
     });
