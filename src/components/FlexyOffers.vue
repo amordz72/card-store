@@ -44,7 +44,7 @@
          owner; the live menu opens by itself below to move through the next pages, each one recorded. -->
     <div v-if="newGroup && !loading" class="card column q-gutter-sm live">
       <div class="text-weight-bold">⚡ مجموعة جديدة: {{ newGroup.group || 'غير معروفة' }} · الصفحات التالية</div>
-      <ModemPanel v-if="newGroup.sim" :sim-uuid="newGroup.sim" sim-type="ooredoo-flexy" ussd-only :start-code="'*585*' + phone + '#'" />
+      <ModemPanel v-if="newGroup.sim" :sim-uuid="newGroup.sim" sim-type="ooredoo-flexy" ussd-only explore :start-code="'*585*' + phone + '#'" />
       <q-btn flat no-caps color="primary" icon="local_offer" label="شاشة العروض" to="/flexy/offers" />
     </div>
   </div>

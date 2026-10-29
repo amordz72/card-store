@@ -81,7 +81,8 @@
       <template v-else>
         <!-- What the last reply asks for, as buttons (owner 2026-10-28); the box stays for anything else -->
         <template v-if="lastOk && !anyWaiting">
-          <q-btn v-if="asked.pin" unelevated no-caps color="deep-orange" icon="lock" :disable="!page?.has_pin"
+          <div v-if="asked.pin && explore" class="small text-deep-orange">هذا سعر العرض كما تقوله الشبكة (سُجّل). الاستكشاف لا يشتري: أنهِ الجلسة (أي رد هنا تأخذه الشبكة كـPIN)، والبيع من القائمة فوق.</div>
+          <q-btn v-else-if="asked.pin" unelevated no-caps color="deep-orange" icon="lock" :disable="!page?.has_pin"
             :label="page?.has_pin ? 'أرسل الـPIN المحفوظ (من الخادم)' : 'لا يوجد PIN محفوظ لهذه الشريحة'" @click="choose({ value: '{PIN}', label: 'PIN', money: asked.pinIsMoney })" />
           <div v-if="asked.options.length" class="row q-gutter-xs">
             <q-btn v-for="(o, i) in asked.options" :key="i" dense no-caps :outline="!o.money" :unelevated="o.money"
@@ -90,8 +91,8 @@
             </q-btn>
           </div>
         </template>
-        <q-input v-model="reply" dense outlined class="ltr" placeholder="1" :disable="anyWaiting || !lastOk" @keyup.enter="answer">
-          <template #append><q-btn flat dense no-caps size="sm" label="PIN" :disable="!page?.has_pin || anyWaiting" @click="reply = addPin(reply, false)" /></template>
+        <q-input v-model="reply" dense outlined class="ltr" :placeholder="explore ? '0' : '1'" :disable="anyWaiting || !lastOk" @keyup.enter="answer">
+          <template v-if="!explore" #append><q-btn flat dense no-caps size="sm" label="PIN" :disable="!page?.has_pin || anyWaiting" @click="reply = addPin(reply, false)" /></template>
         </q-input>
         <div class="row q-gutter-sm">
           <q-btn class="col" unelevated no-caps color="primary" :loading="busy && !anyWaiting" :disable="anyWaiting || !lastOk || !reply.trim() || (lab.pin_wait_seconds > 0 && pinLike(reply))"
@@ -119,7 +120,10 @@ const props = defineProps({
   simType: { type: String, default: '' },
   // The offers tab's live session on a new group (owner 2026-10-28): the lab alone, its code ready
   ussdOnly: { type: Boolean, default: false },
-  startCode: { type: String, default: '' }
+  startCode: { type: String, default: '' },
+  // Exploring a new group's pages (owner 2026-10-28: no PIN nor «1» in a discovery): moving and reading only,
+  // an offer's code shows its price and nothing more
+  explore: { type: Boolean, default: false }
 })
 
 // One press for what is known (owner 2026-10-26): read-only codes from telecom/TELECOM-SERVICE-CODES.md, by SIM type.
@@ -244,11 +248,13 @@ const send = (value) => run(async () => { await call('lab/reply', { session_uuid
 const answer = () => {
   if (!reply.value.trim() || busy.value) return
   if (typedPin(reply.value, asked.value.pin)) { error.value = 'لا تكتب الـPIN: اضغط زر «أرسل الـPIN المحفوظ»، فيضعه الخادم دون أن يُحفظ ظاهرًا'; return }
+  if (props.explore && (/pin/i.test(reply.value) || asked.value.pin)) { error.value = 'الاستكشاف لا يشتري: لا PIN هنا. البيع من القائمة فوق.'; return }
   return send(reply.value.trim())
 }
 // A button: the money step (and a code the menu shows twice) is asked first
 function choose (o) {
   if (busy.value) return
+  if (props.explore && o.money) { error.value = 'الاستكشاف لا يشتري: هذه خطوة المال. البيع من القائمة فوق.'; return }
   const notes = [o.money ? 'هذه خطوة المال: بعدها قد يُخصم الرصيد.' : '', o.duplicate ? 'الرمز ' + o.value + ' مكرر في القائمة: الشبكة قد تختار عرضًا آخر بنفس الرمز.' : ''].filter(Boolean)
   if (!notes.length) return send(o.value)
   Dialog.create({ title: 'تأكيد', message: notes.join(' ') + ' أرسل «' + (o.value === '{PIN}' ? 'PIN' : o.value) + '»؟', cancel: 'رجوع', ok: 'نعم، أرسل' })

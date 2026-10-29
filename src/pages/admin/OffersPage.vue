@@ -107,7 +107,7 @@
         </div>
         <div class="row q-gutter-sm">
           <q-btn class="col" unelevated no-caps color="positive" icon="check" :label="'اعتماد النسخة ' + nextVersion" :loading="acting" @click="approve" />
-          <q-btn v-if="raised" outline no-caps color="grey-8" label="إلغاء" :disable="acting" @click="act('discard')" />
+          <q-btn outline no-caps color="grey-8" label="إلغاء" :disable="acting" @click="discard" />
         </div>
         <div class="small muted q-px-sm">
           قراراتك (التفعيل، من يراه، النص الظاهر، الترتيب) تبقى للعروض التي بقيت؛ العرض الجديد يُفتح للإدارة إن كان له سعر.
@@ -349,6 +349,16 @@ function approve () {
     cancel: 'رجوع',
     ok: 'اعتمد'
   }).onOk(() => act('approve'))
+}
+// «إلغاء» of «جديدة»: a raised version goes back to the archive; a network reading is dropped (a real change comes back)
+function discard () {
+  Dialog.create({
+    title: 'إلغاء «جديدة» من ' + group.value,
+    message: raised.value ? 'ترجع النسخة ' + raised.value + ' إلى النسخ القديمة كما هي.'
+      : 'تُحذف هذه القراءة. إن كانت الشبكة فعلًا هكذا، تعود مع أول رقم من هذه المجموعة.',
+    cancel: 'رجوع',
+    ok: 'ألغِ'
+  }).onOk(() => act('discard'))
 }
 // «إلغاء النسخة»: kept whole among the old versions («رفع» brings it back); nothing of the group sells meanwhile
 function withdraw () {
