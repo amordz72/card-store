@@ -103,6 +103,9 @@ export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
 // The shops' switch in Flexy Core (apps.630.send_enabled), read with ownerSwitch().
 export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: { apps_send_enabled: on } })
+// The shops' Djezzy / Ooredoo ordinary credit in Flexy Core (apps.760 / apps.590, owner 2026-10-29), read with ownerSwitch().
+export const setAppsDjezzySwitch = (on) => owner('settings', { method: 'POST', body: { apps_djezzy_send_enabled: on } })
+export const setAppsOoredooSwitch = (on) => owner('settings', { method: 'POST', body: { apps_ooredoo_send_enabled: on } })
 // «عروض سما» (offers.sama_enabled, owner 2026-10-27): off = no offer goes from Sama, for him and the shops; kept.
 export const setSamaOffersSwitch = (on) => owner('settings', { method: 'POST', body: { sama_offers_enabled: on } })
 // Djezzy's own money switch (owner.760.send_enabled), read with ownerSwitch(); off = every 760 refuses.
