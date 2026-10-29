@@ -34,7 +34,8 @@ export function readReply (raw, simType = '') {
     if (!LETTER.test(label) || options.some((o) => o.value === value && o.label === label)) return
     options.push({ value, label, next: NEXT.test(label) })
   }
-  for (const line of text.split(/\r?\n/)) {
+  // Ooredoo glues lines («…YouTube)5-1000 DA…», 2026-10-29): the core's own split (585 splitLines)
+  for (const line of text.replace(/\)\s*(\d{1,3})\s*-\s*/g, ')\n$1-').split(/\r?\n/)) {
     for (const m of line.matchAll(ITEM)) add(m[1], m[2])
   }
   for (const re of INLINE) for (const m of text.matchAll(re)) add(m[1], m[2])
