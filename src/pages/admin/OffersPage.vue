@@ -69,6 +69,8 @@
           </template>
         </div>
         <div v-if="editing && approved.length" class="small muted q-px-sm">لا يتغير هنا اسم ولا ترتيب: مكانهما في المشاهدة.</div>
+        <q-btn v-if="editing && approved.length" outline no-caps color="negative" icon="block" :label="'إلغاء النسخة ' + info.version"
+          :disable="acting" @click="withdraw" />
       </template>
 
       <!-- جديدة: the network's new shape (or a raised version) beside what changed; the approved one goes on selling -->
@@ -191,6 +193,7 @@ const ERRORS = {
   CATALOG_NOT_FOUND: 'العرض لم يعد موجودًا: حدّث الصفحة.',
   CATALOG_BAD_REQUEST: 'قيمة غير صحيحة.',
   NOTHING_TO_APPROVE: 'لا نسخة جديدة لتعتمدها.',
+  NOTHING_APPROVED: 'لا نسخة معتمدة لتلغيها.',
   VERSION_NOT_FOUND: 'النسخة غير موجودة.'
 }
 
@@ -346,6 +349,16 @@ function approve () {
     cancel: 'رجوع',
     ok: 'اعتمد'
   }).onOk(() => act('approve'))
+}
+// «إلغاء النسخة»: kept whole among the old versions («رفع» brings it back); nothing of the group sells meanwhile
+function withdraw () {
+  Dialog.create({
+    title: 'إلغاء النسخة ' + info.value.version + ' من ' + group.value,
+    message: 'تُحفظ كاملة بقراراتها في «النسخ القديمة» (ترجعها بـ«رفع» ثم «اعتماد»)، ولا يُباع شيء من ' + group.value +
+      ' حتى تعتمد نسخة. أول رقم منها تفتحه تُقرأ قائمته في «جديدة».',
+    cancel: 'رجوع',
+    ok: { label: 'ألغِ النسخة', color: 'negative', unelevated: true }
+  }).onOk(() => act('withdraw'))
 }
 function raise (v) {
   Dialog.create({
