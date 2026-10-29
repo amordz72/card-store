@@ -63,6 +63,8 @@
       <q-btn unelevated no-caps color="cyan-9" label="صيغة جديدة" :loading="deciding === 'new'" :disable="Boolean(deciding)" @click="decideShape('new')" />
       <div class="small muted">«صيغة جديدة» تنشئ {{ shape.word || shape.candidates[0]?.label }} أخرى لهذا النوع من الخطوط، وتستكشفها الآن للإدارة. لا مال في أي خيار.</div>
     </div>
+    <!-- Only the network's own «no offers» says so (owner rule): the automix is gone, ordinary credit stays -->
+    <div v-else-if="looked && noOffers" class="card text-center q-pa-lg">لا توجد عروض لهذا الرقم. أرسل له رصيدًا عاديًا.</div>
     <div v-else-if="looked && !newGroup && !blocked.length" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
     <!-- Offers the index guard stops (Ooredoo, Flexy Core 0065): a code the menu shows twice. Never sold from here;
          «اكشف» asks the network which offer that code gives (its price, before the PIN; no money). -->
@@ -91,10 +93,6 @@
     <div v-if="showAutomix" class="card column q-gutter-sm automix">
       <div class="text-weight-bold">اختر مباشرة دون انتظار</div>
       <div v-if="!holding && loading" class="small muted">عروض الخط تظهر هنا حين تُعرف.</div>
-      <div v-if="!holding && error" class="row items-center q-gutter-xs small muted">
-        <span>لم يُعرف نوع الخط.</span>
-        <button type="button" class="link text-primary" @click="load({ retry: true })">أعد المحاولة</button>
-      </div>
       <div v-if="holding" class="row items-center q-gutter-sm small text-primary"><q-spinner size="16px" /><span>جارٍ تنفيذ العرض… النتيجة في «آخر العمليات». لا تُرسل غيره حتى ينتهي.</span></div>
       <div v-if="automix.small === null" class="row items-center q-gutter-sm small muted"><q-spinner size="16px" /><span>جارٍ التحقق من الشرائح…</span></div>
       <div v-else-if="!automix.small && !automix.big" class="small text-negative">لا توجد عروض الآن، حاول بعد دقيقة.</div>
@@ -285,6 +283,21 @@ const autoSent = ref('')
 // Until its row shows in «آخر العمليات» (a few seconds), the send counts as running
 const justSent = ref(false)
 const justKnown = ref(false)
+// The network said this number takes no offers (its own reply, never a silence)
+const noOffers = ref(false)
+// Owner 2026-10-29: no «أعد المحاولة». A failed discovery under the automix is tried again by itself, quietly,
+// at most 3 times, spaced (Sama SIMs are not worn); the automix buttons keep working meanwhile.
+const RETRY_AFTER_MS = [20000, 40000, 60000]
+let retries = { phone: '', n: 0 }
+function retryLater (p) {
+  if (retries.phone !== p) retries = { phone: p, n: 0 }
+  if (retries.n >= RETRY_AFTER_MS.length) return
+  const wait = RETRY_AFTER_MS[retries.n++]
+  setTimeout(() => {
+    if (props.phone !== p || !props.active || holding.value || !error.value) return
+    load({ retry: true })
+  }, wait)
+}
 const holding = computed(() => autoSent.value !== '' && autoSent.value === props.phone && (props.running || justSent.value))
 const showAutomix = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
   (loading.value || Boolean(error.value) || holding.value))
@@ -302,6 +315,7 @@ async function load ({ retry = false } = {}) {
   loadingFor = p
   offers.value = []
   error.value = ''
+  noOffers.value = false
   looked.value = false
   newGroup.value = null
   shape.value = null
@@ -341,15 +355,20 @@ async function load ({ retry = false } = {}) {
       shape.value = r
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
+      noOffers.value = true
       loadedFor = p
       offers.value = []
       looked.value = true
       group.value = ''
     } else {
       error.value = r?.status === 'discovering' ? 'لم تردّ الشبكة. أعد المحاولة.' : (r?.message || 'تعذّر معرفة نوع خط الزبون الآن.')
+      if (p.startsWith('06') && automix.value.for === p) retryLater(p)
     }
   } catch (e) {
-    if (mine === runId) error.value = e?.message || 'تعذّر جلب العروض الآن.'
+    if (mine === runId) {
+      error.value = e?.message || 'تعذّر جلب العروض الآن.'
+      if (p.startsWith('06') && automix.value.for === p) retryLater(p)
+    }
   } finally {
     if (mine === runId) { loading.value = false; loadingFor = ''; shownFor = p }
   }
