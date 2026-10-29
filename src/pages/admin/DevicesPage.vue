@@ -117,8 +117,17 @@
                 <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
                 <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
                 <!-- A new computer not let in from «إضافة كمبيوتر» (owner 2026-10-27); the phone has its own approval above -->
-                <q-btn v-if="!st.approved && !isPhone(st)" unelevated dense no-caps color="primary" class="q-mt-xs" label="اعتماد الكمبيوتر"
-                  :loading="busy" @click="approveComputer(st)" /></td>
+                <q-btn v-if="!st.approved && !isPhone(st) && (!st.status || st.status === 'pending')" unelevated dense no-caps color="primary" class="q-mt-xs" label="اعتماد الكمبيوتر"
+                  :loading="busy" @click="approveComputer(st)" />
+                <!-- Owner 2026-10-29: stop a computer for a while, or end it (stolen, sold); the phone has its own page -->
+                <div v-if="st.status === 'suspended'" class="small text-deep-orange-9 text-weight-bold">⏸ موقوفة: لا يُرسل منها شيء</div>
+                <div v-if="st.status === 'revoked'" class="small text-negative text-weight-bold">⛔ ملغاة: لإرجاعها احذف هويتها على الكمبيوتر واربطها من جديد</div>
+                <div v-if="!isPhone(st) && (st.status === 'approved' || st.status === 'suspended')" class="row q-gutter-xs q-mt-xs">
+                  <q-btn v-if="st.status === 'approved'" outline dense no-caps size="sm" color="deep-orange" icon="pause" label="إيقاف مؤقت"
+                    :loading="busy" @click="stationStatus(st, 'suspended')" />
+                  <q-btn v-else outline dense no-caps size="sm" color="positive" icon="play_arrow" label="تشغيل" :loading="busy" @click="stationStatus(st, 'approved')" />
+                  <q-btn flat dense no-caps size="sm" color="negative" icon="block" label="إلغاء المحطة" :loading="busy" @click="stationStatus(st, 'revoked')" />
+                </div></td>
               <td>{{ isAbsent(st) ? '—' : simSummary(st) }}</td>
               <td>{{ st.gateway === 'core' ? 'النواة' : st.gateway === 'old' ? 'القديمة' : '—' }}</td>
               <td>
@@ -477,6 +486,30 @@ function approvePhone (p) {
     } finally { busy.value = false }
     load()
   })
+}
+
+// «إيقاف مؤقت» / «تشغيل» / «إلغاء المحطة» (owner 2026-10-29): the last one asked twice, it is for good
+function stationStatus (st, status) {
+  const name = st.code || st.computer_name || 'هذا الكمبيوتر'
+  const apply = async () => {
+    busy.value = true
+    try {
+      const res = await flexy.ownerStationStatus(st.station_uuid, status)
+      if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+    } catch (e) {
+      error.value = 'لم يُقبل (' + (e.message || 'FLEXY_CORE') + ').'
+    } finally {
+      busy.value = false
+    }
+    load()
+  }
+  if (status === 'approved') return apply()
+  if (status === 'suspended') {
+    return Dialog.create({ title: 'إيقاف مؤقت', message: `يتوقف ${name} عن الإرسال حتى تضغط «تشغيل». العمليات الجارية عليه تكمل.`, cancel: 'لا', ok: 'أوقف' }).onOk(apply)
+  }
+  Dialog.create({ title: 'إلغاء المحطة', message: `${name}: يرفضه الخادم نهائيًا (كمبيوتر مسروق أو مبيوع). لإرجاعه لاحقًا يجب ربطه من جديد. متأكد؟`, cancel: 'لا', ok: 'نعم' })
+    .onOk(() => Dialog.create({ title: 'تأكيد أخير', message: `اكتب نعم للتأكيد: إلغاء ${name} نهائيًا.`, prompt: { model: '', type: 'text' }, cancel: 'تراجع', ok: 'ألغِ' })
+      .onOk((v) => { if (String(v).trim() === 'نعم') apply() }))
 }
 
 // A new station computer (owner 2026-10-27): approved from here, through Flexy API
