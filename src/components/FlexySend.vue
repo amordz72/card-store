@@ -32,7 +32,7 @@
     <div v-else-if="!offers" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
     <div v-else-if="phoneFull && !phoneOk" class="card text-center muted q-pa-lg">قريبًا: عروض هذا المتعامل غير متوفرة بعد.</div>
     <FlexyOffers v-else ref="offersRef" :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="maxAmount"
-      :lookup="lookup" :send="sendOffer" :available="availableOffers" :running="offerRunning" :probe="probeOffer" :decide="decideOffer" :repeat-of="repeatOf" @sent="sentOffer" />
+      :lookup="lookup" :send="sendOffer" :available="availableOffers" :running="offerRunning" :probe="probeOffer" :decide="decideOffer" :explore="exploreOffer" :repeat-of="repeatOf" @sent="sentOffer" />
 
     <div>
       <div class="row items-center justify-between">
@@ -152,6 +152,7 @@ const props = defineProps({
   sendOffer: { type: Function, required: true },
   // The owner's page only: «اكشف» on an offer the index guard stops (Ooredoo, a code shown twice)
   probeOffer: { type: Function, default: null },
+  exploreOffer: { type: Function, default: null },
   // The shop's page only: «أوتوميكس», which quick offers a SIM can take now (names → { name: bool })
   availableOffers: { type: Function, default: null },
   // The owner's page only: the word on a menu that matched no variant (Ooredoo «صيغ»)
