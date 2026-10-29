@@ -47,7 +47,8 @@
     </div>
     <!-- The alerts' numbers (Flexy Core 0077): the owner changes them; 0 turns that alert off -->
     <div v-if="limits.length" class="card column q-gutter-sm">
-      <div class="text-weight-bold">حدود التنبيهات (0 = مطفأ)</div>
+      <div class="text-weight-bold">الأرقام</div>
+      <div class="small muted">التنبيهات: 0 = مطفأ. المدد (الساعات والدقائق): 0 = الرقم الافتراضي.</div>
       <div v-for="l in limits" :key="l.key" class="row items-center no-wrap q-gutter-sm">
         <span class="col small">{{ l.name }}</span>
         <q-input :model-value="l.value" dense outlined type="number" inputmode="numeric" style="width:96px" :min="0" :max="l.max"
