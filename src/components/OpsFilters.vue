@@ -9,11 +9,13 @@
       <span class="lbl">النوع</span>
       <q-btn v-for="t in TYPES" :key="String(t.id)" v-bind="chip(f.type === t.id)" :label="t.label" @click="f.type = t.id" />
     </div>
+    <!-- Customers: the most active first, the rest one tap away (owner 2026-10-29, «نفذ») -->
     <div v-if="customers && f.scope !== 'shop'" class="chips scroll">
       <span class="lbl">الزبون</span>
       <q-btn v-bind="chip(!f.customerId)" label="كل الزبائن" @click="f.customerId = null" />
-      <q-btn v-for="c in customers" :key="c.customer_id" v-bind="chip(f.customerId === c.customer_id)" :label="c.name"
+      <q-btn v-for="c in shownCustomers" :key="c.customer_id" v-bind="chip(f.customerId === c.customer_id)" :label="c.name"
         @click="f.customerId = c.customer_id" />
+      <q-btn v-if="moreCount" v-bind="chip(false)" :label="expanded ? 'أقل' : 'المزيد (' + moreCount + ')'" @click="expanded = !expanded" />
     </div>
     <div class="chips">
       <span class="lbl">التاريخ</span>
@@ -31,11 +33,25 @@
 </template>
 
 <script setup>
+import { computed, ref } from 'vue'
 import { CATEGORIES } from 'src/api/format'
 import DateField from 'components/DateField.vue'
 
-defineProps({ customers: { type: Array, default: null }, scopes: Boolean })
+const props = defineProps({ customers: { type: Array, default: null }, scopes: Boolean })
 const f = defineModel({ type: Object, required: true })
+
+// The first 6 customers as the store lists them; the rest behind «المزيد»; the chosen one always shown.
+// (Ranking by activity needs a field the store does not return yet: a change to the public schema, owner's word first.)
+const TOP = 6
+const expanded = ref(false)
+const all = computed(() => props.customers || [])
+const shownCustomers = computed(() => {
+  if (expanded.value) return all.value
+  const top = all.value.slice(0, TOP)
+  const chosen = all.value.find((c) => c.customer_id === f.value.customerId)
+  return chosen && !top.includes(chosen) ? [...top, chosen] : top
+})
+const moreCount = computed(() => Math.max(0, all.value.length - shownCustomers.value.length))
 
 const SCOPES = [{ id: null, label: 'الكل' }, { id: 'shop', label: 'أنا' }, { id: 'customers', label: 'زبائني' }]
 const TYPES = [{ id: null, label: 'الكل' }, { id: 'flexy', label: 'فليكسي' }, { id: 'offer', label: 'عروض' },
