@@ -81,7 +81,8 @@ const MESSAGES = {
   FLEXY_OFFERS_NOT_READY: 'العروض ستتوفر قريبًا.',
   FLEXY_OFFER_INVALID: 'هذا العرض غير معروف. أعد الاستكشاف.',
   OFFER_SAMA_DISABLED: 'هذا العرض غير متوفر الآن.',
-  FLEXY_UNAVAILABLE: 'الخدمة غير متاحة الآن. حاول بعد قليل.',
+  // Also: no SIM can take it now (Flexy Core «المراقبة», owner 2026-10-29); nothing was taken
+  FLEXY_UNAVAILABLE: 'غير متاح الآن، حاول بعد قليل.',
   APP_SEND_DISABLED: 'الفليكسي متوقف الآن. حاول بعد قليل.',
   PHONE_NOT_MOBILIS: 'الرقم ليس موبيليس. أدخل رقمًا يبدأ بـ 06.',
   FLEXY_NOT_CONFIGURED: 'الفليكسي غير جاهز بعد.',

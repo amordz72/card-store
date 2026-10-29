@@ -1,6 +1,12 @@
 <template>
   <q-layout view="hHh LpR lFf">
     <q-header class="bg-white text-dark" bordered>
+      <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
+      <router-link v-if="session.isAdmin && monitorBar" to="/flexy/monitor" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
+        <q-icon name="warning" size="18px" />
+        <span class="col">{{ monitorBar.text }}</span>
+        <span class="text-underline">افتح</span>
+      </router-link>
       <q-toolbar class="q-py-sm">
         <q-btn flat round icon="menu" aria-label="القائمة" @click="drawer = !drawer" />
         <q-toolbar-title class="column">
@@ -27,6 +33,11 @@
                 <q-item-section avatar><q-icon name="wifi" /></q-item-section>
                 <q-item-section>تعبئة إيدوم تحتاج مراجعة</q-item-section>
                 <q-item-section side><q-badge :color="idoomReview ? 'negative' : 'grey-5'" :label="idoomReview" /></q-item-section>
+              </q-item>
+              <q-item v-if="monitorAlerts" v-close-popup clickable to="/flexy/monitor">
+                <q-item-section avatar><q-icon name="monitor_heart" /></q-item-section>
+                <q-item-section>المراقبة: أشياء تحتاجك</q-item-section>
+                <q-item-section side><q-badge :color="monitorBar?.level === 'down' ? 'negative' : 'orange-8'" :label="monitorAlerts" /></q-item-section>
               </q-item>
               <q-item v-if="flexyReview" v-close-popup clickable to="/flexy/shops">
                 <q-item-section avatar><q-icon name="send_to_mobile" /></q-item-section>
@@ -183,7 +194,7 @@ const MENU = [
     ]
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
-  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/phone', label: 'فليكسي الهاتف', icon: 'smartphone' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/offers', label: 'العروض', icon: 'local_offer' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy', icon: 'menu_book' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy/monitor', label: 'المراقبة', icon: 'monitor_heart' }, { to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/phone', label: 'فليكسي الهاتف', icon: 'smartphone' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/offers', label: 'العروض', icon: 'local_offer' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy', icon: 'menu_book' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()
@@ -221,7 +232,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, bellTotal, refreshBell } = useBell()
+const { openReports, idoomReview, gameWaiting, flexyReview, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, bellTotal, refreshBell } = useBell()
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
@@ -263,4 +274,6 @@ async function logout () {
 
 <style scoped>
 .menu-active { background: #FFF1E8; color: #9A3412; font-weight: 600; }
+.monitor-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; }
+.monitor-bar .text-underline { text-decoration: underline; font-size: 13px; }
 </style>

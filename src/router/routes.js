@@ -23,6 +23,7 @@ const routes = [
       { path: 'flexy/send', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, title: 'إرسال فليكسي' } },
       // The admin phone's own screen (2026-10-27): the same page in phone mode, owner only
       { path: 'flexy/phone', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, phone: true, title: 'فليكسي الهاتف' } },
+      { path: 'flexy/monitor', component: () => import('pages/admin/MonitorPage.vue'), meta: { admin: true, title: 'المراقبة' } },
       { path: 'flexy/devices', component: () => import('pages/admin/DevicesPage.vue'), meta: { admin: true, title: 'المحطات والشرائح' } },
       { path: 'flexy/shops', component: () => import('pages/admin/FlexyShopsPage.vue'), meta: { admin: true, title: 'فليكسي المحلات' } },
       { path: 'flexy/offers', component: () => import('pages/admin/OffersPage.vue'), meta: { admin: true, title: 'العروض' } },
