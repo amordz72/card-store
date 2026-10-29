@@ -100,6 +100,9 @@ export const ownerOperations = (limit, before) =>
 export const ownerAppOperations = (app, keys) =>
   owner('app-operations?app=' + encodeURIComponent(app) + '&keys=' + keys.map(encodeURIComponent).join(','), { method: 'GET' })
 // The money switch, kept in Flexy Core (owner only). Off = every send refuses.
+// «المهام الآلية» (Flexy Core 0076): what the program does by itself, its switches, and what it did
+export const ownerAuto = () => owner('auto', { method: 'GET' })
+export const setAutoTask = (key, on) => owner('auto', { method: 'POST', body: { key, on } })
 export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
 // The shops' switch in Flexy Core (apps.630.send_enabled), read with ownerSwitch().

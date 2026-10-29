@@ -80,7 +80,9 @@
             <span v-if="s.outages_7d" class="tiny" :class="s.unstable ? 'text-negative text-weight-bold' : 'text-deep-orange-9'">
               <template v-if="s.unstable">غير مستقرة · </template>انقطعت {{ s.outages_24h }} اليوم · {{ s.outages_7d }} في 7 أيام ({{ s.offline_minutes_7d }} د)</span></span>
           <span class="column"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
-            <span v-if="s.balance_checked_at" class="tiny" :class="s.stale ? 'text-negative' : 'muted'">قُرئ {{ ago(s.balance_checked_at) }}</span></span>
+            <span v-if="s.balance_checked_at" class="tiny" :class="s.stale ? 'text-negative' : 'muted'">قُرئ {{ ago(s.balance_checked_at) }}</span>
+            <!-- «الفرق» (Flexy Core 0076): the last reading against what the program sold before it -->
+            <span v-if="s.difference" class="tiny" :class="diffClass(s.difference)">{{ diffText(s.difference) }}</span></span>
           <span>{{ s.available == null ? '؟' : money(s.available) }}</span>
           <span :class="s.ready ? 'text-positive' : 'text-negative'">{{ s.ready ? 'تبيع' : !s.online ? 'غير متصلة' : SHORT[s.reason] || 'لا تبيع' }}</span>
         </div>
@@ -189,6 +191,14 @@ const cards = computed(() => (view.value?.operators || []).map((o) => {
 const pickedSims = computed(() => (picked.value ? picked.value.list : []))
 
 const clock = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+// The SIM ledger's last close: 0 = what was sold explains the reading; an amount = what it does not
+function diffText (d) {
+  if (d.state === 'matched') return 'الفرق: 0 ✓'
+  if (d.state === 'difference' && d.amount != null) return 'الفرق: ' + (d.amount > 0 ? 'نقص ' : 'زاد ') + money(Math.abs(d.amount))
+  if (d.state === 'first') return 'أول قراءة'
+  return d.state === 'unreadable' ? 'الفرق: قراءة غير مقروءة' : 'الفرق: غير محسوم'
+}
+const diffClass = (d) => (d.state === 'matched' || d.state === 'first' ? 'text-positive' : d.state === 'difference' ? 'text-negative text-weight-bold' : 'text-deep-orange-9')
 function ago (t) {
   const min = Math.max(0, Math.floor((Date.now() - Date.parse(t)) / 60000))
   if (min < 1) return 'الآن'

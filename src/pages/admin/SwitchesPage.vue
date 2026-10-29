@@ -31,6 +31,30 @@
       <q-spinner v-if="busy === 'sama'" size="16px" />
       <div class="col-12 small muted">أقل من 500 دج: أرسلي أولًا وسما عند الضرورة. 500 فما فوق: سما أولًا وأرسلي عند الضرورة.</div>
     </div>
+
+    <!-- «المهام الآلية» (owner 2026-10-29, Flexy Core 0076): what the program does by itself, one switch each,
+         what it did last; then everything it did, and every switch change -->
+    <div class="section-title q-mt-md">المهام الآلية · ما يفعله البرنامج وحده</div>
+    <div v-if="autoError" class="card small text-negative">{{ autoError }}</div>
+    <div v-for="t in tasks" :key="t.key" class="card column q-gutter-xs">
+      <div class="row items-center no-wrap">
+        <span class="col text-weight-bold">{{ t.name }}</span>
+        <q-toggle v-if="t.switchable" :model-value="t.on" dense color="positive" :disable="busy === t.key" @update:model-value="(v) => flipTask(t, v)" />
+        <span v-else class="small muted">يعمل دائمًا</span>
+      </div>
+      <div class="small muted">{{ t.what }} · {{ t.every }}</div>
+      <div v-if="t.last" class="small">آخر مرة: {{ when(t.last.at) }} · {{ t.last.target }}<template v-if="t.last.reason"> · {{ REASONS[t.last.reason] || t.last.reason }}</template></div>
+    </div>
+    <q-expansion-item v-if="actions.length" dense class="card q-pa-none" label="آخر ما فعله البرنامج وحده" header-class="text-weight-bold">
+      <div v-for="(a, i) in actions" :key="i" class="row small q-px-md q-py-xs line">
+        <span class="col-4 muted">{{ when(a.at) }}</span><span class="col">{{ TASKS[a.task] || a.task }} · {{ a.target }}<template v-if="a.reason"> · {{ REASONS[a.reason] || a.reason }}</template></span>
+      </div>
+    </q-expansion-item>
+    <q-expansion-item v-if="changes.length" dense class="card q-pa-none" label="تغييرات المفاتيح" header-class="text-weight-bold">
+      <div v-for="(c, i) in changes" :key="i" class="row small q-px-md q-py-xs line">
+        <span class="col-4 muted">{{ when(c.at) }}</span><span class="col">{{ KEYS[c.key] || c.key }}: {{ shown(c.before) }} ← {{ shown(c.after) }}</span>
+      </div>
+    </q-expansion-item>
   </q-page>
 </template>
 
@@ -83,10 +107,43 @@ function flipOoredoo (on) {
 }
 const flipSama = (on) => run('sama', () => flexy.setSamaOffersSwitch(on))
 
-onMounted(() => run('load', () => flexy.ownerSwitch()))
+// «المهام الآلية»
+const tasks = ref([])
+const actions = ref([])
+const changes = ref([])
+const autoError = ref('')
+const TASKS = { 'read:mobilis-sama': 'قراءة رصيد سما', 'read:mobilis-arsselli': 'قراءة رصيد أرسلي', 'read:djezzy-flexy': 'قراءة رصيد جيزي', 'read:ooredoo-flexy': 'قراءة رصيد أوريدو', close_stuck: 'إغلاق عملية عالقة بلا مال' }
+const REASONS = { stale: 'قراءتها قديمة', never_read: 'لم تُقرأ قط', sold_half: 'باعت نصف رصيدها' }
+const KEYS = {
+  'owner.630.send_enabled': 'الإرسال الحقيقي', 'owner.760.send_enabled': 'إرسال جيزي', 'owner.590.send_enabled': 'إرسال أوريدو',
+  'offers.sama_enabled': 'عروض سما', 'balance.sama_auto_read': 'قراءة سما الآلية', 'balance.arsselli_auto_read': 'قراءة أرسلي الآلية',
+  'balance.djezzy_auto_read': 'قراءة جيزي الآلية', 'balance.ooredoo_auto_read': 'قراءة أوريدو الآلية', 'auto.close_stuck': 'إغلاق العالق',
+  'offers.background_discovery': 'الاستكشاف في الخلفية', 'balance.auto_read': 'قراءة أرسلي اليومية'
+}
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+const shown = (v) => (v === true ? 'مفتوح' : v === false ? 'مقفل' : v == null ? '—' : String(v))
+function showAuto (res) {
+  if (res.status === 200 && res.body?.ok) {
+    tasks.value = res.body.tasks || []
+    actions.value = res.body.actions || []
+    changes.value = res.body.settings || []
+    autoError.value = ''
+  } else autoError.value = res.body?.error === 'AUTO_LOG_NOT_READY' ? 'المهام الآلية لم تُفعَّل بعد (migration 0076).' : (res.body?.error || 'تعذّر الاتصال.')
+}
+async function flipTask (t, on) {
+  busy.value = t.key
+  try { showAuto(await flexy.setAutoTask(t.key, on)) } finally { busy.value = null }
+}
+
+onMounted(() => {
+  run('load', () => flexy.ownerSwitch())
+  flexy.ownerAuto().then(showAuto).catch(() => { autoError.value = 'تعذّر الاتصال.' })
+})
 </script>
 
 <style scoped>
 .page { max-width: 760px; margin: 0 auto; }
 .card { background: #fff; border: 1px solid #ECEEF3; border-radius: 12px; padding: 12px; }
+.section-title { font-weight: 800; }
+.line { border-top: 1px solid #ECEEF3; }
 </style>
