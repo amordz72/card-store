@@ -48,9 +48,15 @@
           افتح رقمًا منها في «إرسال فليكسي» لتُقرأ قائمته، أو ارفع نسخة قديمة من الأسفل.
         </div>
         <div v-else class="card">
+          <!-- Edit mode: tick several offers, then one bar changes their audience or activation (owner 2026-10-29) -->
+          <div v-if="editing" class="pg row items-center q-gutter-xs">
+            <q-checkbox :model-value="allPicked" dense size="sm" color="deep-orange" :label="'تحديد الكل (' + pickable.length + ')'" @update:model-value="pickAll" />
+          </div>
           <template v-for="p in pagesOf(approved)" :key="p.key">
             <div class="pg">{{ p.label }}</div>
-            <div v-for="o in p.rows" :key="o.id" class="orow" :class="{ off: !o.active || o.status === 'doubt' }">
+            <div v-for="o in p.rows" :key="o.id" class="orow" :class="{ off: !o.active || o.status === 'doubt', picked: picked.has(o.id) }">
+              <q-checkbox v-if="editing" :model-value="picked.has(o.id)" dense size="sm" color="deep-orange" :disable="!canPick(o)"
+                @update:model-value="(v) => pick(o, v)" />
               <div class="col">
                 <div class="nm"><span class="code">{{ o.code }}</span> · <bdi dir="auto">{{ o.nameNetwork }}</bdi></div>
                 <div class="meta">
@@ -158,6 +164,17 @@
         <span class="small">النسخة {{ v.version }} · {{ clock(v.archived_at) }} · {{ v.count }} عرضًا</span>
         <q-btn dense outline no-caps size="sm" color="purple-7" icon="upload" label="رفع" :disable="acting" @click="raise(v)" />
       </div>
+    </div>
+
+    <!-- The picked offers' bar: audience or activation for all of them, one confirmation -->
+    <div v-if="editing && picked.size" class="bulkbar row items-center no-wrap q-gutter-xs">
+      <span class="text-weight-bold">{{ picked.size }} محدد</span>
+      <q-space />
+      <q-btn dense unelevated no-caps size="sm" color="positive" label="للزبائن" :loading="bulkBusy" @click="applyBulk({ audience: 'all' })" />
+      <q-btn dense outline no-caps size="sm" color="amber-9" label="إدارة فقط" :disable="bulkBusy" @click="applyBulk({ audience: 'admin' })" />
+      <q-btn dense outline no-caps size="sm" color="positive" label="تفعيل" :disable="bulkBusy" @click="applyBulk({ active: true })" />
+      <q-btn dense outline no-caps size="sm" color="grey-8" label="إيقاف" :disable="bulkBusy" @click="applyBulk({ active: false })" />
+      <q-btn flat dense round size="sm" icon="close" aria-label="إلغاء التحديد" @click="picked = new Set()" />
     </div>
 
     <!-- An offer of the display mode: its display text, details, section and temporary hide -->
@@ -333,13 +350,54 @@ async function load () {
 }
 
 const EDITABLE = ['active', 'audience', 'price', 'priceSource', 'nameDisplay', 'details', 'category', 'hidden', 'status', 'viewIndex']
+const fresh = (offer) => Object.fromEntries(EDITABLE.map((k) => [k, offer[k]]))
+
+// «تحديد متعدد» (edit mode of الأصل): a doubtful offer (its code shown twice) cannot be picked, it opens for nobody
+const picked = ref(new Set())
+const bulkBusy = ref(false)
+const canPick = (o) => o.status !== 'doubt' || resolved(o)
+const pickable = computed(() => approved.value.filter(canPick))
+const allPicked = computed(() => pickable.value.length > 0 && pickable.value.every((o) => picked.value.has(o.id)))
+function pick (o, on) { const n = new Set(picked.value); if (on) n.add(o.id); else n.delete(o.id); picked.value = n }
+function pickAll (on) { picked.value = on ? new Set(pickable.value.map((o) => o.id)) : new Set() }
+const BULK_TEXT = { 'audience:all': 'للزبائن (الكل)', 'audience:admin': 'للإدارة فقط', 'active:true': 'مفعّلة', 'active:false': 'موقوفة' }
+function applyBulk (patch) {
+  const ids = [...picked.value]
+  const what = BULK_TEXT[Object.entries(patch).map(([k, v]) => k + ':' + v)[0]]
+  Dialog.create({
+    title: 'تطبيق على ' + ids.length + ' عرضًا',
+    message: 'تجعل ' + ids.length + ' عرضًا ' + what + '؟ العرض بلا سعر أو المشكوك يُتخطّى ويُسمّى.',
+    cancel: 'رجوع',
+    ok: 'نعم'
+  }).onOk(async () => {
+    bulkBusy.value = true
+    try {
+      const r = await flexy.ownerOfferBulk(ids, patch)
+      if (r.status !== 200 || !r.body?.ok) throw new Error(ERRORS[r.body?.error] || r.body?.error || 'FLEXY_CORE')
+      const byId = new Map((r.body.offers || []).map((x) => [x.id, fresh(x)]))
+      rows.value = rows.value.map((x) => (byId.has(x.id) ? { ...x, ...byId.get(x.id) } : x))
+      const skipped = r.body.skipped || []
+      if (skipped.length) {
+        const names = skipped.map((s) => rows.value.find((x) => x.id === s.id)?.nameNetwork || s.id).join('، ')
+        Notify.create({ message: 'تُخطّي ' + skipped.length + ': ' + names + ' (' + (ERRORS[skipped[0].error] || skipped[0].error) + ')', color: 'warning', position: 'top', timeout: 6000 })
+      } else {
+        Notify.create({ message: 'تم على ' + byId.size + ' عرضًا', color: 'positive', position: 'top' })
+      }
+      picked.value = new Set()
+    } catch (e) {
+      Notify.create({ message: e.message, color: 'negative', position: 'top' })
+    } finally {
+      bulkBusy.value = false
+    }
+  })
+}
 async function save (o, patch) {
   busy.value = o.id
   try {
     const r = await flexy.ownerOfferCatalogSet(o.id, patch)
     if (r.status !== 200 || !r.body?.ok) throw new Error(ERRORS[r.body?.error] || r.body?.error || 'FLEXY_CORE')
-    const fresh = Object.fromEntries(EDITABLE.map((k) => [k, r.body.offer[k]]))
-    rows.value = rows.value.map((x) => (x.id === o.id ? { ...x, ...fresh } : x))
+    const f = fresh(r.body.offer)
+    rows.value = rows.value.map((x) => (x.id === o.id ? { ...x, ...f } : x))
     return true
   } catch (e) {
     Notify.create({ message: e.message, color: 'negative', position: 'top' })
@@ -507,7 +565,8 @@ async function endDrag () {
 
 watch(operator, () => { group.value = ''; load() })
 onBeforeUnmount(() => { if (drag.value) { drag.value.moved = false; endDrag() } })
-watch(group, () => { tab.value = approved.value.length || !hasDraft.value ? 'approved' : 'draft' })
+watch(group, () => { tab.value = approved.value.length || !hasDraft.value ? 'approved' : 'draft'; picked.value = new Set() })
+watch(editing, (on) => { if (!on) picked.value = new Set() })
 onMounted(load)
 </script>
 
@@ -524,6 +583,8 @@ onMounted(load)
 .tab.on { color: #C2410C; background: #fff; border-bottom: 3px solid #C2410C; border-radius: 9px 9px 0 0; }
 .pg { padding: 4px 14px; font-size: 11px; color: #6B7280; background: #F8FAFC; border-top: 1px solid #ECEEF3; }
 .pg:first-child { border-top: 0; }
+.orow.picked { background: #FFF7ED; }
+.bulkbar { position: sticky; bottom: 72px; z-index: 5; background: #fff; border: 2px solid #C2410C; border-radius: 12px; padding: 8px 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15); }
 .orow { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 14px; border-top: 1px solid #ECEEF3; }
 .off { opacity: 0.5; }
 .nm { font-weight: 700; }

@@ -56,6 +56,8 @@ export const ownerOffers585 = (phone, retry = false) => owner('585/offers/lookup
 // arrange: display mode, the shown offers in their new order [{id, category}]
 export const ownerOfferCatalog = (operator) => owner('offers/catalog?operator=' + encodeURIComponent(operator), { method: 'GET' })
 export const ownerOfferCatalogSet = (id, patch) => owner('offers/catalog/set', { method: 'POST', body: { id, ...patch } })
+// Several approved offers at once (Flexy Core, «تحديد متعدد»): {ids, audience?, active?}; the ones that cannot open come back in `skipped`
+export const ownerOfferBulk = (ids, patch) => owner('offers/catalog/bulk', { method: 'POST', body: { ids, ...patch } })
 export const ownerOfferArrange = (operator, group, items) => owner('offers/catalog/arrange', { method: 'POST', body: { operator, group, items } })
 // Groups: approved version, «جديدة» with what changed, archived versions; approve / raise {version} / discard
 export const ownerOfferGroups = (operator) => owner('offers/groups?operator=' + encodeURIComponent(operator), { method: 'GET' })
