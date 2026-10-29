@@ -3,7 +3,7 @@
     <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
-      :send-offer="sendOffer" :probe-offer="probeOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow"
+      :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
       <div v-if="newReplies.length" class="card column q-gutter-xs">
@@ -346,6 +346,12 @@ async function lookupOffers (p, { retry = false } = {}) {
   return res.body
 }
 // «اكشف» (Flexy Core 0065): Ooredoo only; {status: 'probing'} while it runs, then the price and the offers holding the code
+// «صيغ» (Flexy Core 0067): confirm this variant, a change in it, or a new variant of the label
+async function decideOffer (p, decision, group = null) {
+  const r = await flexy.ownerOfferDecide585(p, decision, group)
+  if (r.status !== 200) throw new Error(errorText(r.body))
+  return r.body
+}
 async function probeOffer (p, code, again = false) {
   const r = await flexy.ownerOfferProbe585(p, code, again)
   if (r.status !== 200) throw new Error(errorText(r.body))

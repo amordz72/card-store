@@ -66,6 +66,8 @@ export const ownerOfferGroupAction = (operator, group, action, value = null) => 
 export const ownerOfferProbe585 = (phone, code, again = false) => owner('585/offers/probe', { method: 'POST', body: { phone, code, ...(again ? { again: true } : {}) } })
 // «اعتماد الرمز»: the probe named this offer's price for its code shown twice; it opens for the owner only
 export const ownerOfferProbeApprove = (id) => owner('offers/catalog/probe-approve', { method: 'POST', body: { id } })
+// «صيغ» (Flexy Core 0067): the owner's word on a number whose menu matched no variant: confirm | change | new
+export const ownerOfferDecide585 = (phone, decision, group = null) => owner('585/offers/decide', { method: 'POST', body: { phone, decision, ...(group ? { group } : {}) } })
 export const ownerOfferSend585 = (phone, offer, idempotencyKey, extra = {}) => owner('585/offer/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey, ...extra } })
 export const ownerOfferStatus585 = (idempotencyKey) => owner('585/offer/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Ooredoo ordinary credit (*590*, Flexy Core 0050, owner 2026-10-27): its own path, its own switch
