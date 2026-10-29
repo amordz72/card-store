@@ -114,7 +114,8 @@
     <LockScreen />
 
     <q-page-container>
-      <router-view />
+      <!-- «إرسال فليكسي» and its phone mode are one page: switching remounts it in the other mode -->
+      <router-view :key="$route.path === '/flexy/phone' ? 'flexy-phone' : undefined" />
       <!-- «↑ للأعلى» on every long page, above the bottom bar -->
       <q-page-scroller position="bottom-right" :scroll-offset="400" :offset="[16, 16]">
         <q-btn fab-mini unelevated color="primary" icon="keyboard_arrow_up" aria-label="للأعلى" />
@@ -194,7 +195,8 @@ const MENU = [
     ]
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
-  { label: 'Flexy', admin: true, items: [{ to: '/flexy/monitor', label: 'المراقبة', icon: 'monitor_heart' }, { to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/phone', label: 'فليكسي الهاتف', icon: 'smartphone' }, { to: '/flexy/shops', label: 'فليكسي المحلات', icon: 'storefront' }, { to: '/flexy/offers', label: 'العروض', icon: 'local_offer' }, { to: '/flexy/devices', label: 'المحطات والشرائح', icon: 'router' }, { href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy', icon: 'menu_book' }, { to: '/flexy', label: 'اختبار Flexy', icon: 'bolt' }] },
+  // Three entries (owner 2026-10-29): sending, watching, and the rare admin pages behind tabs
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/monitor', label: 'المراقبة', icon: 'monitor_heart' }, { to: '/flexy/shops', label: 'الإدارة', icon: 'admin_panel_settings' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()

@@ -1,5 +1,6 @@
 <template>
   <q-page class="page">
+    <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
     <div class="card small">
       اختبار الاتصال بنواة Flexy. <b>قراءة فقط</b>: لا يُرسل أي رصيد ولا أي USSD، والرقم لا يُحفظ.
     </div>
@@ -41,6 +42,8 @@
 </template>
 
 <script setup>
+import SectionTabs from 'src/components/SectionTabs.vue'
+import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import { computed, ref } from 'vue'
 import * as flexy from 'src/api/flexy'
 import * as admin from 'src/api/admin'

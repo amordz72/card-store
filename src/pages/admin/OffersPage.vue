@@ -5,6 +5,7 @@
        older versions as rows at the bottom («رفع»). المشاهدة: the opened offers as the send page shows them, in the
        owner's order (drag ⠿), with their display text, details, section and a temporary hide; filter الكل / زبون. -->
   <q-page class="q-pa-md column q-gutter-sm page">
+    <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
     <div class="row items-center q-gutter-xs">
       <q-btn v-for="o in OPERATORS" :key="o.key" dense no-caps rounded :unelevated="operator === o.key" :outline="operator !== o.key"
         :color="operator === o.key ? 'primary' : 'grey-7'" :label="o.label" @click="operator = o.key" />
@@ -209,6 +210,8 @@
 </template>
 
 <script setup>
+import SectionTabs from 'src/components/SectionTabs.vue'
+import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'

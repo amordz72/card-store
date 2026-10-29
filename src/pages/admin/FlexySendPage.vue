@@ -1,5 +1,12 @@
 <template>
   <q-page class="page">
+    <!-- «من هاتفي» (owner 2026-10-29): one send page; this button switches to the admin phone and back.
+         The owner's page only: shops never see it. The last choice is kept on this device. -->
+    <div class="card row items-center q-gutter-sm q-mb-sm" :class="phoneMode ? 'via-phone' : ''">
+      <div class="col small" :class="phoneMode ? 'text-weight-bold text-primary' : 'muted'">الإرسال الآن: {{ phoneMode ? 'من هاتفك' : 'من الكمبيوترات' }}</div>
+      <q-btn round unelevated :color="phoneMode ? 'primary' : 'grey-4'" :text-color="phoneMode ? 'white' : 'grey-8'" icon="smartphone"
+        :aria-label="phoneMode ? 'إيقاف الإرسال من الهاتف' : 'الإرسال من هاتفي'" :aria-pressed="phoneMode" @click="switchVia" />
+    </div>
     <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
@@ -78,7 +85,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
@@ -309,6 +316,16 @@ const phoneMode = useRoute().meta.phone === true
 // modem in silence. Now «from my phone» is always sent as is; the core refuses when the phone is offline
 // (665_PHONE_OFFLINE) and nothing is sent. Never a fallback.
 const via = () => (phoneMode ? 'phone' : null)
+// The phone button: /flexy/send ⇄ /flexy/phone (the same page, remounted in the other mode), remembered here
+const router = useRouter()
+const VIA_KEY = 'flexy.send.via'
+function remember (v) { try { localStorage.setItem(VIA_KEY, v) } catch { /* private window: not kept */ } }
+function switchVia () {
+  remember(phoneMode ? 'computers' : 'phone')
+  router.replace(phoneMode ? '/flexy/send' : '/flexy/phone')
+}
+function recall () { try { return localStorage.getItem(VIA_KEY) } catch { return null } }
+if (!phoneMode && recall() === 'phone') router.replace('/flexy/phone')
 async function loadPhone () {
   const res = await flexy.ownerPhone()
   const p = res.status === 200 ? (res.body.phones || [])[0] : null
@@ -511,4 +528,5 @@ onUnmounted(() => { clearTimeout(timer); clearInterval(phoneTimer) })
 <style scoped>
 .new-reply { border-top: 1px solid #ECEEF3; padding-top: 6px; }
 .reply { white-space: pre-wrap; direction: ltr; text-align: left; color: #4B5563; }
+.via-phone { border: 2px solid var(--q-primary); }
 </style>
