@@ -7,7 +7,7 @@ export default defineConfig(() => ({
   extras: ['material-icons'],
 
   build: {
-    target: { browser: ['es2022', 'firefox115', 'chrome115', 'safari15'], node: 'node20' },
+    target: { browser: ['es2020', 'firefox78', 'chrome87', 'safari14'], node: 'node20' }, // old Windows browsers too (owner 2026-10-30: Edge 92)
     // GitHub Pages cannot rewrite unknown paths to index.html, so use hash routing
     vueRouterMode: 'hash',
     // GitHub Pages serves the site under /card-store/; Cloudflare Pages serves it at the root
