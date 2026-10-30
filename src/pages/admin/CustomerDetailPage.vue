@@ -62,6 +62,7 @@
           <q-input v-model="newPw" class="col" dense outlined label="كلمة سر جديدة (8 أحرف على الأقل)" input-class="ltr text-right" />
           <q-btn outline color="primary" label="تعيين" :disable="newPw.length < 8" @click="setPw" />
         </div>
+        <q-btn outline color="primary" icon="content_copy" label="كلمة سر جديدة وانسخ بيانات الدخول" @click="newPwCopy" />
         <q-btn flat color="negative" icon="devices" label="إخراجه من كل الأجهزة" @click="revoke" />
         <q-btn flat color="warning" icon="lock_open" label="إيقاف قفل البرنامج (إن نسي رمزه)" @click="lockOff" />
       </div>
@@ -93,6 +94,7 @@ import { newRequestId } from 'src/api/rpc'
 import { money, debtView, KINDS } from 'src/api/format'
 import EntryRow from 'components/EntryRow.vue'
 import LoadMoreBar from 'components/LoadMoreBar.vue'
+import { easyPassword, showLoginCopy } from 'src/api/loginCopy'
 
 const props = defineProps({ id: { type: String, required: true } })
 const cid = computed(() => Number(props.id))
@@ -216,6 +218,13 @@ async function setPw () {
   const ok = await run(() => api.setPassword(cid.value, newPw.value).then(() => true),
     { success: 'تم تعيين كلمة السر وأُخرج الزبون من كل الأجهزة.' })
   if (ok) newPw.value = ''
+}
+
+// «انسخ بيانات الدخول» (owner 2026-10-30): the old password cannot be read (hashed), so a new one, then the message
+async function newPwCopy () {
+  const pw = easyPassword()
+  const ok = await run(() => api.setPassword(cid.value, pw).then(() => true))
+  if (ok) showLoginCopy(c.value.name, c.value.phone, pw)
 }
 
 function lockOff () {

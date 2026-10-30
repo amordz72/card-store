@@ -13,9 +13,18 @@
         <div class="grid-2">
           <div v-for="p in b.items" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !p.available }">
             <CardImage :item="p" />
-            <span class="price-badge self-start">{{ money(p.base_price) }}</span>
-            <q-separator />
-            <div class="text-weight-medium">{{ p.name }}</div>
+            <!-- A game card (owner 2026-10-30): its amount big, the price under it, never confused -->
+            <template v-if="p.category === 'game' && gameAmount(p.name)">
+              <span class="price-badge game-badge self-start">💎 {{ gameAmount(p.name) }}</span>
+              <q-separator />
+              <div class="text-weight-medium">السعر: <b>{{ money(p.base_price) }}</b></div>
+              <div class="small muted">{{ p.name }}</div>
+            </template>
+            <template v-else>
+              <span class="price-badge self-start">{{ money(p.base_price) }}</span>
+              <q-separator />
+              <div class="text-weight-medium">{{ p.name }}</div>
+            </template>
             <div class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
             <q-btn unelevated :color="p.available ? 'primary' : 'grey-4'" :text-color="p.available ? 'white' : 'grey-8'"
               :label="p.available ? 'شراء' : 'نفد'" :disable="!p.available" @click="openBuy(p)" />
@@ -64,7 +73,7 @@ import { useRun } from 'src/composables/useRun'
 import { useBuyer } from 'src/composables/useBuyer'
 import { copyText } from 'src/composables/useCopy'
 import { newRequestId } from 'src/api/rpc'
-import { money, CATEGORIES } from 'src/api/format'
+import { money, gameAmount, CATEGORIES } from 'src/api/format'
 import CodesDialog from 'components/CodesDialog.vue'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import CardImage from 'components/CardImage.vue'
@@ -180,4 +189,5 @@ onMounted(load)
 .cat-title { font-size: 17px; font-weight: 700; margin-top: 8px; }
 .brand-title { font-size: 13px; font-weight: 600; color: #5B6170; margin-top: 2px; }
 .price-badge { background: #111827; color: #fff; font-size: 15px; font-weight: 700; padding: 2px 12px; border-radius: 999px; }
+.game-badge { background: #6D28D9; }
 </style>

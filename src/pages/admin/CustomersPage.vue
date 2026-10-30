@@ -7,7 +7,10 @@
         <q-input v-model="form.name" dense outlined label="الاسم" />
         <q-input v-model="form.phone" dense outlined label="رقم الهاتف" inputmode="tel" placeholder="05xxxxxxxx" input-class="ltr text-right" />
       </div>
-      <q-input v-model="form.password" dense outlined label="كلمة السر الأولى (8 أحرف على الأقل)" input-class="ltr text-right" />
+      <q-input v-model="form.password" dense outlined label="كلمة السر الأولى (8 أحرف على الأقل)" input-class="ltr text-right">
+        <template #append><q-btn flat round dense icon="casino" aria-label="كلمة سر جديدة" @click="form.password = easyPassword()" /></template>
+      </q-input>
+      <div class="help small muted">بعد الإضافة تظهر لك رسالة جاهزة (الرابط والهاتف وكلمة السر) لتنسخها له في الواتساب.</div>
       <q-btn type="submit" unelevated color="primary" label="إضافة الزبون" :loading="busy"
         :disable="!form.name.trim() || !form.phone || form.password.length < 8" />
     </q-form>
@@ -35,13 +38,15 @@ import { useRouter } from 'vue-router'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
 import { money, debtView } from 'src/api/format'
+import { easyPassword, showLoginCopy } from 'src/api/loginCopy'
 
 const router = useRouter()
 const { busy, run } = useRun()
 const list = ref([])
 const loaded = ref(false)
 const query = ref('')
-const form = ref({ name: '', phone: '', password: '' })
+const blankForm = () => ({ name: '', phone: '', password: easyPassword() })
+const form = ref(blankForm())
 
 const shown = computed(() => {
   const q = (query.value || '').trim()
@@ -58,8 +63,10 @@ async function add () {
   const id = await run(() => api.createCustomer(form.value.name, form.value.phone, form.value.password),
     { success: 'أُضيف الزبون. رصيده ودينه وحد دينه 0، ونسبه = النسب الافتراضية.' })
   if (!id) return
-  form.value = { name: '', phone: '', password: '' }
+  const { name, phone, password } = form.value
+  form.value = blankForm()
   router.push('/customers/' + id)
+  showLoginCopy(name.trim(), phone.trim(), password)
 }
 
 onMounted(load)
