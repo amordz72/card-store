@@ -41,21 +41,28 @@
       <q-btn v-if="result.ok && result.rows?.length" flat dense no-caps icon="content_copy" label="نسخ" class="self-start" @click="copy" />
     </div>
 
-    <!-- The database load: the count since it started, calls per minute, disk writes -->
+    <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press -->
     <div class="card column q-gutter-xs">
       <div class="row items-center">
         <div class="col text-weight-bold">ضغط القاعدة</div>
         <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy === 'load'" @click="loadDb" />
       </div>
-      <div v-if="load" class="small muted">منذ {{ when(load.since) }} ({{ duration(load.minutes) }})</div>
-      <div v-for="r in load?.rows || []" :key="r.what" class="line row items-center no-wrap q-gutter-sm">
-        <div class="col">{{ nameOf(r.what) }}<div class="small muted ltr ellipsis">{{ r.what }}</div></div>
-        <div class="small text-right" style="min-width:76px"><b>{{ r.per_minute }}</b>/دقيقة</div>
-        <div class="small text-right muted" style="min-width:64px">{{ r.ms_each }} ms</div>
-        <div class="small text-right" style="min-width:70px" :class="r.disk_writes > 10000 ? 'text-deep-orange' : 'muted'">✎ {{ r.disk_writes }}</div>
-      </div>
-      <q-btn outline no-caps dense color="primary" class="self-start" label="ابدأ العدّ من الآن" :loading="busy === 'reset'" @click="reset" />
-      <div class="small muted">لتقيس ساعة بعينها: اضغط، ثم ارجع بعد ساعة. لا يمسّ أي بيانات.</div>
+      <div v-if="!hours?.last_at" class="small muted">البرنامج يأخذ صورة كل ساعة: تظهر الأرقام بعد ساعتين من تطبيق 0085.</div>
+      <template v-else>
+        <div class="small muted">آخر قياس {{ when(hours.last_at) }} · يقيس البرنامج وحده كل ساعة</div>
+        <div class="text-weight-medium q-mt-xs">آخر ساعة</div>
+        <div v-for="r in hours.last_hour" :key="r.what" class="line row items-center no-wrap q-gutter-sm">
+          <div class="col">{{ nameOf(r.what) }}</div>
+          <div class="small text-right" style="min-width:76px"><b>{{ r.per_minute }}</b>/دقيقة</div>
+          <div class="small text-right" style="min-width:70px" :class="r.writes > 1000 ? 'text-deep-orange' : 'muted'">✎ {{ r.writes }}</div>
+        </div>
+        <div class="text-weight-medium q-mt-sm">ساعة بساعة (24 ساعة)</div>
+        <div v-for="h in hours.hours" :key="h.at" class="row items-center no-wrap q-gutter-sm small">
+          <div style="min-width:44px" class="muted">{{ hourOf(h.at) }}</div>
+          <div class="col"><div class="bar" :style="{ width: barWidth(h.calls) }" /></div>
+          <div style="min-width:70px" class="text-right">{{ h.per_minute }}/د</div>
+        </div>
+      </template>
     </div>
 
     <div class="card column q-gutter-xs">
@@ -99,7 +106,7 @@ const text = ref('')
 const write = ref(false)
 const ready = ref([])
 const result = ref(null)
-const load = ref(null)
+const hours = ref(null)
 const sizes = ref([])
 const log = ref([])
 const busy = ref('')
@@ -121,11 +128,11 @@ async function call (key, fn) {
 }
 async function loadLog () {
   const b = await call('', () => flexy.ownerSql())
-  if (b?.ok) { ready.value = b.ready.filter((r) => r.key !== 'db_load' && r.key !== 'db_sizes'); log.value = b.log || [] }
+  if (b?.ok) { ready.value = b.ready.filter((r) => r.key !== 'db_hours' && r.key !== 'db_sizes'); log.value = b.log || [] }
 }
 async function loadDb () {
-  const a = await call('load', () => flexy.runReady('db_load'))
-  if (a?.ok) load.value = a.rows?.[0]?.load || null
+  const a = await call('load', () => flexy.runReady('db_hours'))
+  if (a?.ok) hours.value = a.rows?.[0]?.hours || null
   const b = await call('load', () => flexy.runReady('db_sizes'))
   if (b?.ok) sizes.value = b.rows?.[0]?.sizes || []
 }
@@ -141,13 +148,10 @@ async function runReady (r) {
   result.value = await call(r.key, () => flexy.runReady(r.key))
   loadLog()
 }
-function reset () {
-  Dialog.create({ title: 'ابدأ العدّ من الآن', message: 'تُصفَّر أرقام ضغط القاعدة لتقيس من الآن. لا تُمسّ أي بيانات.', cancel: 'لا', ok: 'نعم' })
-    .onOk(async () => { await call('reset', () => flexy.resetDbLoad()); loadDb() })
-}
 const cell = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v))
 const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '—')
-const duration = (m) => (m < 60 ? m + ' دقيقة' : m < 2880 ? Math.round(m / 60) + ' ساعة' : Math.round(m / 1440) + ' يوم')
+const hourOf = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
+const barWidth = (n) => Math.max(2, Math.round((n / Math.max(1, ...(hours.value?.hours || []).map((h) => h.calls))) * 100)) + '%'
 function copy () {
   const r = result.value
   copyToClipboard([r.columns.join('\t'), ...r.rows.map((row) => r.columns.map((c) => cell(row[c])).join('\t'))].join('\n'))
@@ -156,6 +160,7 @@ onMounted(() => { loadLog(); loadDb() })
 </script>
 
 <style scoped>
+.bar { height: 8px; border-radius: 4px; background: var(--q-primary); }
 .line { border-top: 1px solid rgba(0, 0, 0, 0.06); padding: 6px 4px; }
 .ltr { direction: ltr; text-align: left; }
 .sql :deep(textarea) { font-family: monospace; font-size: 13px; min-height: 120px; }
