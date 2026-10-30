@@ -176,7 +176,7 @@
           <q-select v-model="productForm.brandId" :options="brandOptions" emit-value map-options dense outlined label="العلامة" />
           <q-input v-model="productForm.name" dense outlined label="الاسم (مثال: Mobilis 1000)" />
           <!-- Three linked fields: type any two, the third is computed (all % are of the selling price) -->
-          <div class="small muted">اكتب أي خانتين وتُحسب الثالثة. مثال: شراء 910 وربح 9% ← سعر البيع 1000.</div>
+          <div class="help small muted">اكتب أي خانتين وتُحسب الثالثة. مثال: شراء 910 وربح 9% ← سعر البيع 1000.</div>
           <div class="grid-3">
             <q-input :model-value="productForm.basePrice" dense outlined type="number" stack-label label="سعر البيع" suffix="دج"
               @update:model-value="(v) => editPrice('basePrice', v)" />
@@ -188,7 +188,7 @@
           <div v-if="productForm.basePrice > 0 && productForm.usualCost > 0" class="small" style="color:#C2410C">
             الربح الكلي {{ money(productForm.basePrice - productForm.usualCost) }} = {{ productForm.margin }}% من سعر البيع (يُقسم بينك وبين الزبون في «الأسعار»)
           </div>
-          <div class="small muted">سعر الشراء اختياري: يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح قبل وصولها.</div>
+          <div class="help small muted">سعر الشراء اختياري: يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح قبل وصولها.</div>
           <q-input v-model.number="productForm.sort" dense outlined type="number" label="الترتيب (اختياري)" />
           <ImageField v-if="productForm.id" :src="productForm.image" kind="product" :id="productForm.id" label="صورة البطاقة (اختيارية)"
             @saved="(url) => { productForm.image = url; load() }" />

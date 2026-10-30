@@ -1,6 +1,7 @@
 import { defineBoot } from '#q-app/wrappers'
 import { perfNote } from 'src/api/perfLog'
 import { weakFrom, weakHomeOn, isWeak } from 'src/api/weakHome'
+import { applyHelp } from 'src/api/help'
 
 // The start of the program (owner 2026-10-30):
 //  * the «جاري التحميل» screen of index.html goes when the first page shows; how long it took is kept («سجل البطء»);
@@ -21,6 +22,7 @@ function reloadOnce (why) {
 const isChunkError = (e) => /dynamically imported module|Importing a module script failed|Loading chunk|Failed to fetch dynamically/i.test(String(e?.message || e))
 
 export default defineBoot(({ router }) => {
+  applyHelp()
   window.addEventListener('vite:preloadError', (e) => { e.preventDefault(); reloadOnce('vite:preloadError ' + (e.payload?.message || '')) })
   router.onError((err) => { if (isChunkError(err)) reloadOnce(String(err?.message || err)) })
 

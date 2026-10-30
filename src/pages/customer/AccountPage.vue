@@ -32,6 +32,7 @@
     <!-- On this device (weakHome.js): weak internet → the home page first -->
     <div class="card">
       <q-toggle v-model="weakHome" label="عند ضعف الإنترنت ابدأ من الرئيسية (على هذا الجهاز)" @update:model-value="setWeakHome" />
+      <q-toggle v-if="session.isAdmin" :model-value="showHelp" label="أظهر الشروح تحت الأزرار (كيف يعمل البرنامج)" @update:model-value="setShowHelp" />
     </div>
   </q-page>
 </template>
@@ -47,6 +48,7 @@ import { useSessionStore } from 'stores/session'
 import { useAdminStore } from 'stores/admin'
 import LockSettings from 'components/LockSettings.vue'
 import { weakHomeOn, setWeakHome } from 'src/api/weakHome'
+import { showHelp, setShowHelp } from 'src/api/help'
 import { useLockStore } from 'stores/lock'
 const weakHome = ref(weakHomeOn())
 

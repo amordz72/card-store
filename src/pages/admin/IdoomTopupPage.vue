@@ -5,7 +5,7 @@
     </div>
 
     <div class="card column q-gutter-sm">
-      <div class="idoom-line text-center" dir="ltr">{{ pretty || '0XX XXX XXX' }}</div>
+      <div v-if="pretty" class="idoom-line text-center" dir="ltr">{{ pretty }}</div>
       <div v-if="lineOk" class="text-center"><q-badge :color="is4g ? 'indigo' : 'purple'">{{ is4g ? '4G LTE' : 'ADSL / FTTH' }}</q-badge></div>
       <div v-if="check && check.status !== 'looked_up'" class="text-center">
         <template v-if="check.status === 'failed'">
@@ -91,7 +91,7 @@
         <q-btn outline color="primary" icon="share" label="مشاركة رابط الموقع" @click="share(OFFICIAL_SITE, 'متجر البطاقات')" />
         <template v-if="phones.length">
           <div class="text-weight-bold q-mt-sm">الهواتف المربوطة</div>
-          <div class="small muted">المهمة يأخذها أول هاتف مفعّل يستقبل. عطّل الهاتف الذي لا تريده أن ينفذ.</div>
+          <div class="help small muted">المهمة يأخذها أول هاتف مفعّل يستقبل. عطّل الهاتف الذي لا تريده أن ينفذ.</div>
           <div v-for="p in phones" :key="p.id" class="row items-center no-wrap q-gutter-sm">
             <div class="col">
               <div :class="{ muted: !p.active }">{{ p.name }}</div>

@@ -82,7 +82,7 @@
             </div>
           </template>
         </div>
-        <div v-if="editing && approved.length" class="small muted q-px-sm">لا يتغير هنا اسم ولا ترتيب: مكانهما في المشاهدة.</div>
+        <div v-if="editing && approved.length" class="help small muted q-px-sm">لا يتغير هنا اسم ولا ترتيب: مكانهما في المشاهدة.</div>
         <!-- «صيغ»: how many numbers are decided on this variant; whether an exact menu match sells by itself -->
         <div v-if="approved.length" class="card q-pa-sm column q-gutter-xs">
           <div class="small muted">{{ info.numbers ? info.numbers + ' رقمًا على هذه الصيغة' : 'لا رقم محسوم على هذه الصيغة بعد' }}<span v-if="(info.label || group) !== group"> · الاسم: {{ info.label }}</span></div>
@@ -94,7 +94,7 @@
       <!-- جديدة: the network's new shape (or a raised version) beside what changed; the approved one goes on selling -->
       <template v-else>
         <div v-if="raised" class="small text-purple-8 q-px-sm">النسخة {{ raised }} مرفوعة من الأرشيف كما كانت. لا يتغير شيء حتى تضغط «اعتماد».</div>
-        <div v-else-if="approved.length" class="small muted q-px-sm">هذا ما تُظهره الشبكة الآن. المعتمدة تبقى تُباع حتى تعتمد هذه.</div>
+        <div v-else-if="approved.length" class="help small muted q-px-sm">هذا ما تُظهره الشبكة الآن. المعتمدة تبقى تُباع حتى تعتمد هذه.</div>
         <div v-else class="small muted q-px-sm">{{ variantNo ? 'صيغة جديدة حُفظت وحدها' : 'مجموعة جديدة' }}: {{ draft.length }} عرضًا من الشبكة. تراها أنت (الإدارة) وحدك حتى تفتحها.</div>
         <div v-if="approved.length && !raised" class="card chg">
           <div class="chg-h">ماذا تغيّر عن المعتمدة</div>

@@ -61,7 +61,7 @@
     </q-tabs>
 
     <template v-if="tab === 'balances'">
-      <div class="small muted q-mt-sm">«تبيع الآن» = متصلة الآن، معتمدة، الـPIN محفوظ، ترد على الشبكة، ورصيدها 100 دج فما فوق. المتصلة التي لا تبيع يظهر سببها في عمود الحالة.</div>
+      <div class="help small muted q-mt-sm">«تبيع الآن» = متصلة الآن، معتمدة، الـPIN محفوظ، ترد على الشبكة، ورصيدها 100 دج فما فوق. المتصلة التي لا تبيع يظهر سببها في عمود الحالة.</div>
       <!-- Owner 2026-10-29: never one «غير متاح» mixing connected and disconnected SIMs; the online/offline
            filter applies to these cards and their window too (built here from the SIM rows). -->
       <div class="ops q-mt-sm">
@@ -127,7 +127,7 @@
         <q-card-section class="column q-gutter-xs">
           <div class="text-weight-bold">{{ picked.name }} · {{ picked.which === 'off' ? 'غير متصلة' : picked.which === 'selling' ? 'متاح الآن' : 'متصلة لا تبيع' }}</div>
           <!-- Owner 2026-10-29: the amount is money still inside a SIM that cannot send now, not money available -->
-          <div v-if="picked.which === 'selling'" class="small muted">الشرائح التي تبيع الآن ورصيد كل واحدة: آخر قراءة ناقص ما باعه البرنامج منها بعدها.</div>
+          <div v-if="picked.which === 'selling'" class="help small muted">الشرائح التي تبيع الآن ورصيد كل واحدة: آخر قراءة ناقص ما باعه البرنامج منها بعدها.</div>
           <div v-else class="small muted">{{ picked.which === 'off' ? 'رصيد في شرائح لا يراها الكمبيوتر الآن (منزوعة، أو المودم أو الكمبيوتر مطفأ).' : 'رصيد في شرائح متصلة لكنها لا تبيع، والسبب تحت كل واحدة.' }} لا يدخل في «متاح الآن».</div>
         </q-card-section>
         <q-card-section class="column q-gutter-sm q-pt-none">

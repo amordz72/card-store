@@ -48,7 +48,7 @@
       </div>
       <!-- Never a spinner forever (owner 2026-10-30): 15 s, then «أعد المحاولة» -->
       <div v-if="loadState === 'failed'" class="small text-negative">لم تصل الأرقام · <a href="#" @click.prevent="loadDb">أعد المحاولة</a></div>
-      <div v-else-if="loadState !== 'busy' && !hours?.last_at" class="small muted">البرنامج يأخذ صورة كل ساعة: تظهر الأرقام بعد ساعتين من تطبيق 0085.</div>
+      <div v-else-if="loadState !== 'busy' && !hours?.last_at" class="help small muted">البرنامج يأخذ صورة كل ساعة: تظهر الأرقام بعد ساعتين من تطبيق 0085.</div>
       <template v-else>
         <div class="tiles">
           <div v-for="t in tiles" :key="t.label" class="tile" :class="t.cls">

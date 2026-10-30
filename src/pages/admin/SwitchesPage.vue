@@ -8,7 +8,7 @@
       <q-toggle :model-value="switchOn" :disable="switchOn === null || busy === 'main' || forcedOff" color="positive"
         :label="switchOn ? 'الإرسال الحقيقي مفتوح' : 'الإرسال الحقيقي مقفل'" @update:model-value="flip" />
       <q-spinner v-if="busy === 'main'" size="16px" />
-      <div class="col-12 small muted">كل «إرسال» يُخرج رصيدًا حقيقيًا من الشريحة. مقفل = لا يُرسل شيء.</div>
+      <div class="help col-12 small muted">كل «إرسال» يُخرج رصيدًا حقيقيًا من الشريحة. مقفل = لا يُرسل شيء.</div>
     </div>
     <!-- Djezzy (*760*, owner 2026-10-27): its own switch in Flexy Core -->
     <div class="card row items-center q-gutter-sm">
@@ -29,7 +29,7 @@
       <q-toggle :model-value="samaOn" :disable="samaOn === null || busy === 'sama'" color="primary"
         :label="samaOn ? 'عروض سما مفعّلة' : 'عروض سما ملغاة: العروض من أرسلي فقط'" @update:model-value="flipSama" />
       <q-spinner v-if="busy === 'sama'" size="16px" />
-      <div class="col-12 small muted">أقل من 500 دج: أرسلي أولًا وسما عند الضرورة. 500 فما فوق: سما أولًا وأرسلي عند الضرورة.</div>
+      <div class="help col-12 small muted">أقل من 500 دج: أرسلي أولًا وسما عند الضرورة. 500 فما فوق: سما أولًا وأرسلي عند الضرورة.</div>
     </div>
 
     <!-- «المهام الآلية» (owner 2026-10-29, Flexy Core 0076): what the program does by itself, one switch each,
@@ -48,7 +48,7 @@
     <!-- The alerts' numbers (Flexy Core 0077): the owner changes them; 0 turns that alert off -->
     <div v-if="limits.length" class="card column q-gutter-sm">
       <div class="text-weight-bold">الأرقام</div>
-      <div class="small muted">التنبيهات: 0 = مطفأ. المدد (الساعات والدقائق): 0 = الرقم الافتراضي.</div>
+      <div class="help small muted">التنبيهات: 0 = مطفأ. المدد (الساعات والدقائق): 0 = الرقم الافتراضي.</div>
       <div v-for="l in limits" :key="l.key" class="row items-center no-wrap q-gutter-sm">
         <span class="col small">{{ l.name }}</span>
         <q-input :model-value="l.value" dense outlined type="number" inputmode="numeric" style="width:96px" :min="0" :max="l.max"
