@@ -66,7 +66,7 @@
           :options="[{ label: `جاهزة (${simRows.ready.length})`, value: 'ready' }, { label: `كمبيوترها مطفأ (${simRows.station_off.length})`, value: 'station_off' }, { label: `تحتاج تدخلًا (${simRows.needs_action.length})`, value: 'needs_action' }, ...(missingSims.length ? [{ label: `غائبة (${missingSims.filter((x) => !x.retired).length})`, value: 'missing' }] : [])]" />
       </div>
       <!-- Owner 2026-10-30: «المراقبة» named a SIM this page did not show. An approved SIM no modem holds now: where it was
-           last, and «أخرجها من الخدمة» when it was taken out on purpose (it comes back by itself when seen again). -->
+           last, and «ألغِ تتبّعها» (owner's word: «إخراج من الخدمة» is something else) when it was taken out on purpose (it comes back by itself when seen again). -->
       <div v-if="simTab === 'missing'" class="column">
         <div v-for="x in missingSims" :key="x.sim_uuid" class="missing-row" :class="{ focus: focusSim === x.code, retired: x.retired }">
           <div class="row items-center no-wrap q-gutter-sm">
@@ -74,13 +74,13 @@
             <span class="small">{{ x.balance == null ? '—' : money(x.balance) }}</span>
           </div>
           <div class="small" :class="x.retired ? 'muted' : 'text-deep-orange'">
-            {{ x.retired ? 'خارج الخدمة' : 'غائبة' }}{{ x.last_seen_at ? ' منذ ' + since(x.last_seen_at) : '' }}
+            {{ x.retired ? 'تتبّعها ملغى' : 'غائبة' }}{{ x.last_seen_at ? ' منذ ' + since(x.last_seen_at) : '' }}
             · آخر مكان: {{ x.station_code || '—' }}{{ x.usb != null ? ' · USB ' + x.usb : '' }}{{ stationOffText(x) }}
           </div>
           <q-btn dense flat no-caps size="sm" :color="x.retired ? 'primary' : 'grey-8'" class="self-start" :loading="retiring === x.sim_uuid"
-            :label="x.retired ? 'أرجعها إلى الخدمة' : 'أخرجها من الخدمة (نزعتها عمدًا)'" @click="retire(x, !x.retired)" />
+            :label="x.retired ? 'أرجع تتبّعها' : 'ألغِ تتبّعها على ' + (x.station_code || 'هذا الكمبيوتر')" @click="retire(x, !x.retired)" />
         </div>
-        <div class="small muted q-pa-sm">«خارج الخدمة»: لا تنبيه عنها ولا يُحسب رصيدها، وتعود وحدها إذا ظهرت في أي كمبيوتر.</div>
+        <div class="small muted q-pa-sm">«ألغِ تتبّعها»: تُخفى من التنبيهات ولا يُحسب رصيدها، وتعود وحدها ويُصفَّر هذا إذا ظهرت في أي كمبيوتر (أو رجع كمبيوترها).</div>
       </div>
       <div v-if="simTab !== 'missing'" class="table-wrap">
         <table class="sims">
@@ -603,7 +603,7 @@ async function retire (x, on) {
   try {
     const res = await flexy.ownerSimRetire(x.sim_uuid, on)
     if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error === 'MIGRATION_0113_PENDING' ? 'طبّق 0113 من «ينتظر تطبيقك» أولًا.' : (res.body?.error || 'FLEXY_CORE'))
-    Notify.create({ type: 'positive', message: on ? `${x.code} خارج الخدمة: لا تنبيه عنها حتى تظهر.` : `${x.code} رجعت إلى الخدمة.` })
+    Notify.create({ type: 'positive', message: on ? `أُلغي تتبّع ${x.code}: لا تنبيه عنها حتى تظهر.` : `رجع تتبّع ${x.code}.` })
     await load()
   } catch (e) {
     Notify.create({ type: 'negative', message: e.message })
