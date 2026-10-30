@@ -31,14 +31,15 @@
     <div v-show="tab === 'buy'" class="tab-pane">
       <q-btn unelevated color="primary" icon="content_copy" label="انسخ القائمة للمورّد" :disable="!orderLines.length" @click="copyOrder" />
       <div v-for="g in BUY_GROUPS" :key="g.id" v-show="buyOf(g.id).length" class="card column q-gutter-xs">
-        <div class="text-weight-bold" :class="g.cls">{{ g.label }} ({{ buyOf(g.id).length }})</div>
+        <div class="text-weight-bold" :class="g.cls">{{ g.id === 'idle' ? 'لا تشترِ: لا تُباع منذ ' + buy.idle_days + ' يومًا' : g.label }} ({{ buyOf(g.id).length }})</div>
         <div class="help small muted">{{ g.help }}</div>
         <div v-for="x in buyOf(g.id)" :key="x.product_id" class="row items-center no-wrap q-gutter-sm buy-line">
           <span class="col">{{ x.brand }} · {{ x.name }}
             <span class="small muted"> · {{ sold7(x) ? 'بيعت ' + sold7(x) + ' في 7 أيام' : 'لم تُبع في 7 أيام' }} · بقيت {{ x.left }}{{ x.min ? ' · حدّك ' + x.min : '' }}</span></span>
           <b v-if="g.id !== 'idle'">× {{ x.qty }}</b>
           <q-btn v-if="g.id !== 'idle'" flat round dense color="primary" icon="add_shopping_cart" aria-label="اشترِ الآن" @click="addCodesFor(x)" />
-          <span v-else class="small text-deep-orange">مجمّد {{ money(x.idle_value) }}</span>
+          <!-- «مالك فيها» (owner 2026-10-31): what was paid for what is left, not frozen codes -->
+          <span v-else class="small text-deep-orange text-right">مالك فيها {{ money(x.idle_value) }}<span v-if="x.left > 1" class="muted"><br>{{ x.left }} × {{ money(Math.round(x.idle_value / x.left)) }}</span></span>
         </div>
       </div>
       <div v-if="buyFlexy.length" class="card column q-gutter-xs">
@@ -648,7 +649,7 @@ const BUY_GROUPS = [
   { id: 'out', label: 'نفدت: لا يوجد منها بطاقات', cls: 'text-negative', help: 'كانت تُباع في آخر 30 يومًا والآن صفر.' },
   { id: 'buy', label: 'اشترِ: تُستهلك', cls: 'text-deep-orange', help: 'ما بقي لا يكفي الأيام المحددة بسرعة بيعها، أو وصلت للحد الأدنى الذي حدّدته لها.' },
   { id: 'trial', label: 'للتجربة', cls: 'text-primary', help: 'بطاقات مفعّلة لم تشترِها أبدًا.' },
-  { id: 'idle', label: 'لا تشترِ: لا تُباع', cls: 'text-grey-8', help: 'عندك منها ولم يُبع شيء منذ مدة: المال مجمّد فيها.' }
+  { id: 'idle', label: 'لا تشترِ: لا تُباع', cls: 'text-grey-8', help: 'عندك منها ولم يُبع شيء منذ مدة. «مالك فيها» = ما بقي × سعر شرائه.' }
 ]
 const buy = ref({ items: [], cover_days: 7 })
 const buyFlexy = ref([])
