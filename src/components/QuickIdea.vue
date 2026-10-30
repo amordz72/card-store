@@ -13,8 +13,10 @@
   </div>
   <!-- At the top (owner ideas #3, #4): the phone keyboard opens under it, never over it -->
   <q-dialog v-model="open" position="top">
-    <q-card style="width:100%;max-width:560px;border-radius:0 0 20px 20px">
-      <q-card-section class="column q-gutter-sm">
+    <!-- Never taller than the screen (owner 2026-10-30: «with a long text the buttons below disappear»): the middle
+         scrolls, the buttons stay in sight -->
+    <q-card class="qi-card">
+      <q-card-section class="column q-gutter-sm qi-body">
         <div class="row items-center no-wrap">
           <div class="col text-weight-bold">💡 فكرة سريعة</div>
           <!-- The screen behind, copied from here (owner N8: «المربع يغطي زر النسخ») -->
@@ -26,7 +28,7 @@
             :color="kind === k.id ? 'primary' : 'grey-8'" :label="k.label" @click="kind = k.id" />
         </div>
         <!-- Never longer than a third of the screen (owner N14: a long paste ran off the phone); the draft kept (N20) -->
-        <q-input v-model="text" type="textarea" outlined autogrow autofocus placeholder="اكتب أو أملِ بالصوت…" input-class="qi-text" />
+        <q-input ref="textBox" v-model="text" type="textarea" outlined autofocus rows="4" placeholder="اكتب أو أملِ بالصوت…" input-class="qi-text" />
         <div class="row items-center q-gutter-xs small muted">
           <span>الزر:</span>
           <q-btn flat dense no-caps size="sm" :label="pos.big ? 'صغّره' : 'كبّره'" @click="pos.big = !pos.big; keepPos()" />
@@ -60,6 +62,7 @@
                 <q-btn flat round dense size="sm" color="positive" icon="check" aria-label="أغلقها" @click="setState(n, 'closed')" />
                 <q-btn flat round dense size="sm" color="deep-orange" icon="undo" aria-label="أعد فتحها" @click="setState(n, 'reopen')" />
               </template>
+              <q-btn flat round dense size="sm" color="grey-6" icon="delete" aria-label="احذفها" @click="removeNote(n)" />
             </div>
           </div>
           <q-expansion-item v-if="closed.length" dense dense-toggle switch-toggle-side :label="`المغلقة (${closed.length})`" header-class="small text-grey-8 q-px-none">
@@ -82,7 +85,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { copyToClipboard, Dialog, LocalStorage, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { CLAUDE_REMINDER } from 'src/composables/useClaudeCopy'
@@ -137,7 +140,14 @@ const open = ref(false)
 // The draft stays on this phone until saved (owner N20: «إن أغلقت، أجده المرة القادمة»)
 const DRAFT_KEY = 'cs_quick_draft'
 const text = ref((() => { try { return localStorage.getItem(DRAFT_KEY) || '' } catch { return '' } })())
-watch(text, (t) => { try { if (t) localStorage.setItem(DRAFT_KEY, t); else localStorage.removeItem(DRAFT_KEY) } catch { /* private mode */ } })
+const textBox = ref(null)
+watch(text, (t, before) => {
+  try { if (t) localStorage.setItem(DRAFT_KEY, t); else localStorage.removeItem(DRAFT_KEY) } catch { /* private mode */ }
+  // A paste (many characters at once): the box shows the end of it
+  if (t.length - (before || '').length > 40) {
+    nextTick(() => { const el = textBox.value?.getNativeElement?.(); if (el) el.scrollTop = el.scrollHeight })
+  }
+})
 const kind = ref('idea')
 const withScreen = ref(true)
 const busy = ref(false)
@@ -165,6 +175,10 @@ const groups = computed(() => [
 ].filter((g) => g.list.length))
 const doneCount = computed(() => notes.value.filter((n) => n.state === 'done').length)
 
+function removeNote (n) {
+  Dialog.create({ title: 'احذف N' + n.id + '؟', message: n.text.slice(0, 120), cancel: 'لا', ok: 'احذف' })
+    .onOk(() => { notes.value = notes.value.filter((x) => x.id !== n.id); keepNotes() })
+}
 function setState (n, state) {
   n.state = state
   keepNotes()
@@ -268,5 +282,7 @@ async function save () {
 .notes { border-top: 1px solid rgba(0, 0, 0, 0.08); padding-top: 6px; }
 .notes-list { max-height: 34vh; overflow-y: auto; }
 .note { overflow-wrap: anywhere; }
-:deep(.qi-text) { max-height: 33vh; overflow-y: auto !important; }
+.qi-card { width: 100%; max-width: 560px; border-radius: 0 0 20px 20px; max-height: 92vh; display: flex; flex-direction: column; }
+.qi-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; flex-wrap: nowrap; }
+:deep(.qi-text) { max-height: 30vh; overflow-y: auto !important; resize: none; }
 </style>
