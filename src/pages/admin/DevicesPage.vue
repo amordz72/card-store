@@ -552,10 +552,18 @@ const updates = ref(null)
 // What each computer's updater last reported: the version and commit it runs, and main's
 const mainOf = (st) => (updates.value?.main || []).find((m) => m.station_uuid === st.station_uuid) || null
 // A newer version on main, or the same version at another commit (a fix merged without a bump)
+// Only a newer version than the one running now (owner 2026-10-30: «زر لا عمل له يظهر»): the live heartbeat version wins
+// over the updater's last report, and a commit that does not change the version is not an update to press
+const newerThan = (a, b) => {
+  const x = String(a || '0').split('.').map(Number)
+  const y = String(b || '0').split('.').map(Number)
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0)
+  return false
+}
 const newInMain = (st) => {
   const m = mainOf(st)
   if (!m || !m.main_version || m.main_error) return null
-  return m.main_version !== m.agent_version || (m.main_commit && m.agent_commit && m.main_commit !== m.agent_commit) ? m : null
+  return newerThan(m.main_version, st.agent_version || m.agent_version) ? m : null
 }
 const MAIN_ERRORS = {
   GIT_LOCAL_CHANGES: 'ملفات معدّلة يدويًا على الكمبيوتر',
