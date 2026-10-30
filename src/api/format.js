@@ -75,3 +75,12 @@ export function debtView (debt, customerSide) {
   if (debt < 0) return { label: customerSide ? 'لي عندكم' : 'له عندك', text: money(debt), cls: 'amount-pos' }
   return { label: customerSide ? 'ديوني' : 'الدين', text: '0 دج', cls: '' }
 }
+
+// A game card's amount as its name says it («Free Fire 210 جوهرة» → «210 جوهرة», «PUBG 60 UC» → «60 UC»): shown big on the
+// card, the price under it (owner 2026-10-30: «أخطئ: أظن السعر عدد الجواهر»). Null when the name has no number.
+export function gameAmount (name) {
+  const n = String(name || '').match(/(\d[\d,.]*)/)
+  if (!n) return null
+  const unit = /جوهر/.test(name) ? 'جوهرة' : /\buc\b/i.test(name) ? 'UC' : ''
+  return (n[1] + (unit ? ' ' + unit : '')).trim()
+}
