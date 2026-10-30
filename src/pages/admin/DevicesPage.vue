@@ -63,9 +63,26 @@
         <!-- One word per SIM from the top layer down (owner 2026-10-28): its computer off is not its problem;
              «تحتاج تدخلًا» holds only what needs the owner now, even with its computer off (a PIN, an approval) -->
         <q-btn-toggle v-model="simTab" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: `جاهزة (${simRows.ready.length})`, value: 'ready' }, { label: `كمبيوترها مطفأ (${simRows.station_off.length})`, value: 'station_off' }, { label: `تحتاج تدخلًا (${simRows.needs_action.length})`, value: 'needs_action' }]" />
+          :options="[{ label: `جاهزة (${simRows.ready.length})`, value: 'ready' }, { label: `كمبيوترها مطفأ (${simRows.station_off.length})`, value: 'station_off' }, { label: `تحتاج تدخلًا (${simRows.needs_action.length})`, value: 'needs_action' }, ...(missingSims.length ? [{ label: `غائبة (${missingSims.filter((x) => !x.retired).length})`, value: 'missing' }] : [])]" />
       </div>
-      <div class="table-wrap">
+      <!-- Owner 2026-10-30: «المراقبة» named a SIM this page did not show. An approved SIM no modem holds now: where it was
+           last, and «أخرجها من الخدمة» when it was taken out on purpose (it comes back by itself when seen again). -->
+      <div v-if="simTab === 'missing'" class="column">
+        <div v-for="x in missingSims" :key="x.sim_uuid" class="missing-row" :class="{ focus: focusSim === x.code, retired: x.retired }">
+          <div class="row items-center no-wrap q-gutter-sm">
+            <span class="col text-weight-bold">{{ x.code || 'شريحة' }} <span class="small muted">· {{ typeName(x.sim_type) }}</span></span>
+            <span class="small">{{ x.balance == null ? '—' : money(x.balance) }}</span>
+          </div>
+          <div class="small" :class="x.retired ? 'muted' : 'text-deep-orange'">
+            {{ x.retired ? 'خارج الخدمة' : 'غائبة' }}{{ x.last_seen_at ? ' منذ ' + since(x.last_seen_at) : '' }}
+            · آخر مكان: {{ x.station_code || '—' }}{{ x.usb != null ? ' · USB ' + x.usb : '' }}{{ stationOffText(x) }}
+          </div>
+          <q-btn dense flat no-caps size="sm" :color="x.retired ? 'primary' : 'grey-8'" class="self-start" :loading="retiring === x.sim_uuid"
+            :label="x.retired ? 'أرجعها إلى الخدمة' : 'أخرجها من الخدمة (نزعتها عمدًا)'" @click="retire(x, !x.retired)" />
+        </div>
+        <div class="small muted q-pa-sm">«خارج الخدمة»: لا تنبيه عنها ولا يُحسب رصيدها، وتعود وحدها إذا ظهرت في أي كمبيوتر.</div>
+      </div>
+      <div v-if="simTab !== 'missing'" class="table-wrap">
         <table class="sims">
           <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th></tr></thead>
           <tbody>
@@ -324,6 +341,7 @@
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { MONITOR_TABS } from 'src/api/sections'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { copyToClipboard, Dialog, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { makeZip } from 'src/api/zip'
@@ -542,6 +560,7 @@ const typeName = (type) => SUMMARY_TYPES.find(([t]) => t === type)?.[1] || type
 const typeFilter = ref(null)
 const simStation = ref('all')
 const simTab = ref('ready')
+const route = useRoute()
 const showOldSims = ref(false)
 const pickType = (type) => { typeFilter.value = typeFilter.value === type ? null : type }
 function clearFilters () { typeFilter.value = null; simStation.value = 'all' }
@@ -572,6 +591,41 @@ const simRows = computed(() => {
     old: rows.filter((r) => r.old)
   }
 })
+// 0113: approved SIMs held by no modem now (Flexy Core)
+const missingSims = computed(() => tree.value?.missing_sims || [])
+const retiring = ref(null)
+const stationOffText = (x) => {
+  const st = current.value.find((s) => s.code === x.station_code)
+  return st && isAbsent(st) ? ' (الكمبيوتر مطفأ)' : ''
+}
+async function retire (x, on) {
+  retiring.value = x.sim_uuid
+  try {
+    const res = await flexy.ownerSimRetire(x.sim_uuid, on)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error === 'MIGRATION_0113_PENDING' ? 'طبّق 0113 من «ينتظر تطبيقك» أولًا.' : (res.body?.error || 'FLEXY_CORE'))
+    Notify.create({ type: 'positive', message: on ? `${x.code} خارج الخدمة: لا تنبيه عنها حتى تظهر.` : `${x.code} رجعت إلى الخدمة.` })
+    await load()
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message })
+  } finally {
+    retiring.value = null
+  }
+}
+// From an alert (owner 2026-10-30: «الضغط على التنبيه يفتح الشريحة نفسها»): ?sim=code or ?station=code
+const focusSim = ref(null)
+function focusFromRoute () {
+  const q = route.query
+  if (q.station) {
+    const st = current.value.find((x) => x.code === q.station)
+    if (st) { simStation.value = st.station_uuid; simTab.value = isAbsent(st) ? 'station_off' : 'ready' }
+    return
+  }
+  if (!q.sim) return
+  focusSim.value = String(q.sim)
+  const r = everySim.value.find((x) => x.m.sim.code === q.sim)
+  if (r) { simTab.value = simState(r); open(r.st, r.m); return }
+  if (missingSims.value.some((x) => x.code === q.sim)) simTab.value = 'missing'
+}
 const shownSims = computed(() => simTab.value === 'station_off'
   ? [...simRows.value.station_off, ...(showOldSims.value ? simRows.value.old : [])]
   : simRows.value[simTab.value])
@@ -866,7 +920,7 @@ const READ_WHY = { CODE_NOT_SENT: 'لم يُرسل الكود: المودم مش
   SMS_STORE_FULL: 'مخزن الرسائل ممتلئ', MODEM_BUSY: 'المودم مشغول', LAST_632_UNCONFIRMED: 'قراءة سابقة لم تُحسم',
   LAST_QUERY_RECENT: 'قُرئ قبل قليل', NOTHING_CHANGED: 'لا عملية منذ آخر قراءة', RUNNING: 'قراءة جارية',
   SIM_NOT_READY: 'الشريحة غير جاهزة', PIN_REJECTED: 'PIN مرفوض' }
-const since = (t) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 60000)); return m < 60 ? m + ' دقيقة' : Math.round(m / 60) + ' ساعة' }
+const since = (t) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 60000)); return m < 60 ? m + ' دقيقة' : m < 2880 ? Math.round(m / 60) + ' ساعة' : Math.round(m / 1440) + ' يوم' }
 const stationOfSim = (uuid) => { const r = everySim.value.find((x) => x.m.sim.sim_uuid === uuid); return r ? stName(r.st) : '' }
 function copySimForClaude (r) {
   const o = onboardingOf(r.m.sim) || {}
@@ -962,10 +1016,13 @@ async function readBalance () {
 // Only while the page is open, and not in a hidden tab
 const timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 30000)
 onBeforeUnmount(() => clearInterval(timer))
-onMounted(() => { load(); loadActions() })
+onMounted(async () => { await load(); loadActions(); focusFromRoute() })
 </script>
 
 <style scoped>
+.missing-row { padding: 8px; border-top: 1px solid #EEF0F5; }
+.missing-row.focus { background: #FFF7ED; }
+.missing-row.retired { opacity: .6; }
 .station-row { width: 100%; border: 0; background: transparent; padding: 12px 14px; text-align: right; font: inherit; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .station-row:disabled { cursor: default; opacity: 0.7; }
 .station-open { border-bottom: 1px solid #EEF0F4; }
