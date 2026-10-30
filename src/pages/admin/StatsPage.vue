@@ -38,7 +38,7 @@
       <div class="row items-center no-wrap q-gutter-sm">
         <q-icon name="build" color="indigo-8" size="22px" />
         <div class="col"><div class="text-weight-bold">ينتظر تطبيقك</div><div>{{ p.title }}</div></div>
-        <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" label="طبّق" :loading="busy === 'apply' + p.uid" @click="apply(p)" />
+        <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" label="طبّق" :loading="busy === 'apply' + p.uid" :disable="!!p.mig && p.uid !== pendingOpen[0]?.uid" @click="apply(p)" />
       </div>
       <div v-if="p.last_error" class="small text-negative ltr">آخر محاولة فشلت: {{ p.last_error }}</div>
       <q-expansion-item dense dense-toggle switch-toggle-side label="عرض SQL" header-class="small text-grey-8 q-px-none">
