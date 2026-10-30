@@ -90,6 +90,9 @@ export async function addCodes (productId, supplierId, cost, lines) {
 }
 
 export const stock = () => rpc('store_admin_stock_v2')
+// v1.57: each supplier's reader of its message (where the codes start, their length)
+export const supplierReaders = () => rpc('store_admin_supplier_readers')
+export const setSupplierReader = (supplierId, reader) => rpc('store_admin_set_supplier_reader', { p_supplier_id: supplierId, p_reader: reader })
 // v1.53: cards about to run out (at their pace of the last 7 days), and the owner's two numbers
 export const lowStock = () => rpc('store_admin_low_stock')
 // v1.54: what to buy (out / buy / trial / idle), and the owner's three numbers
