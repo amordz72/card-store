@@ -124,6 +124,9 @@ export const runReady = (ready) => owner('sql', { method: 'POST', body: { ready 
 export const applyMigration = (key) => owner('sql', { method: 'POST', body: { migration: key, confirm: 'نعم' } })
 // «أفكار وأوامر» (Flexy Core 0089)
 // «سجل البطء» (Flexy Core 0096): this phone's timings, sent in one go
+// «صفحة الكمبيوتر» (Flexy Core 0099): fixed maintenance actions, taken by the computer with its next heartbeat
+export const stationActions = () => owner('stations/actions', { method: 'GET' })
+export const askStationAction = (stationUuid, key) => owner('stations/actions', { method: 'POST', body: { station_uuid: stationUuid, key } })
 export const ownerPerf = (entries) => ownerOnce('perf', { method: 'POST', body: { entries } })
 export const ownerIdeas = () => owner('ideas', { method: 'GET' })
 export const addIdea = (text, kind, file = null) => owner('ideas', { method: 'POST', body: { text, kind, ...(file ? { file_name: file.name, file_text: file.text } : {}) } })
