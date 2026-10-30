@@ -95,7 +95,8 @@
         <div class="card-tiles">
           <button v-for="(p, n) in pickProducts" :key="p.product_id" type="button" class="card-tile" :class="{ on: codeForm.productId === p.product_id }"
             :style="{ '--tile': TILE_COLORS[n % TILE_COLORS.length] }" :aria-pressed="codeForm.productId === p.product_id" @click="choose(p.brand, p.product_id)">
-            <img v-if="p.image || p.brand_image" :src="p.image || p.brand_image" alt="">
+            <!-- A background, not an <img>: no natural size can grow the row (owner 2026-10-30: rows a screen apart) -->
+            <div v-if="p.image || p.brand_image" class="tile-img" :style="{ backgroundImage: `url('${p.image || p.brand_image}')` }" />
             <b class="tile-amount">{{ tileParts(p).big }}</b>
             <span v-if="tileParts(p).rest" class="tile-rest">{{ tileParts(p).rest }}</span>
             <span class="tile-rest">متوفر {{ p.available }}</span>
@@ -852,11 +853,11 @@ onMounted(() => { load(); loadBatches(); loadCostChanges(); loadBatchChanges(); 
 .brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
 .brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.card-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; align-items: start; }
+.card-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-rows: min-content; gap: 6px; align-items: start; }
 .card-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 10px; cursor: pointer;
   border: 2px solid var(--tile); background: #fff; color: var(--tile); font: inherit; line-height: 1.2; }
 /* fixed box: some phone browsers size an image in a column flex by its natural height (owner 2026-10-30: tiles 3 screens tall) */
-.card-tile img { display: block; flex: 0 0 28px; height: 28px; min-height: 0; width: 100%; object-fit: contain; }
+.tile-img { flex: 0 0 28px; height: 28px; width: 100%; background: center / contain no-repeat; }
 .card-tile .tile-amount { font-size: 20px; }
 .card-tile .tile-rest { font-size: 11px; color: #4B5563; text-align: center; }
 .card-tile.on { background: var(--tile); color: #fff; box-shadow: 0 0 0 3px #FDBA74; }
