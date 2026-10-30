@@ -7,6 +7,9 @@ import { copyToClipboard, Notify } from 'quasar'
 // Plain «key: value» lines, short: cheaper for Claude than a database read, and no permission to ask.
 const registry = new Map()
 
+// One line on every copy for Claude (owner 2026-10-30: «تنسى كثيرًا»): what the owner asks of every reply, in any session
+export const CLAUDE_REMINDER = 'Claude: ردّ بالعربية فقط، حتى رسائلك القصيرة أثناء العمل؛ حلّل قبل التنفيذ وانتظر «نفذ».'
+
 /** A card's technical data for «نسخ الشاشة» (removed when the card goes away). */
 export function registerForClaude (name, getter) {
   registry.set(name, getter)
@@ -37,7 +40,7 @@ export function claudePageText () {
 /** One item, copied alone. */
 export async function copyForClaude (title, obj) {
   try {
-    await copyToClipboard(claudeBlock(title, obj))
+    await copyToClipboard(CLAUDE_REMINDER + '\n' + claudeBlock(title, obj))
     Notify.create({ message: 'نُسخ لـClaude: الصقه في المحادثة', color: 'positive', position: 'top', timeout: 1200 })
   } catch {
     Notify.create({ message: 'تعذّر النسخ', color: 'negative', position: 'top' })
