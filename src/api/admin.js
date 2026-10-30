@@ -92,6 +92,9 @@ export async function addCodes (productId, supplierId, cost, lines) {
 export const stock = () => rpc('store_admin_stock_v2')
 // v1.53: cards about to run out (at their pace of the last 7 days), and the owner's two numbers
 export const lowStock = () => rpc('store_admin_low_stock')
+// v1.54: what to buy (out / buy / trial / idle), and the owner's three numbers
+export const buyList = () => rpc('store_admin_buy_list')
+export const setBuyList = (cover, trial, idle) => rpc('store_admin_set_buy_list', { p_cover: cover, p_trial: trial, p_idle: idle })
 export const setLowStock = (days, count) => rpc('store_admin_set_low_stock', { p_days: days, p_count: count })
 
 // Batches: freeze stops a code from being sold (reversible); void removes it

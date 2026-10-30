@@ -175,6 +175,8 @@ export const ownerSmsWipe = (simUuid) => owner('sims/wipe', { method: 'POST', bo
 // Stations and SIMs: computers → modems → SIM, each with Flexy Core's verdict (read only, owner only).
 export const ownerDevices = () => owner('devices', { method: 'GET' })
 // «المراقبة» (Flexy Core 0068): available / unavailable balance, each SIM's reason, the alerts and the red bar; «تم» = ack
+// «قائمة الشراء» (Flexy Core 0107): the SIMs to feed
+export const ownerBuyList = (days = 7) => owner('buy-list?days=' + days, { method: 'GET' })
 export const ownerMonitor = () => owner('monitor', { method: 'GET' })
 // The connection log (Flexy Core 0070): what was offline at that minute, and the changes 15 min around it
 export const ownerPresence = (at) => owner('presence?at=' + encodeURIComponent(at), { method: 'GET' })

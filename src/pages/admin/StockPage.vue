@@ -20,7 +20,40 @@
       <div v-if="!low.items.length" class="text-center muted q-pa-lg">لا بطاقة تكاد تنفد ✓</div>
     </div>
 
+    <!-- v1.54 (owner 2026-10-30): what to buy, computed from what sells; one copy for the supplier -->
+    <div v-show="tab === 'buy'" class="tab-pane">
+      <q-btn unelevated color="primary" icon="content_copy" label="انسخ القائمة للمورّد" :disable="!orderLines.length" @click="copyOrder" />
+      <div v-for="g in BUY_GROUPS" :key="g.id" v-show="buyOf(g.id).length" class="card column q-gutter-xs">
+        <div class="text-weight-bold" :class="g.cls">{{ g.label }} ({{ buyOf(g.id).length }})</div>
+        <div class="help small muted">{{ g.help }}</div>
+        <div v-for="x in buyOf(g.id)" :key="x.product_id" class="row items-center no-wrap q-gutter-sm buy-line">
+          <span class="col">{{ x.brand }} · {{ x.name }}
+            <span class="small muted"><template v-if="x.per_day > 0"> · {{ x.per_day }}/يوم</template> · بقي {{ x.left }}</span></span>
+          <b v-if="g.id !== 'idle'">× {{ x.qty }}</b>
+          <span v-else class="small text-deep-orange">مجمّد {{ money(x.idle_value) }}</span>
+        </div>
+      </div>
+      <div v-if="buyFlexy.length" class="card column q-gutter-xs">
+        <div class="text-weight-bold text-primary">الفليكسي: اشحن هذه الشرائح ({{ buyFlexy.length }})</div>
+        <div class="help small muted">رصيدها لا يكفي {{ buy.cover_days }} أيام بسرعة إرسالها في آخر 7 أيام.</div>
+        <div v-for="s in buyFlexy" :key="s.code" class="row items-center no-wrap q-gutter-sm buy-line">
+          <span class="col">{{ s.code }} · {{ s.operator }} <span class="small muted">· رصيد {{ money(s.balance) }} · {{ money(s.per_day) }}/يوم · يكفي {{ s.days_left }} يوم</span></span>
+          <b>{{ money(s.suggest) }}</b>
+        </div>
+      </div>
+      <div v-if="buyLoaded && !buy.items.length && !buyFlexy.length" class="text-center muted q-pa-lg">لا شيء تشتريه الآن ✓</div>
+    </div>
+
     <div v-show="tab === 'settings'" class="tab-pane">
+    <div class="card column q-gutter-sm">
+      <div class="text-weight-bold">قائمة الشراء</div>
+      <div class="row q-gutter-sm no-wrap">
+        <q-input v-model.number="buyDraft.cover" class="col" dense outlined type="number" label="تكفي (أيام)" />
+        <q-input v-model.number="buyDraft.trial" class="col" dense outlined type="number" label="للتجربة (بطاقات)" />
+        <q-input v-model.number="buyDraft.idle" class="col" dense outlined type="number" label="لا تُباع منذ (أيام)" />
+      </div>
+      <q-btn outline color="primary" label="حفظ" class="self-start" @click="saveBuy" />
+    </div>
     <div class="card column q-gutter-sm">
       <div class="text-weight-bold">تنبيه «تكاد تنفد»</div>
       <div class="row q-gutter-sm no-wrap">
@@ -249,6 +282,7 @@ import { copyText } from 'src/composables/useCopy'
 import { newRequestId } from 'src/api/rpc'
 import * as api from 'src/api/admin'
 import { dateTime, money } from 'src/api/format'
+import * as flexy from 'src/api/flexy'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import ImageField from 'components/ImageField.vue'
 import BannersAdmin from 'components/BannersAdmin.vue'
@@ -257,7 +291,7 @@ import CodesDialog from 'components/CodesDialog.vue'
 const { busy, run } = useRun()
 
 // --- tabs (remembered on this device)
-const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'low', label: 'تكاد تنفد' }, { id: 'batches', label: 'الدفعات' }, { id: 'settings', label: 'إعدادات' }]
+const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'low', label: 'تكاد تنفد' }, { id: 'buy', label: 'قائمة الشراء' }, { id: 'batches', label: 'الدفعات' }, { id: 'settings', label: 'إعدادات' }]
 const TAB_KEY = 'cs_stock_tab'
 const readTab = () => { try { const t = LocalStorage.getItem(TAB_KEY); return TABS.some((x) => x.id === t) ? t : 'codes' } catch { return 'codes' } }
 // the bell opens «تكاد تنفد» (?tab=low)
@@ -502,7 +536,36 @@ async function loadBatches () {
   })
   if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided), suspect: Number(b.suspect) }))
 }
-async function reloadAll () { await Promise.all([load(), loadBatches(), loadLow()]) }
+async function reloadAll () { await Promise.all([load(), loadBatches(), loadLow(), loadBuy()]) }
+// v1.54: «قائمة الشراء»
+const BUY_GROUPS = [
+  { id: 'out', label: 'نفدت: لا يوجد منها بطاقات', cls: 'text-negative', help: 'كانت تُباع في آخر 30 يومًا والآن صفر.' },
+  { id: 'buy', label: 'اشترِ: تُستهلك', cls: 'text-deep-orange', help: 'ما بقي لا يكفي الأيام المحددة بسرعة بيعها.' },
+  { id: 'trial', label: 'للتجربة', cls: 'text-primary', help: 'بطاقات مفعّلة لم تشترِها أبدًا.' },
+  { id: 'idle', label: 'لا تشترِ: لا تُباع', cls: 'text-grey-8', help: 'عندك منها ولم يُبع شيء منذ مدة: المال مجمّد فيها.' }
+]
+const buy = ref({ items: [], cover_days: 7 })
+const buyFlexy = ref([])
+const buyLoaded = ref(false)
+const buyDraft = ref({ cover: 7, trial: 2, idle: 30 })
+const buyOf = (g) => buy.value.items.filter((x) => x.group === g)
+const orderLines = computed(() => buy.value.items.filter((x) => x.group !== 'idle' && x.qty > 0))
+async function loadBuy () {
+  const r = await api.buyList().catch(() => null)
+  if (r) { buy.value = { ...r, items: r.items || [] }; buyDraft.value = { cover: r.cover_days, trial: r.trial_qty, idle: r.idle_days } }
+  const f = await flexy.ownerBuyList(buy.value.cover_days || 7).catch(() => null)
+  buyFlexy.value = f?.status === 200 ? f.body?.sims || [] : []
+  buyLoaded.value = true
+}
+async function saveBuy () {
+  const d = buyDraft.value
+  if (await run(() => api.setBuyList(d.cover, d.trial, d.idle).then(() => true), { success: 'حُفظ.' })) loadBuy()
+}
+function copyOrder () {
+  const day = new Date().toLocaleDateString('ar-DZ', { day: 'numeric', month: 'numeric' })
+  const total = orderLines.value.reduce((a, x) => a + (Number(x.unit_cost) || 0) * x.qty, 0)
+  copyText([`طلبية ${day}:`, ...orderLines.value.map((x) => `${x.brand} ${x.name} × ${x.qty}`), total ? `المجموع التقريبي: ${money(total)}` : ''].filter(Boolean).join('\n'))
+}
 // v1.53: «تكاد تنفد»
 const low = ref({ items: [], days: 2, count: 3 })
 const lowDraft = ref({ days: 2, count: 3 })
@@ -653,10 +716,11 @@ function suspectToNormal (b) {
   })
 }
 
-onMounted(() => { load(); loadBatches(); loadCostChanges(); loadLow(); loadAnnouncement() })
+onMounted(() => { load(); loadBatches(); loadCostChanges(); loadLow(); loadBuy(); loadAnnouncement() })
 </script>
 
 <style scoped>
+.buy-line { padding: 4px 0; border-top: 1px solid #EEF0F5; }
 .warn-loss { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
 .preview-ok { background: #F0F9FF; color: #075985; border: 1px solid #BAE6FD; }
 /* sticky: stays visible under the header while the tab scrolls */
