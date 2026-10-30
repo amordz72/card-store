@@ -74,7 +74,7 @@
             · <a :href="NODE_DOWNLOAD" target="_blank" rel="noopener noreferrer">Node.js ↗</a> (LTS 22، ‏Windows Installer ‏.msi، ‏x64)
           </div>
           <div class="muted">في تطبيق الملفات بالهاتف: حدّد الملفين ← ضغط (Compress) ← سمّه <b class="ltr">station-tools.zip</b>.
-            انقله مع <b class="ltr">install-station-…التاريخ.bat</b> (الأحدث بتاريخ اليوم) إلى سطح مكتب الكمبيوتر: يثبّت منه بلا تنزيل، ولا حاجة لفكّه.
+            انقله مع <b class="ltr">Flexy-install-station-…التاريخ.bat</b> (ابحث «Flexy» في التنزيلات؛ الأحدث بتاريخ اليوم) إلى سطح مكتب الكمبيوتر: يثبّت منه بلا تنزيل، ولا حاجة لفكّه.
             بلا الحزمة ينزّلهما من الإنترنت، وبلا إنترنت ينتظر ويكمل وحده.</div>
         </div>
         <div class="small muted">
@@ -205,7 +205,8 @@ function download (quick) {
     // With the date and time (owner 2026-10-30: «تظهر ملفات قديمة في التنزيلات»): the newest is the one with today's time
     const d = new Date()
     const p2 = (x) => String(x).padStart(2, '0')
-    a.download = String(b.file_name).replace(/\.bat$/i, '') + `-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}_${p2(d.getHours())}-${p2(d.getMinutes())}.bat`
+    // «Flexy-» first (owner 2026-10-30: «تعبت من البحث»): every file from this site sits together in Downloads
+    a.download = 'Flexy-' + String(b.file_name).replace(/\.bat$/i, '') + `-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}_${p2(d.getHours())}-${p2(d.getMinutes())}.bat`
     document.body.appendChild(a)
     a.click()
     a.remove()
