@@ -5,6 +5,34 @@
   <q-page class="q-pa-md column q-gutter-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
 
+    <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press.
+         Indicators first (owner 2026-10-30: «الناس لا يقرؤون الكتابات»): tiles, then standing bars, the words folded. -->
+    <div class="card column q-gutter-sm">
+      <div class="row items-center">
+        <div class="col text-weight-bold">ضغط القاعدة</div>
+        <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy === 'load'" @click="loadDb" />
+      </div>
+      <div v-if="!hours?.last_at" class="small muted">البرنامج يأخذ صورة كل ساعة: تظهر الأرقام بعد ساعتين من تطبيق 0085.</div>
+      <template v-else>
+        <div class="tiles">
+          <div v-for="t in tiles" :key="t.label" class="tile" :class="t.cls">
+            <div class="n">{{ t.n }}</div><div class="small">{{ t.label }}</div>
+          </div>
+        </div>
+        <div class="small muted">كل عمود ساعة · اضغط عمودًا لترى رقمه<span v-if="callsLimit"> · الخط المتقطع: الحد {{ callsLimit }}/ساعة</span></div>
+        <BarChart :items="hourBars" :limit="callsLimit" :height="130" />
+        <q-expansion-item dense dense-toggle switch-toggle-side label="التفاصيل: آخر ساعة" header-class="small text-grey-8 q-px-none">
+          <div v-for="r in hours.last_hour" :key="r.what" class="line row items-center no-wrap q-gutter-sm">
+            <div class="col">{{ nameOf(r.what) }}</div>
+            <div class="small text-right" style="min-width:76px"><b>{{ r.per_minute }}</b>/دقيقة</div>
+            <div class="small text-right" style="min-width:70px" :class="r.writes > 1000 ? 'text-deep-orange' : 'muted'">✎ {{ r.writes }}</div>
+          </div>
+          <div class="small muted q-pt-xs">آخر قياس {{ when(hours.last_at) }} · يقيس البرنامج وحده كل ساعة</div>
+        </q-expansion-item>
+      </template>
+    </div>
+
+
     <!-- The SQL first: the page is opened mostly to paste a script -->
     <div class="card column q-gutter-sm">
       <div class="row items-center">
@@ -43,30 +71,6 @@
       <q-btn v-if="result.ok && result.rows?.length" flat dense no-caps icon="content_copy" label="نسخ" class="self-start" @click="copy" />
     </div>
 
-    <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press -->
-    <div class="card column q-gutter-xs">
-      <div class="row items-center">
-        <div class="col text-weight-bold">ضغط القاعدة</div>
-        <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy === 'load'" @click="loadDb" />
-      </div>
-      <div v-if="!hours?.last_at" class="small muted">البرنامج يأخذ صورة كل ساعة: تظهر الأرقام بعد ساعتين من تطبيق 0085.</div>
-      <template v-else>
-        <div class="small muted">آخر قياس {{ when(hours.last_at) }} · يقيس البرنامج وحده كل ساعة</div>
-        <div class="text-weight-medium q-mt-xs">آخر ساعة</div>
-        <div v-for="r in hours.last_hour" :key="r.what" class="line row items-center no-wrap q-gutter-sm">
-          <div class="col">{{ nameOf(r.what) }}</div>
-          <div class="small text-right" style="min-width:76px"><b>{{ r.per_minute }}</b>/دقيقة</div>
-          <div class="small text-right" style="min-width:70px" :class="r.writes > 1000 ? 'text-deep-orange' : 'muted'">✎ {{ r.writes }}</div>
-        </div>
-        <div class="text-weight-medium q-mt-sm">ساعة بساعة (24 ساعة)</div>
-        <div v-for="h in hours.hours" :key="h.at" class="row items-center no-wrap q-gutter-sm small">
-          <div style="min-width:44px" class="muted">{{ hourOf(h.at) }}</div>
-          <div class="col"><div class="bar" :style="{ width: barWidth(h.calls) }" /></div>
-          <div style="min-width:70px" class="text-right">{{ h.per_minute }}/د</div>
-        </div>
-      </template>
-    </div>
-
     <div class="card column q-gutter-xs">
       <div class="text-weight-bold">أكبر الجداول</div>
       <div v-for="t in sizes" :key="t.table" class="line row no-wrap q-gutter-sm">
@@ -85,9 +89,10 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { Dialog, Notify, copyToClipboard } from 'quasar'
 import SectionTabs from 'src/components/SectionTabs.vue'
+import BarChart from 'src/components/BarChart.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
 
@@ -136,6 +141,10 @@ async function loadLog () {
   if (b?.ok) { ready.value = b.ready.filter((r) => r.key !== 'db_hours' && r.key !== 'db_sizes'); log.value = b.log || [] }
 }
 async function loadDb () {
+  flexy.ownerAuto().then((r) => {
+    const l = (r.body?.limits || []).find((x) => x.key === 'monitor.db_calls_per_hour')
+    callsLimit.value = l ? Number(l.value) || 0 : 0
+  }).catch(() => {})
   const a = await call('load', () => flexy.runReady('db_hours'))
   if (a?.ok) hours.value = a.rows?.[0]?.hours || null
   const b = await call('load', () => flexy.runReady('db_sizes'))
@@ -171,7 +180,23 @@ async function runReady (r) {
 const cell = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v))
 const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const hourOf = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
-const barWidth = (n) => Math.max(2, Math.round((n / Math.max(1, ...(hours.value?.hours || []).map((h) => h.calls))) * 100)) + '%'
+// The owner's limit (0085, «المفاتيح»): the dashed line, and red bars above it
+const callsLimit = ref(0)
+const hourBars = computed(() => (hours.value?.hours || []).map((h) => ({
+  value: h.calls, text: h.per_minute + '/دقيقة', label: hourOf(h.at), short: hourOf(h.at).slice(0, 2)
+})))
+const tiles = computed(() => {
+  const hs = hours.value?.hours || []
+  const last = hs[hs.length - 1]
+  const top = hs.reduce((a, h) => (!a || h.calls > a.calls ? h : a), null)
+  const over = callsLimit.value && last && last.calls > callsLimit.value
+  return [
+    { label: 'آخر ساعة (طلب/دقيقة)', n: last ? last.per_minute : '—', cls: over ? 'bad' : '' },
+    { label: 'أعلى ساعة اليوم', n: top ? hourOf(top.at) : '—' },
+    { label: 'كتابة على القرص آخر ساعة', n: last ? last.writes : '—' },
+    { label: 'الحالة', n: over ? 'فوق الحد' : 'عادي ✓', cls: over ? 'bad' : 'good' }
+  ]
+})
 function copy () {
   const r = result.value
   copyToClipboard([r.columns.join('\t'), ...r.rows.map((row) => r.columns.map((c) => cell(row[c])).join('\t'))].join('\n'))
@@ -180,7 +205,12 @@ onMounted(() => { loadLog(); loadDb() })
 </script>
 
 <style scoped>
-.bar { height: 8px; border-radius: 4px; background: var(--q-primary); }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tile { background: rgba(0, 0, 0, 0.04); border-radius: 12px; padding: 8px 10px; }
+.tile .n { font-size: 20px; font-weight: 700; }
+.tile.bad { background: rgba(193, 0, 21, 0.1); color: var(--q-negative); }
+.tile.good .n { color: var(--q-positive); }
+body.body--dark .tile { background: rgba(255, 255, 255, 0.06); }
 .line { border-top: 1px solid rgba(0, 0, 0, 0.06); padding: 6px 4px; }
 .ltr { direction: ltr; text-align: left; }
 .sql { max-width: 100%; min-width: 0; }

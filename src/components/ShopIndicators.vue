@@ -16,17 +16,29 @@
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
-    <div class="row q-gutter-xs">
-      <q-btn v-for="g in GROUPS" :key="g.id" rounded no-caps :unelevated="group === g.id" :outline="group !== g.id"
-        :color="group === g.id ? g.color : 'grey-8'" :label="`${g.label} (${count(g.id)})`" @click="group = g.id" />
+    <!-- Indicators first (owner 2026-10-30): four tiles that filter, then each shop as two bars, before and now -->
+    <div class="tiles">
+      <button v-for="g in GROUPS" :key="g.id" type="button" class="tile" :class="[g.id, { picked: group === g.id }]" @click="group = g.id">
+        <div class="n">{{ count(g.id) }}</div><div class="small">{{ g.label }}</div>
+      </button>
     </div>
-    <div class="card q-pa-none">
+    <div class="card column q-gutter-xs">
+      <div class="row items-center q-gutter-md small">
+        <span><span class="key prev" /> الفترة السابقة</span><span><span class="key cur" /> آخر {{ days }} يومًا</span>
+      </div>
       <div v-if="!rows.length && !busy" class="muted q-pa-md text-center">لا محلات هنا</div>
-      <div v-for="s in rows" :key="s.id" class="line row items-center no-wrap q-gutter-sm">
-        <div class="col text-weight-bold">{{ s.name }}
-          <div class="small muted">{{ s.last_at ? 'آخر دخول ' + ago(s.last_at) : 'لم يدخل' }}</div></div>
-        <div class="small text-right">{{ money(s.prev) }} ← <b>{{ money(s.cur) }}</b></div>
-        <q-badge :color="GROUPS.find((g) => g.id === s.grp)?.color || 'grey-6'" :label="s.change === null ? '—' : (s.change > 0 ? '+' : '') + s.change + '%'" />
+      <div v-for="s in rows" :key="s.id" class="shop">
+        <div class="row items-center no-wrap">
+          <div class="col text-weight-bold ellipsis">{{ s.name }}</div>
+          <q-badge :color="GROUPS.find((g) => g.id === s.grp)?.color || 'grey-6'" :label="s.change === null ? (s.grp === 'new' ? 'جديد' : '—') : (s.change > 0 ? '+' : '') + s.change + '%'" />
+        </div>
+        <div class="pair">
+          <div class="hbar prev" :style="{ width: w(s.prev) }" /><span class="small muted">{{ money(s.prev) }}</span>
+        </div>
+        <div class="pair">
+          <div class="hbar cur" :style="{ width: w(s.cur) }" /><span class="small"><b>{{ money(s.cur) }}</b></span>
+        </div>
+        <div class="small muted">{{ s.last_at ? 'آخر دخول ' + ago(s.last_at) : 'لم يدخل' }}</div>
       </div>
     </div>
   </div>
@@ -54,6 +66,9 @@ const error = ref('')
 
 const count = (id) => (data.value?.shops || []).filter((s) => s.grp === id).length
 const rows = computed(() => (data.value?.shops || []).filter((s) => s.grp === group.value))
+// Bars on one scale for the shops shown: the largest amount is the full width
+const scale = computed(() => Math.max(1, ...rows.value.flatMap((r) => [r.prev, r.cur])))
+const w = (v) => Math.max(1, Math.round((v / scale.value) * 70)) + '%'
 const changed = computed(() => data.value && (pct.value !== data.value.change_pct || min.value !== data.value.min_amount))
 
 async function load () {
@@ -103,5 +118,20 @@ export function indicatorsSeenThisWeek () { try { return LocalStorage.getItem('c
 </script>
 
 <style scoped>
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tile { border: 2px solid transparent; border-radius: 12px; padding: 8px 10px; text-align: right; background: rgba(0, 0, 0, 0.04); cursor: pointer; font: inherit; color: inherit; }
+.tile .n { font-size: 22px; font-weight: 700; }
+.tile.down .n { color: var(--q-negative); }
+.tile.stopped .n { color: #d84315; }
+.tile.up .n { color: var(--q-positive); }
+.tile.new .n { color: var(--q-primary); }
+.tile.picked { border-color: currentColor; background: rgba(0, 0, 0, 0.07); }
+.shop { border-top: 1px solid rgba(0, 0, 0, 0.06); padding: 8px 2px; }
+.pair { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.hbar { height: 10px; border-radius: 0 4px 4px 0; }
+.hbar.prev, .key.prev { background: #9e9e9e; }
+.hbar.cur, .key.cur { background: var(--q-primary); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
+body.body--dark .tile { background: rgba(255, 255, 255, 0.06); }
 .line { border-top: 1px solid rgba(0, 0, 0, 0.06); padding: 8px 12px; }
 </style>
