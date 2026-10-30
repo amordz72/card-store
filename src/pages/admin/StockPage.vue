@@ -852,16 +852,17 @@ onMounted(() => { load(); loadBatches(); loadCostChanges(); loadBatchChanges(); 
 .brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
 .brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.card-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.card-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; align-items: start; }
 .card-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 10px; cursor: pointer;
   border: 2px solid var(--tile); background: #fff; color: var(--tile); font: inherit; line-height: 1.2; }
-.card-tile img { height: 28px; max-width: 100%; object-fit: contain; }
+/* fixed box: some phone browsers size an image in a column flex by its natural height (owner 2026-10-30: tiles 3 screens tall) */
+.card-tile img { display: block; flex: 0 0 28px; height: 28px; min-height: 0; width: 100%; object-fit: contain; }
 .card-tile .tile-amount { font-size: 20px; }
 .card-tile .tile-rest { font-size: 11px; color: #4B5563; text-align: center; }
 .card-tile.on { background: var(--tile); color: #fff; box-shadow: 0 0 0 3px #FDBA74; }
 .card-tile.on .tile-rest { color: #fff; }
 .picked-bar { padding: 10px; border-radius: 10px; background: #ECFDF5; border: 2px solid #059669; color: #065F46; font-size: 16px; }
-.picked-bar img { height: 32px; max-width: 56px; object-fit: contain; }
+.picked-bar img { display: block; flex: 0 0 56px; height: 32px; width: 56px; object-fit: contain; }
 .picked-bar.none { background: #FEF2F2; border-color: #FCA5A5; color: #B91C1C; }
 .brand-pick.on { border-color: #C2410C; box-shadow: 0 0 0 2px #C7CAF5; }
 </style>
