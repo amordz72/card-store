@@ -277,6 +277,9 @@
             <div v-if="places[actionsSt.station_uuid]" class="small">مكانه: <b class="ltr">{{ places[actionsSt.station_uuid].dir }}</b></div>
             <code class="ltr fix-line">{{ FIX_LINE }}</code>
             <!-- One button per window (owner 2026-10-30: «أريد أن ألصق من الموقع»): the line with its Enter, and DONE when it ran -->
+            <!-- A file to carry (owner 2026-10-30): downloaded on the phone, moved by cable or AnyDesk, double-clicked: no typing, no Enter -->
+            <q-btn unelevated no-caps color="positive" icon="download" label="نزّل ملف الإصلاح (Flexy-fix.bat)" @click="downloadFix" />
+            <div class="small muted">انقله إلى الكمبيوتر بالكابل أو بنقل الملفات في AnyDesk، ثم اضغط عليه مرتين. يجد البرنامج بنفسه أينما كان، ويكتب DONE.</div>
             <div class="row q-gutter-xs">
               <q-btn v-for="sh in SHELLS" :key="sh.key" unelevated dense no-caps size="sm" color="primary" icon="content_copy" :label="sh.label" @click="copyFix(sh)" />
             </div>
@@ -395,6 +398,30 @@ const SHELLS = [
   { key: 'ps', label: 'انسخ لـ PowerShell', text: PS_FIX + '\r\n' },
   { key: 'bash', label: 'انسخ لـ Git Bash', text: FIX_LINE + ' && echo DONE\n' }
 ]
+// The fix as a file: finds the station program by what runs (node …\agent\src\index.js), else by its files on C:, D:, E:
+// (not by a folder name: one computer had another), then «git checkout» of its own files only
+const FIX_PS = [
+  '$dirs = @()',
+  "Get-CimInstance Win32_Process -Filter \"name='node.exe'\" | ForEach-Object { if ($_.CommandLine -match '([A-Za-z]:\\\\[^\"]*?)\\\\agent\\\\(src|updater)\\\\') { $dirs += $Matches[1] } }",
+  "if (-not $dirs) { foreach ($d in 'C:\\','D:\\','E:\\') { if (Test-Path $d) { Get-ChildItem $d -Directory -Recurse -Depth 5 -ErrorAction SilentlyContinue | Where-Object { (Test-Path ($_.FullName + '\\.git')) -and (Test-Path ($_.FullName + '\\agent\\src\\index.js')) } | ForEach-Object { $dirs += $_.FullName } } } }",
+  '$dirs = @($dirs | Select-Object -Unique)',
+  "if ($dirs.Count -eq 0) { Write-Host 'NOT FOUND: the station program is not on this computer'; exit 1 }",
+  "foreach ($r in $dirs) { git -C $r checkout -- agent/src agent/package.json; if ($?) { Write-Host ('DONE ' + $r) } else { Write-Host ('FAILED ' + $r) } }"
+].join('\n')
+function downloadFix () {
+  // -EncodedCommand: UTF-16LE in base64, so no quote of the script can break the .bat
+  const bytes = new Uint8Array(FIX_PS.length * 2)
+  for (let i = 0; i < FIX_PS.length; i++) { const c = FIX_PS.charCodeAt(i); bytes[2 * i] = c & 255; bytes[2 * i + 1] = c >> 8 }
+  let bin = ''
+  bytes.forEach((b) => { bin += String.fromCharCode(b) })
+  const bat = ['@echo off', 'echo Flexy: fixing the station program files...',
+    'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + btoa(bin), 'echo.', 'echo Now press "update" on the devices page.', 'pause', ''].join('\r\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([bat], { type: 'application/octet-stream' }))
+  a.download = 'Flexy-fix.bat'
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+}
 async function copyFix (sh) {
   // Its real folder when known (0.9.1): no guess, no search
   const dir = places.value[actionsSt.value?.station_uuid]?.dir
