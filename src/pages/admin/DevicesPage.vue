@@ -113,6 +113,8 @@
                 <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div>
                 <q-badge v-if="updates && !isAbsent(st) && !active(st) && newInMain(st)" outline color="primary" :label="'⬆ ' + newInMain(st).main_version" />
                 <!-- «صفحة الكمبيوتر» (owner 2026-10-30): its fixed actions from here, the same as its local page -->
+                <!-- Where its program is (Agent 0.9.1, Flexy Core 0100): said once, known from then on -->
+                <div v-if="places[st.station_uuid]" class="small muted ltr place">📁 {{ places[st.station_uuid].dir }}</div>
                 <div v-if="!isPhone(st) && st.approved"><q-btn flat dense no-caps size="sm" color="primary" icon="settings" label="أوامر" @click="openActions(st)" /></div></td>
               <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
                 <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
@@ -272,6 +274,7 @@
           <div v-if="actionsSt && !agentAtLeast(actionsSt, '0.9.0')" class="column q-gutter-xs warn-box">
             <div class="small text-weight-bold">هذا الكمبيوتر على نسخة قديمة ({{ actionsSt.agent_version || '؟' }}): لا يأخذ الأوامر من هنا بعد.</div>
             <div class="small">مرة واحدة أمامه أو عبر AnyDesk: اضغط زر النافذة التي تفتحها، والصق فيها (Enter معه)، ثم اضغط «حدّث» هنا.</div>
+            <div v-if="places[actionsSt.station_uuid]" class="small">مكانه: <b class="ltr">{{ places[actionsSt.station_uuid].dir }}</b></div>
             <code class="ltr fix-line">{{ FIX_LINE }}</code>
             <!-- One button per window (owner 2026-10-30: «أريد أن ألصق من الموقع»): the line with its Enter, and DONE when it ran -->
             <div class="row q-gutter-xs">
@@ -351,9 +354,13 @@ const agentAtLeast = (st, v) => {
   for (let i = 0; i < 3; i++) if ((a[i] || 0) !== b[i]) return (a[i] || 0) > b[i]
   return true
 }
+const places = ref({})
 async function loadActions () {
   const r = await flexy.stationActions().catch(() => null)
-  if (r?.status === 200 && r.body?.ok) actionsList.value = r.body.actions || []
+  if (r?.status === 200 && r.body?.ok) {
+    actionsList.value = r.body.actions || []
+    places.value = r.body.places || {}
+  }
 }
 const lastAction = (key) => actionsList.value.find((x) => x.station_uuid === actionsSt.value?.station_uuid && x.key === key) || null
 function openActions (st) {
@@ -389,7 +396,11 @@ const SHELLS = [
   { key: 'bash', label: 'انسخ لـ Git Bash', text: FIX_LINE + ' && echo DONE\n' }
 ]
 async function copyFix (sh) {
-  await copyToClipboard(sh.text)
+  // Its real folder when known (0.9.1): no guess, no search
+  const dir = places.value[actionsSt.value?.station_uuid]?.dir
+  const line = dir ? `git -C "${dir.replace(/\\/g, '/')}" checkout -- agent/src agent/package.json` : null
+  const text = !line ? sh.text : sh.key === 'cmd' ? line + ' && echo DONE\r\n' : sh.key === 'ps' ? line + '; if ($?) { echo DONE }\r\n' : line + ' && echo DONE\n'
+  await copyToClipboard(text)
   Notify.create({ type: 'positive', message: 'نُسخ السطر', position: 'top', timeout: 1200 })
 }
 const clock = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
@@ -824,7 +835,7 @@ async function readBalance () {
 // Only while the page is open, and not in a hidden tab
 const timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 30000)
 onBeforeUnmount(() => clearInterval(timer))
-onMounted(load)
+onMounted(() => { load(); loadActions() })
 </script>
 
 <style scoped>
@@ -862,6 +873,7 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
 .sims tbody tr { cursor: pointer; }
 .sims tbody tr:hover { background: #F6F7F9; }
 .warn-box { background: #FFF7ED; border: 1px solid #FDBA74; border-radius: 8px; padding: 8px; }
+.place { overflow-wrap: anywhere; }
 .fix-line { font-size: 12px; overflow-wrap: anywhere; }
 .act-row { border-top: 1px solid #eef0f4; padding-top: 8px; }
 /* On a phone (owner 2026-10-30: «الشاشة عريضة، التنقل فيها صعب»): each row a small card, nothing to scroll sideways */
