@@ -4,7 +4,31 @@
        Nothing is built before his «نفّذ» on a proposal. -->
   <q-page class="q-pa-md column q-gutter-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
+    <q-btn-toggle v-model="tab" spread unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+      :options="[{ label: 'أفكاري', value: 'mine' }, { label: `ينتظرك${handover ? ' (' + handover.needs.length + ')' : ''}`, value: 'handover' }]" />
 
+    <!-- «ينتظرك» (owner 2026-10-30): what Claude recorded in developer, from the code (Flexy Core src/data/handover.ts) -->
+    <template v-if="tab === 'handover'">
+      <div v-if="handover" class="small muted">آخر نقطة توقف: {{ when(handover.at) }} · {{ handover.title }}</div>
+      <div v-for="sec in SECTIONS" :key="sec.key" class="card column gap-xs">
+        <div class="text-weight-bold">{{ sec.label }} ({{ (handover?.[sec.key] || []).length }})</div>
+        <component :is="item.to ? 'router-link' : 'div'" v-for="(item, n) in handover?.[sec.key] || []" :key="n" :to="item.to" class="h-item">
+          <span class="col">{{ item.text }}</span>
+          <q-icon v-if="item.to" name="chevron_left" color="primary" />
+          <span v-if="item.doc" class="small muted ltr">{{ item.doc.split('/').pop() }}</span>
+        </component>
+      </div>
+      <q-expansion-item v-if="history.length" dense icon="history" label="نقاط توقف سابقة" class="card q-pa-none">
+        <div v-for="h in history" :key="h.at" class="q-pa-sm">
+          <div class="text-weight-bold small">{{ when(h.at) }} · {{ h.title }}</div>
+          <div v-for="sec in SECTIONS" :key="sec.key" class="small">
+            <template v-if="(h[sec.key] || []).length">{{ sec.label }}: {{ h[sec.key].map((x) => x.text).join(' · ') }}</template>
+          </div>
+        </div>
+      </q-expansion-item>
+    </template>
+
+    <template v-else>
     <div class="card column q-gutter-sm">
       <div class="row q-gutter-xs">
         <q-btn v-for="k in KINDS" :key="k.id" rounded dense no-caps :unelevated="kind === k.id" :outline="kind !== k.id"
@@ -56,12 +80,14 @@
       </div>
     </div>
     <div v-if="!busy && !shown.length && !error" class="muted text-center q-pa-md">لا شيء هنا</div>
+    </template>
   </q-page>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { Dialog } from 'quasar'
+import { useRoute } from 'vue-router'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
@@ -93,6 +119,15 @@ const inFilter = (i, f) => f === 'all' ||
   (f === 'proposed' && ['proposed', 'review'].includes(statusOf(i))) ||
   (f === 'done' && ['done', 'impossible'].includes(statusOf(i)))
 
+const SECTIONS = [
+  { key: 'needs', label: '🔴 تحتاج يدك' },
+  { key: 'decide', label: '💬 ينتظر قرارك' },
+  { key: 'done', label: '✅ تم مؤخرًا' }
+]
+// The blue bar opens «ينتظرك» directly (/ideas?tab=handover)
+const tab = ref(useRoute().query.tab === 'handover' ? 'handover' : 'mine')
+const handover = ref(null)
+const history = ref([])
 const ideas = ref([])
 const kind = ref('idea')
 const text = ref('')
@@ -107,6 +142,8 @@ async function call (key, fn) {
   error.value = ''
   try {
     const res = await fn()
+    // «ينتظرك» comes with every answer, even before 0089
+    if (res.body?.handover) { handover.value = res.body.handover; history.value = res.body.history || [] }
     if (res.status !== 200 || !res.body?.ok) {
       const e = res.body?.error
       throw new Error(e === 'IDEAS_NOT_READY' ? 'طبّق 0089 و0090 أولًا من «الإحصائيات و SQL»'
@@ -147,5 +184,8 @@ onMounted(() => call('load', () => flexy.ownerIdeas()))
 
 <style scoped>
 .idea-text { white-space: pre-wrap; word-break: break-word; }
+.h-item { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-top: 1px solid rgba(0, 0, 0, 0.06); color: inherit; text-decoration: none; }
+.gap-xs { gap: 4px; }
+.ltr { direction: ltr; }
 .reply { background: rgba(40, 53, 147, 0.06); border-radius: 8px; padding: 8px 10px; }
 </style>

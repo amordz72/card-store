@@ -304,13 +304,14 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 // «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
 const needsYou = computed(() => {
   const items = [
     sqlPending.value && { to: '/stats', text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
     approvalsWaiting.value && { to: '/flexy/devices', text: approvalsWaiting.value === 1 ? 'كمبيوتر جديد ينتظر الاعتماد' : `${approvalsWaiting.value} كمبيوترات تنتظر الاعتماد` },
     repoKeyLevel.value === 'dead' && { to: '/flexy/devices', text: 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' },
+    handoverNeeds.value && { to: '/ideas?tab=handover', text: `📋 ${handoverNeeds.value} ${handoverNeeds.value === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك'} في المتابعة` },
     agentUpdates.value && { to: '/flexy/devices', text: `تحديث ${agentUpdateVersion.value} متاح لـ${agentUpdates.value} ${agentUpdates.value === 1 ? 'كمبيوتر' : 'كمبيوترات'}` }
   ].filter(Boolean)
   if (!items.length) return null
