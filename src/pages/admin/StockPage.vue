@@ -8,11 +8,17 @@
 
     <!-- v1.53 (owner 2026-10-30): cards about to run out, nearest first -->
     <div v-show="tab === 'low'" class="tab-pane">
-      <div class="help small muted">بطاقة بيعت في آخر 14 يومًا وبقي منها {{ low.count }} أو أقل، أو يكفي ما بقي {{ low.days }} يوم أو أقل بسرعة بيعها في آخر 7 أيام.</div>
+      <!-- v1.59 (owner 2026-10-31): three separate reasons, each its own badge -->
+      <div class="help small muted">«وصلت للحد الأدنى»: حدّك الخاص للبطاقة (من «البطاقات»). «حدّ حرج»: بيعت في آخر 14 يومًا وبقي {{ low.count }} أو أقل. «كم تكفي»: ما بقي يكفي {{ low.days }} يوم أو أقل بسرعة بيعها.</div>
       <div v-for="x in low.items" :key="x.product_id" class="card column q-gutter-xs">
         <div class="row items-center justify-between no-wrap">
           <span class="text-weight-bold">{{ x.brand }} · {{ x.name }}</span>
           <q-badge :color="x.left === 0 ? 'negative' : 'deep-orange'" :label="x.left === 0 ? 'نفدت' : 'بقي ' + x.left" />
+        </div>
+        <div v-if="x.reasons?.length" class="row q-gutter-xs">
+          <q-badge v-if="x.reasons.includes('min')" outline color="purple-8" :label="'وصلت للحد الأدنى (' + x.min + ')'" />
+          <q-badge v-if="x.reasons.includes('critical')" outline color="negative" :label="'حدّ حرج: بقي ' + low.count + ' أو أقل'" />
+          <q-badge v-if="x.reasons.includes('days')" outline color="deep-orange" :label="'كم تكفي: ' + (runsOut(Number(x.days_left)) || 'أقل من ' + low.days + ' يوم')" />
         </div>
         <div class="small muted">{{ salesLine(x) }}</div>
         <div v-if="x.made_up" class="small text-positive">تُباع الآن من بطاقات أخرى (تقسيم)، لكن أضف منها.</div>
@@ -29,7 +35,7 @@
         <div class="help small muted">{{ g.help }}</div>
         <div v-for="x in buyOf(g.id)" :key="x.product_id" class="row items-center no-wrap q-gutter-sm buy-line">
           <span class="col">{{ x.brand }} · {{ x.name }}
-            <span class="small muted"> · {{ sold7(x) ? 'بيعت ' + sold7(x) + ' في 7 أيام' : 'لم تُبع في 7 أيام' }} · بقيت {{ x.left }}</span></span>
+            <span class="small muted"> · {{ sold7(x) ? 'بيعت ' + sold7(x) + ' في 7 أيام' : 'لم تُبع في 7 أيام' }} · بقيت {{ x.left }}{{ x.min ? ' · حدّك ' + x.min : '' }}</span></span>
           <b v-if="g.id !== 'idle'">× {{ x.qty }}</b>
           <q-btn v-if="g.id !== 'idle'" flat round dense color="primary" icon="add_shopping_cart" aria-label="اشترِ الآن" @click="addCodesFor(x)" />
           <span v-else class="small text-deep-orange">مجمّد {{ money(x.idle_value) }}</span>
@@ -196,6 +202,7 @@
       <div class="row q-gutter-xs">
         <q-btn v-if="p.active" dense unelevated size="sm" color="primary" label="+ أكواد" @click="addCodesFor(p)" />
         <q-btn dense outline size="sm" :color="p.active ? 'warning' : 'positive'" :label="p.active ? 'إيقاف' : 'تفعيل'" @click="toggleProduct(p)" />
+        <q-btn dense outline no-caps size="sm" color="purple-8" :label="minOf(p) ? 'الحد الأدنى ' + minOf(p) : 'حدّد الحد الأدنى'" @click="editMin(p)" />
       </div>
     </div>
     <div v-if="!shownStock.length" class="text-center muted q-pa-md">{{ stock.length ? 'لا توجد بطاقات في هذا التصنيف' : 'لا توجد بطاقات بعد. أضف أول بطاقة.' }}</div>
@@ -639,7 +646,7 @@ async function reloadAll () { await Promise.all([load(), loadBatches(), loadLow(
 // v1.54: «قائمة الشراء»
 const BUY_GROUPS = [
   { id: 'out', label: 'نفدت: لا يوجد منها بطاقات', cls: 'text-negative', help: 'كانت تُباع في آخر 30 يومًا والآن صفر.' },
-  { id: 'buy', label: 'اشترِ: تُستهلك', cls: 'text-deep-orange', help: 'ما بقي لا يكفي الأيام المحددة بسرعة بيعها.' },
+  { id: 'buy', label: 'اشترِ: تُستهلك', cls: 'text-deep-orange', help: 'ما بقي لا يكفي الأيام المحددة بسرعة بيعها، أو وصلت للحد الأدنى الذي حدّدته لها.' },
   { id: 'trial', label: 'للتجربة', cls: 'text-primary', help: 'بطاقات مفعّلة لم تشترِها أبدًا.' },
   { id: 'idle', label: 'لا تشترِ: لا تُباع', cls: 'text-grey-8', help: 'عندك منها ولم يُبع شيء منذ مدة: المال مجمّد فيها.' }
 ]
@@ -688,6 +695,20 @@ const lowDraft = ref({ days: 2, count: 3 })
 async function loadLow () {
   const r = await api.lowStock().catch(() => null)
   if (r) { low.value = { ...r, items: r.items || [] }; lowDraft.value = { days: r.days, count: r.count } }
+}
+// v1.59: each card's own minimum («وصلت للحد الأدنى»), empty = only the general rules
+const minOf = (p) => low.value.mins?.[String(p.product_id)] || null
+function editMin (p) {
+  Dialog.create({
+    title: 'الحد الأدنى · ' + p.name,
+    message: 'أنذرني حين يبقى منها هذا العدد أو أقل. اتركه فارغًا لإلغائه.',
+    prompt: { model: minOf(p) ? String(minOf(p)) : '', type: 'number', isValid: (v) => v === '' || (Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 100000) },
+    cancel: 'رجوع',
+    ok: 'حفظ'
+  }).onOk(async (v) => {
+    const min = v === '' || v == null ? null : Number(v)
+    if (await run(() => api.setLowMin(p.product_id, min).then(() => true), { success: min ? 'الحد الأدنى ' + min + '.' : 'أُلغي الحد الأدنى.' })) { loadLow(); loadBuy() }
+  })
 }
 async function saveLow () {
   if (await run(() => api.setLowStock(lowDraft.value.days, lowDraft.value.count).then(() => true), { success: 'حُفظ.' })) loadLow()
