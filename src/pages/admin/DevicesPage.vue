@@ -118,7 +118,12 @@
                 <!-- «صفحة الكمبيوتر» (owner 2026-10-30): its fixed actions from here, the same as its local page -->
                 <!-- Where its program is (Agent 0.9.1, Flexy Core 0100): said once, known from then on -->
                 <div v-if="places[st.station_uuid]" class="small muted ltr place">📁 {{ places[st.station_uuid].dir }}</div>
-                <div v-if="!isPhone(st) && st.approved"><q-btn flat dense no-caps size="sm" color="primary" icon="settings" label="أوامر" @click="openActions(st)" /></div></td>
+                <!-- Asks for a press only when something is needed (owner 2026-10-30: «زر يدعوني ولا شيء فيه»): then it says
+                     what; otherwise a faint gear, for a problem the page cannot see -->
+                <div v-if="!isPhone(st) && st.approved">
+                  <q-btn v-if="neededFor(st).length" unelevated dense no-caps size="sm" color="deep-orange" icon="build" :label="neededFor(st)[0].label" @click="openActions(st)" />
+                  <q-btn v-else flat round dense size="sm" color="grey-5" icon="settings" aria-label="أوامر عند مشكلة لا تظهر هنا" @click="openActions(st)" />
+                </div></td>
               <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
                 <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
                 <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
@@ -390,6 +395,7 @@ const needs = (st, key) => {
   if (key === 'restart_agent') return live(st).some((m) => !isConnected(m)) || (st.reasons || []).some((r) => r.level === 'down')
   return false
 }
+const neededFor = (st) => STATION_ACTIONS.filter((a) => needs(st, a.key))
 const neededActions = computed(() => STATION_ACTIONS.filter((a) => needs(actionsSt.value, a.key)))
 const otherActions = computed(() => STATION_ACTIONS.filter((a) => !needs(actionsSt.value, a.key)))
 const lastAction = (key) => actionsList.value.find((x) => x.station_uuid === actionsSt.value?.station_uuid && x.key === key) || null
