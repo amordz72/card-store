@@ -862,7 +862,10 @@ const canRetryFirstBalance = (sim) => {
   return !!o && o.stage === 'alert' && RETRY_ALERTS.includes(o.alert_code)
 }
 // Why a read stopped after 30 minutes without its code leaving (Flexy Core 0101)
-const READ_WHY = { CODE_NOT_SENT: 'لم يُرسل الكود: المودم مشغول أو الطلب رُفض', MODEM_NOT_READY: 'المودم أو كمبيوتره لا يرد' }
+const READ_WHY = { CODE_NOT_SENT: 'لم يُرسل الكود: المودم مشغول أو الطلب رُفض', MODEM_NOT_READY: 'المودم أو كمبيوتره لا يرد',
+  SMS_STORE_FULL: 'مخزن الرسائل ممتلئ', MODEM_BUSY: 'المودم مشغول', LAST_632_UNCONFIRMED: 'قراءة سابقة لم تُحسم',
+  LAST_QUERY_RECENT: 'قُرئ قبل قليل', NOTHING_CHANGED: 'لا عملية منذ آخر قراءة', RUNNING: 'قراءة جارية',
+  SIM_NOT_READY: 'الشريحة غير جاهزة', PIN_REJECTED: 'PIN مرفوض' }
 const since = (t) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 60000)); return m < 60 ? m + ' دقيقة' : Math.round(m / 60) + ' ساعة' }
 const stationOfSim = (uuid) => { const r = everySim.value.find((x) => x.m.sim.sim_uuid === uuid); return r ? stName(r.st) : '' }
 function copySimForClaude (r) {
@@ -885,7 +888,7 @@ function onboardingText (sim) {
   if (o.stage === 'read') return 'يُقرأ الرصيد…' + (o.updated_at ? ' منذ ' + since(o.updated_at) : '') + (sim.balance != null ? ' · السابق ' + money(sim.balance) : '')
   if (o.stage === 'approved') return 'اعتُمدت آليًا بعد أول رصيد'
   if (o.stage === 'balance_only') return 'الرصيد ' + (o.probe_amount != null ? money(o.probe_amount) : 'مقروء') + ' (بلا اعتماد)'
-  if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code) + (READ_WHY[o.alert_detail] ? ' (' + READ_WHY[o.alert_detail] + ')' : '')
+  if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code) + (o.alert_detail ? ' (' + (READ_WHY[o.alert_detail] || o.alert_detail) + ')' : '') + (o.alert_code === 'BALANCE_READ_FAILED' ? ' — يُعاد وحده كل ساعة تقريبًا' : '')
   return ''
 }
 // A balance code is on its way: the page turns a spinner beside it
