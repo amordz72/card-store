@@ -278,7 +278,7 @@
             <code class="ltr fix-line">{{ FIX_LINE }}</code>
             <!-- One button per window (owner 2026-10-30: «أريد أن ألصق من الموقع»): the line with its Enter, and DONE when it ran -->
             <!-- A file to carry (owner 2026-10-30): downloaded on the phone, moved by cable or AnyDesk, double-clicked: no typing, no Enter -->
-            <q-btn unelevated no-caps color="positive" icon="download" label="نزّل حزمة الإصلاح (Flexy-fix.zip)" @click="downloadFix" />
+            <q-btn unelevated no-caps color="positive" icon="download" :label="'نزّل حزمة الإصلاح (الإصدار ' + FIX_VERSION + ')'" @click="downloadFix" />
             <div class="small muted">انقلها إلى الكمبيوتر بالكابل أو بنقل الملفات في AnyDesk، وفكّ ضغطها. فيها: ملف تشغّله بضغطتين، وآخر بصلاحية المدير، وملف PowerShell، وأوامر cmd وPowerShell وGit Bash لتنسخها بيدك، و«اقرأني» بالعربية.</div>
             <div class="row q-gutter-xs">
               <q-btn v-for="sh in SHELLS" :key="sh.key" unelevated dense no-caps size="sm" color="primary" icon="content_copy" :label="sh.label" @click="copyFix(sh)" />
@@ -419,6 +419,8 @@ const SHELLS = [
 ]
 // The fix as a file: finds the station program by what runs (node …\agent\src\index.js), else by its files on C:, D:, E:
 // (not by a folder name: one computer had another), then «git checkout» of its own files only
+// The fix package's own number: raised whenever what is inside changes
+const FIX_VERSION = 4
 const FIX_PS = [
   '$dirs = @()',
   "Get-CimInstance Win32_Process -Filter \"name='node.exe'\" | ForEach-Object { if ($_.CommandLine -match '([A-Za-z]:\\\\[^\"]*?)\\\\agent\\\\(src|updater)\\\\') { $dirs += $Matches[1] } }",
@@ -448,7 +450,7 @@ function downloadFix () {
   // line when the folder is known, else the searching one; then a line so the paste runs the first
   const lines = (_title, direct, search) => crlf([known ? direct : search, 'echo FIN'])
   const readme = '\uFEFF' + crlf([
-    'حزمة إصلاح برنامج المحطة (Flexy)',
+    'حزمة إصلاح برنامج المحطة (Flexy) — الإصدار ' + FIX_VERSION + ' · ' + new Date().toLocaleString('ar-DZ'),
     '',
     'الطريقة 1: اضغط مرتين على 1-run-me.bat ، وانتظر حتى يظهر DONE.',
     'الطريقة 2: إن لم ينجح، اضغط مرتين على 2-run-as-admin.bat ثم اختر «نعم».',
@@ -474,7 +476,10 @@ function downloadFix () {
   ])
   const a = document.createElement('a')
   a.href = URL.createObjectURL(zip)
-  a.download = 'Flexy-fix' + (actionsSt.value?.code ? '-' + actionsSt.value.code : '') + '.zip'
+  // A number on everything given (owner 2026-10-30: «أي ملف تعطيه له ترقيم»): the package's version and the minute it was
+  // made, so an old download is never taken for the new one
+  const stamp = new Date().toTimeString().slice(0, 5).replace(':', '')
+  a.download = `Flexy-fix-v${FIX_VERSION}` + (actionsSt.value?.code ? '-' + actionsSt.value.code : '') + '-' + stamp + '.zip'
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 5000)
 }
