@@ -26,10 +26,12 @@
           group="families" header-class="family" expand-separator>
           <div v-for="o in f.offers" :key="o.label" class="offer-row" :class="{ busy }" role="button" tabindex="0"
             :aria-disabled="busy" @click="confirm(o)" @keyup.enter="confirm(o)">
-            <span class="text-weight-bold"><bdi dir="auto">{{ o.label }}</bdi><q-badge v-if="o.review" class="q-ml-xs" color="purple-6" label="جديد" /><q-badge v-else-if="o.visibility === 'admin'" class="q-ml-xs" color="amber-8" label="للإدارة" /></span>
+            <span class="text-weight-bold"><bdi dir="auto">{{ o.label }}</bdi><q-badge v-if="o.review" class="q-ml-xs" color="purple-6" label="جديد" /><q-badge v-else-if="o.visibility === 'admin'" class="q-ml-xs" color="amber-8" label="للإدارة" /><q-badge v-if="o.probe_ok" class="q-ml-xs" color="positive" label="معتمد بالكشف" /></span>
             <span class="row items-center no-wrap q-gutter-xs">
               <q-btn v-if="detailOf(o)" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل"
                 @click.stop="details(o)" />
+              <q-btn v-if="session.isAdmin && o.probe_ok && o.visibility === 'admin' && o.id" dense flat no-caps size="sm" color="primary" label="افتحه للمحلات"
+                :loading="approving === o.id" @click.stop="openToShops(o)" />
               <span class="price">{{ money(o.amount) }}</span>
             </span>
           </div>
@@ -85,10 +87,13 @@
           </span>
         </div>
         <div v-if="verdictOf(o)" class="small" :class="verdictOf(o).match ? 'text-positive' : 'text-negative'">{{ verdictOf(o).text }}</div>
+        <!-- «اعتماد الرمز» from here (owner 2026-10-30): the probe named this offer's price; on the owner's word -->
+        <q-btn v-if="session.isAdmin && verdictOf(o)?.match" dense unelevated no-caps size="sm" color="positive" icon="verified" class="self-start q-mt-xs"
+          :label="'اعتمد الرمز ' + o.code + ' لهذا العرض'" :loading="approving === o.id" @click="approveCode(o)" />
       </div>
       <div v-if="probeError" class="small text-negative q-px-md q-pb-sm">{{ probeError }}</div>
       <div v-if="anyMatch" class="small muted q-px-md q-pb-sm">
-        للبيع: {{ newGroup ? 'اعتمد المجموعة في شاشة العروض، ثم' : 'في شاشة العروض ←' }} «اعتماد الرمز» على العرض المطابق. الآخر يبقى موقوفًا.
+        بعد «اعتمد» يُباع هذا العرض، ولا يُرسل الـPIN إلا إذا قالت الشبكة نفس السعر. الآخر بنفس الرمز يبقى موقوفًا.{{ newGroup ? ' (اعتمد المجموعة في شاشة العروض أولًا.)' : '' }}
       </div>
     </div>
     <!-- «أوتوميكس» (owner 2026-10-29): a Mobilis number whose line is not known yet sells at once, without waiting
@@ -143,7 +148,7 @@
 // `send(phone, label)` sends one offer and resolves to something truthy when it was accepted for sending;
 // `repeatOf(phone, { offer })` names the last operation when it was this same offer to this number.
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
-import { Dialog } from 'quasar'
+import { Dialog, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
 import * as flexyApi from 'src/api/flexy'
@@ -255,6 +260,34 @@ function verdictOf (o) {
   return { match, text: (match ? '✓ ' : '✗ ') + when + ': الرمز ' + o.code + ' يعطي ' + money(price) + (match ? ' = هذا العرض' : ' ≠ هذا العرض') }
 }
 const anyMatch = computed(() => blocked.value.some((o) => verdictOf(o)?.match))
+// «اعتمد» here: the offer leaves «موقوفة» for its place (Flexy Core moves it once approved); «افتحه للمحلات» after, if wanted
+const approving = ref(null)
+function approveCode (o) {
+  Dialog.create({
+    title: 'اعتماد الرمز ' + o.code + ' لـ' + o.label,
+    message: 'الكشف قال إن الرمز ' + o.code + ' يعطي ' + money(o.amount) + ' = هذا العرض. يُباع لك (الإدارة)، والـPIN لا يُرسل إلا إذا قالت الشبكة نفس السعر. العرض الآخر بنفس الرمز يبقى موقوفًا.',
+    cancel: 'رجوع',
+    ok: 'اعتمد'
+  }).onOk(() => act(o, () => flexyApi.ownerOfferProbeApprove(o.id), 'اعتُمد: صار في مكانه بين العروض.'))
+}
+function openToShops (o) {
+  Dialog.create({ title: 'افتح ' + o.label + ' للمحلات؟', message: 'تراه المحلات وتبيعه. الحماية نفسها: لا PIN إلا بنفس السعر.', cancel: 'رجوع', ok: 'افتحه' })
+    .onOk(() => act(o, () => flexyApi.ownerOfferCatalogSet(o.id, { audience: 'all' }), 'فُتح للمحلات.'))
+}
+async function act (o, fn, done) {
+  approving.value = o.id
+  try {
+    const r = await fn()
+    if (r.status !== 200 || !r.body?.ok) throw new Error(r.body?.error || 'FLEXY_CORE')
+    Notify.create({ type: 'positive', message: done })
+    loadedFor = ''
+    await load()
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message === 'PROBE_NOT_MATCHING' ? 'الكشف المحفوظ لا يطابق هذا العرض: أعد «اكشف».' : e.message })
+  } finally {
+    approving.value = null
+  }
+}
 async function runProbe (code) {
   const p = props.phone
   if (!props.probe || probing.value) return
