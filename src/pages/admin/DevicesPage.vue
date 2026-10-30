@@ -861,4 +861,13 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
 .warn-box { background: #FFF7ED; border: 1px solid #FDBA74; border-radius: 8px; padding: 8px; }
 .fix-line { font-size: 12px; overflow-wrap: anywhere; }
 .act-row { border-top: 1px solid #eef0f4; padding-top: 8px; }
+/* On a phone (owner 2026-10-30: «الشاشة عريضة، التنقل فيها صعب»): each row a small card, nothing to scroll sideways */
+@media (max-width: 640px) {
+  .table-wrap { overflow-x: visible; }
+  .sims thead { display: none; }
+  .sims, .sims tbody { display: block; }
+  .sims tr { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 14px; padding: 10px 6px; border-top: 1px solid #EEF0F4; }
+  .sims td { display: block; border: 0; padding: 0; white-space: normal; min-width: 0; }
+  .sims td:first-child, .sims td[colspan] { flex-basis: 100%; }
+}
 </style>
