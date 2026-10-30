@@ -4,6 +4,7 @@
        (no secrets); «كتابة» runs the whole script with full rights, all or nothing, after «نعم». All kept in the log. -->
   <q-page class="q-pa-md column gap-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
+    <FailuresCard />
 
     <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press.
          Indicators first (owner 2026-10-30: «الناس لا يقرؤون الكتابات»): tiles, then standing bars, the words folded. -->
@@ -89,7 +90,7 @@
       <div v-if="result.ok && !result.write && !result.rows?.length" class="small text-deep-orange">لا يوجد سطر يطابق.</div>
       <div v-if="result.ok && result.columns?.length" class="table-wrap">
         <table class="grid">
-          <thead><tr><th v-for="c in result.columns" :key="c">{{ c }}</th></tr></thead>
+          <thead><tr><th v-for="c in result.columns" :key="c">{{ HEADERS[c] || c }}</th></tr></thead>
           <tbody><tr v-for="(row, i) in result.rows" :key="i"><td v-for="c in result.columns" :key="c">{{ cell(row[c]) }}</td></tr></tbody>
         </table>
       </div>
@@ -122,6 +123,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { Dialog, Notify, copyToClipboard } from 'quasar'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import BarChart from 'src/components/BarChart.vue'
+import FailuresCard from 'src/components/FailuresCard.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
 import { useBell } from 'src/composables/useBell'
@@ -189,7 +191,7 @@ async function loadLog () {
     pendingOpen.value = [
       ...(b.migrations || []).map((m) => ({ uid: 'm' + m.key, mig: m.key, title: m.title, sql: m.sql })),
       ...(b.pending?.open || []).map((p) => ({ ...p, uid: 'p' + p.id }))
-    ]; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables'].includes(r.key)); log.value = b.log || [] }
+    ]; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables', 'failed_ops', 'failed_reads'].includes(r.key)); log.value = b.log || [] }
 }
 // Each card its own state and a 15-second limit: a request lost on the phone's network never spins forever
 const loadState = ref('')
@@ -267,7 +269,23 @@ async function runReady (r) {
   await show(await call(r.key, () => flexy.runReady(r.key)), false)
   loadLog()
 }
-const cell = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v))
+// Times in the phone's clock (owner 2026-10-30: «2026-10-30T10:48:01Z» is not read), Arabic column names
+const ISO = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/
+const cell = (v) => {
+  if (v === null || v === undefined) return '—'
+  if (v instanceof Date || (typeof v === 'string' && ISO.test(v))) {
+    const d = new Date(v)
+    const today = new Date().toDateString() === d.toDateString()
+    return (today ? '' : d.toLocaleDateString('ar-DZ', { day: '2-digit', month: '2-digit' }) + ' ') + d.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
+  }
+  return typeof v === 'object' ? JSON.stringify(v) : String(v)
+}
+const HEADERS = {
+  at: 'الوقت', created_at: 'الوقت', updated_at: 'آخر تغيير', applied_at: 'طُبّق', task: 'المهمة', target: 'الهدف', reason: 'السبب',
+  status: 'الحالة', phone: 'الرقم', amount: 'المبلغ', sim: 'الشريحة', display_code: 'الشريحة', title: 'العنوان', kind: 'النوع',
+  name: 'الاسم', label: 'الاسم', balance: 'الرصيد', balance_amount: 'الرصيد', checked_at: 'قُرئ', last_seen_at: 'آخر ظهور',
+  operation_key: 'العملية', code: 'الرمز', error: 'الخطأ', rows: 'الأسطر', id: 'رقم', last_visit: 'آخر دخول'
+}
 const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const hourOf = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
 // The owner's limit (0085, «المفاتيح»): the dashed line, and red bars above it
@@ -316,6 +334,7 @@ body.body--dark .tile { background: rgba(255, 255, 255, 0.06); }
 .col, .card > * { min-width: 0; }
 .ltr, .text-weight-bold, .sql-view { overflow-wrap: anywhere; }
 .sql-view { max-width: 100%; }
+.table-wrap { display: block; width: 100%; max-width: 100%; overflow-x: auto; }
 .tables-list { max-height: 320px; overflow-y: auto; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 8px; }
 .table-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
   border: 0; border-bottom: 1px solid rgba(0, 0, 0, 0.06); background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
