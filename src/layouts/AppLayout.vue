@@ -266,7 +266,9 @@ const MENU = [
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
   // Three entries (owner 2026-10-29): sending, watching, and the rare admin pages behind tabs
-  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/monitor', label: 'المراقبة', icon: 'monitor_heart' }, { to: '/flexy/shops', label: 'الإدارة', icon: 'admin_panel_settings' }] },
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/monitor', label: 'المراقبة', icon: 'monitor_heart' }, { to: '/flexy/shops', label: 'الإدارة', icon: 'admin_panel_settings' },
+    // Owner's idea #1 (2026-10-30): a direct way to the SQL page and the ideas, the bottom buttons unchanged
+    { to: '/stats', label: 'الإحصائيات و SQL', icon: 'storage' }, { to: '/ideas', label: 'أفكار وأوامر', icon: 'lightbulb' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()

@@ -18,7 +18,15 @@ async function call (path, init) {
 
 // Owner console (real money): straight to flexy-api with the owner's own session.
 // Station Connect re-checks that this session is the shop admin. No key in the browser.
+// Owner's idea #2 (2026-10-30): a read that cannot reach Flexy Core (a deploy, the phone's network) is tried again once
+// after 3 seconds before any error shows. Reads only: a send is never repeated by this.
 async function owner (path, init) {
+  const first = await ownerOnce(path, init)
+  if (first.status !== 0 || (init?.method || 'GET') !== 'GET') return first
+  await new Promise((resolve) => setTimeout(resolve, 3000))
+  return ownerOnce(path, init)
+}
+async function ownerOnce (path, init) {
   const { data, error } = await supabase.functions.invoke('flexy-api/v1/owner/' + path, init)
   if (!error) return { status: 200, body: data }
   const res = error.context
