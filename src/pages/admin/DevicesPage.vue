@@ -316,6 +316,19 @@
                the page cannot see -->
           <!-- Agent 0.9.3 repairs a modem gone by itself (restart, then its USB port): no button to press for it -->
           <div v-if="actionsSt && agentAtLeast(actionsSt, '0.9.3')" class="help small text-primary">🔧 الإصلاح الذاتي يعمل: إذا اختفى مودم، يعيد البرنامج تشغيل نفسه بعد دقيقتين، ثم منفذ USB الخاص به، ثم ينبّهك إن لم يرجع.</div>
+          <!-- «افحص الإنترنت» (Flexy Core 0114, Agent 0.9.4): read only, the cut layer and each layer's line -->
+          <div v-if="actionsSt" class="row items-start no-wrap q-gutter-sm act-row">
+            <div class="col"><div class="text-weight-bold">{{ NET_CHECK.label }}</div><div class="small muted">{{ NET_CHECK.note }}</div>
+              <div v-if="!agentAtLeast(actionsSt, '0.9.4')" class="small text-deep-orange">يحتاج تحديث البرنامج إلى 0.9.4 على هذا الكمبيوتر أولًا.</div>
+              <div v-else-if="lastAction('net_check')" class="small" style="white-space: pre-line" :class="lastAction('net_check').done_at ? (lastAction('net_check').ok ? 'text-positive' : 'text-negative') : 'text-primary'">
+                {{ lastAction('net_check').done_at ? (lastAction('net_check').ok ? '✓ ' : '✗ ') + (lastAction('net_check').message || '') : (lastAction('net_check').sent_at ? 'وصل الكمبيوتر، يفحص (حتى دقيقة)…' : 'ينتظر نبضة الكمبيوتر…') }}
+                <span class="muted"> · {{ clock(lastAction('net_check').done_at || lastAction('net_check').asked_at) }}</span>
+                <q-btn v-if="lastAction('net_check').done_at" flat dense no-caps size="sm" color="primary" icon="smart_toy" label="انسخ لـClaude"
+                  @click="copyToClipboard(`فحص الإنترنت · ${actionsSt.code || ''} · ${clock(lastAction('net_check').done_at)}\n${lastAction('net_check').message || ''}`).then(() => Notify.create({ type: 'positive', message: 'نُسخ.' }))" />
+              </div>
+            </div>
+            <q-btn unelevated dense no-caps color="primary" label="افحص" :disable="!agentAtLeast(actionsSt, '0.9.4')" :loading="busy" @click="askAction(NET_CHECK)" />
+          </div>
           <div v-if="actionsSt && !neededActions.length" class="small text-positive">✓ لا يحتاج هذا الكمبيوتر شيئًا الآن.</div>
           <div v-for="a in neededActions" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
             <div class="col"><div class="text-weight-bold">{{ a.label }}</div><div class="small muted">{{ a.note }}</div>
@@ -385,6 +398,7 @@ const STATION_ACTIONS = [
   { key: 'restart_agent', label: 'أعد تشغيل البرنامج', note: 'حين لا يعمل شيء على المودمات (ثوانٍ).' },
   { key: 'reconnect_wifi', label: 'أعد الاتصال بالواي فاي', note: 'يقطع الواي فاي ويعيده إلى الشبكة نفسها.' }
 ]
+const NET_CHECK = { key: 'net_check', label: 'افحص الإنترنت', note: 'يقرأ فقط: الراوتر، ثم الإنترنت، ثم الأسماء، ثم خادمنا، ويقول أي طبقة مقطوعة.' }
 // Forward slashes: the same line works in cmd and in Git Bash (which eats backslashes, owner 2026-10-30)
 const FIX_LINE = 'git -C C:/MyTool/station-connect checkout -- agent/src agent/package.json'
 const actionsOpen = ref(false)
