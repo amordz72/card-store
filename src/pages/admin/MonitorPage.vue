@@ -26,7 +26,7 @@
         <q-btn flat dense no-caps size="sm" color="primary" label="رأيتها كلها" :loading="seeing === 'all'" @click="seeIncident('all')" />
       </div>
       <div v-for="i in unseenIncidents" :key="i.id" class="card row items-center no-wrap q-gutter-sm">
-        <q-icon :name="i.kind === 'sim_back' || i.kind === 'station_restart_back' ? 'sim_card' : i.kind === 'update_failed' ? 'system_update' : i.kind === 'station_restart' ? 'restart_alt' : i.kind === 'station_restart_failed' ? 'usb_off' : 'power_off'" :color="i.kind === 'site_outage' || i.kind === 'station_restart_failed' ? 'negative' : i.kind === 'station_restart_back' ? 'positive' : 'deep-orange'" size="20px" />
+        <q-icon :name="i.kind === 'sim_back' || i.kind === 'station_restart_back' ? 'sim_card' : i.kind === 'update_failed' ? 'system_update' : i.kind === 'station_restart' ? 'restart_alt' : i.kind === 'station_restart_failed' ? 'usb_off' : i.kind === 'db_load' ? 'storage' : 'power_off'" :color="i.kind === 'site_outage' || i.kind === 'station_restart_failed' ? 'negative' : i.kind === 'station_restart_back' ? 'positive' : 'deep-orange'" size="20px" />
         <div class="col column">
           <span class="text-weight-bold small">{{ i.title }}</span>
           <span class="tiny muted">{{ i.started_at ? when(i.started_at) + (i.ended_at ? ' – ' + when(i.ended_at) : '') : (i.ended_at ? when(i.ended_at) : '') }}</span>
