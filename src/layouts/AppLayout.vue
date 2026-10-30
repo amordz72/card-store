@@ -3,15 +3,26 @@
     <q-header class="bg-white text-dark" bordered>
       <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it -->
       <!-- One line each, naming its section (owner idea #6: «و شيء آخر» hid what and where) -->
-      <template v-if="session.isAdmin">
-        <router-link v-for="it in shownNeeds" :key="it.text" :to="it.to" class="monitor-bar bg-indigo-8">
-          <q-icon name="build" size="18px" />
-          <span class="col">{{ it.text }}<span class="where"> · في «{{ it.where }}»</span></span>
-          <span class="text-underline">افتح</span>
-        </router-link>
-        <button v-if="needsYou.length > shownNeeds.length" type="button" class="monitor-bar bg-indigo-8 more" @click="needsAll = true">
-          و{{ needsYou.length - shownNeeds.length }} أخرى: اعرضها
+      <!-- Small (owner 2026-10-30: «الشريط يأخذ نصف الشاشة»): one short line each, and ⌃ folds it into one line
+           until something new comes -->
+      <template v-if="session.isAdmin && needsYou.length">
+        <button v-if="needsFolded" type="button" class="monitor-bar compact bg-indigo-8 more" @click="unfoldNeeds">
+          <q-icon name="build" size="16px" /> {{ needsYou.length }} {{ needsYou.length === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك' }} <q-icon name="expand_more" size="18px" />
         </button>
+        <template v-else>
+          <router-link v-for="it in shownNeeds" :key="it.text" :to="it.to" class="monitor-bar compact bg-indigo-8">
+            <span class="col ellipsis">{{ it.text }}<span class="where"> · {{ it.where }}</span></span>
+            <q-icon name="chevron_left" size="18px" />
+          </router-link>
+          <div class="row bg-indigo-8">
+            <button v-if="needsYou.length > shownNeeds.length" type="button" class="monitor-bar compact bg-indigo-8 more col" @click="needsAll = true">
+              و{{ needsYou.length - shownNeeds.length }} أخرى
+            </button>
+            <button type="button" class="monitor-bar compact bg-indigo-8 more col" aria-label="اطوِ الشريط" @click="foldNeeds">
+              اطوِه <q-icon name="expand_less" size="18px" />
+            </button>
+          </div>
+        </template>
       </template>
       <!-- Weak internet: started from the home page (startup.js); one press back to where he was going -->
       <div v-if="weakFrom" class="monitor-bar bg-grey-8">
@@ -364,6 +375,13 @@ const needsYou = computed(() => {
 })
 // Three lines at most, the rest behind «اعرضها»
 const needsAll = ref(false)
+// Folded until the list changes (a new item unfolds it), kept for this visit
+const NEEDS_FOLD_KEY = 'cs_needs_folded'
+const needsSig = computed(() => needsYou.value.map((x) => x.text).join('|'))
+const foldedSig = ref((() => { try { return sessionStorage.getItem(NEEDS_FOLD_KEY) || '' } catch { return '' } })())
+const needsFolded = computed(() => !!needsSig.value && foldedSig.value === needsSig.value)
+function foldNeeds () { foldedSig.value = needsSig.value; try { sessionStorage.setItem(NEEDS_FOLD_KEY, foldedSig.value) } catch { /* private mode */ } }
+function unfoldNeeds () { foldedSig.value = ''; try { sessionStorage.removeItem(NEEDS_FOLD_KEY) } catch { /* private mode */ } }
 const shownNeeds = computed(() => (needsAll.value ? needsYou.value : needsYou.value.slice(0, 3)))
 // Not while the page is hidden (2026-10-30, the database's load): a phone in a pocket asks nothing
 const refreshBellIfAdmin = () => { if (session.isAdmin && document.visibilityState === 'visible') refreshBell() }
@@ -429,6 +447,7 @@ async function logout () {
 .menu-active { background: #FFF1E8; color: #9A3412; font-weight: 600; }
 .monitor-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; }
 .monitor-bar + .monitor-bar { border-top: 1px solid rgba(255, 255, 255, 0.2); }
+.monitor-bar.compact { padding: 5px 12px; font-size: 13px; min-height: 30px; }
 .monitor-bar .where { font-weight: 400; font-size: 12px; opacity: 0.85; }
 .monitor-bar.more { width: 100%; border: 0; font: inherit; font-size: 13px; cursor: pointer; justify-content: center; }
 .monitor-bar .text-underline { text-decoration: underline; font-size: 13px; }

@@ -44,6 +44,8 @@
           :label="suggest(o) === 'success' ? 'موافق: وصلت' : 'وصلت'" :loading="busy === o.id + 's'" @click="settle(o, 'success')" />
         <q-btn :unelevated="suggest(o) !== 'success'" :outline="suggest(o) === 'success'" dense no-caps color="negative" icon="close"
           :label="suggest(o) === 'failed' ? 'موافق: لم تصل' : 'لم تصل'" :loading="busy === o.id + 'f'" @click="settle(o, 'failed')" />
+        <!-- «لا أدري» (owner 2026-10-30): no answer from him; the program reads the SIM's balance and does the sum -->
+        <q-btn v-if="!o.unknown_at" flat dense no-caps color="grey-8" icon="help_outline" label="لا أدري" :loading="busy === o.id + 'u'" @click="unknown(o)" />
       </div>
     </div>
   </div>
@@ -71,6 +73,41 @@ async function load () {
   const r = await withLimit(flexy.runReady('review_ops')).catch(() => null)
   // Newest first (owner 2026-10-30), whatever order the server sent
   if (r?.status === 200 && r.body?.ok) { ops.value = (r.body.rows?.[0]?.rows || []).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); state.value = '' } else state.value = 'failed'
+}
+async function unknown (o) {
+  busy.value = o.id + 'u'
+  try {
+    const r = await flexy.ownerUnknown(o.id)
+    if (r.status !== 200 || r.body?.ok === false) throw new Error(r.body?.error === 'UNKNOWN_NOT_READY' ? 'طبّق 0097 أولًا' : (r.body?.error || 'FLEXY_CORE'))
+    // The SIM's balance asked once more (the same read as its button: no money)
+    let read = ''
+    if (r.body.sim_uuid) {
+      const b = await flexy.readSimBalance(r.body.sim_uuid).catch(() => null)
+      read = b?.status === 200 && b.body?.ok !== false ? ' طلبنا قراءة رصيد الشريحة.' : ' لم تُطلب قراءة الرصيد الآن (' + (b?.body?.error || 'الشريحة مشغولة') + '): تكفي آخر قراءة إن وُجدت.'
+    }
+    Notify.create({ type: 'info', message: 'البرنامج يحاول.' + read, position: 'top', timeout: 4000 })
+    await load()
+  } catch (e) {
+    Notify.create({ type: 'negative', message: 'لم يُسجَّل: ' + (e.message || ''), position: 'top' })
+  } finally {
+    busy.value = ''
+  }
+}
+// What the sum says (Flexy Core fc_balance_guess)
+function guessLine (o) {
+  const g = o.guess || {}
+  const nums = g.before !== undefined && g.after !== null && g.after !== undefined
+    ? `الرصيد ${g.before} (${when(g.before_at)}) ← ${g.after} (${when(g.after_at)})، والناجحة بينهما ${g.others_success ?? 0} دج` : ''
+  switch (g.verdict) {
+    case 'arrived': return { cls: 'text-positive text-weight-bold', text: `🤖 ${nums}: الباقي ${g.rest} = مبلغها: وصلت.` }
+    case 'not_arrived': return { cls: 'text-negative text-weight-bold', text: `🤖 ${nums}: لا باقي: لم تصل.` }
+    case 'no_reading': return { cls: 'text-primary', text: '🤖 البرنامج يحاول: ينتظر قراءة رصيد الشريحة ' + (g.before_at ? 'بعد العملية' : 'قبل العملية وبعدها') + '…' }
+    case 'others_open': return { cls: 'text-deep-orange', text: `🤖 ${nums}: على الشريحة ${g.others_open} عمليات أخرى غير محسومة: لا يُحسم الآن.` }
+    case 'amount_unknown': return { cls: 'text-deep-orange', text: '🤖 بين القراءتين عملية بلا مبلغ معروف: لا يُحسم بالرصيد.' }
+    case 'unclear': return { cls: 'text-deep-orange', text: `🤖 ${nums}: الباقي ${g.rest} لا يساوي مبلغها ولا صفرًا (شحن أو عملية أخرى): لا يُحسم.` }
+    case 'no_sim': return { cls: 'muted', text: '🤖 لا نعرف الشريحة التي أرسلتها: لا يُحسم بالرصيد.' }
+    default: return { cls: 'text-primary', text: '🤖 البرنامج يحاول…' }
+  }
 }
 function settle (o, to) {
   const yes = to === 'success'
@@ -136,6 +173,7 @@ function evidenceOf (o) {
       : { cls: 'muted', text: `• سُئل المحل ${o.shop} في تطبيقه «هل وصل للزبون؟»: لم يجب بعد.` })
   }
   // A later success proves the number accepts it, never that this one arrived
+  if (o.unknown_at) out.push(guessLine(o))
   if (o.later_success_at) {
     out.push({ cls: 'muted', text: `• نجحت لنفس الرقم عملية لاحقة ${when(o.later_success_at)} (${o.later_app === 'owner-console' ? 'من المختبر أو صفحتك' : 'من محل'}): الرقم يقبل العرض فقط، ولا يثبت هذه.` })
   }
@@ -145,6 +183,8 @@ function evidenceOf (o) {
   return out
 }
 function suggest (o) {
+  if (o.guess?.verdict === 'arrived') return 'success'
+  if (o.guess?.verdict === 'not_arrived') return 'failed'
   const sent = Date.parse(o.at)
   if ((o.messages || []).some((m) => isSuccess(m.text) && mineOf(o, m) === 'mine' && Date.parse(m.at) >= sent - SLACK)) return 'success'
   const b = o.balance

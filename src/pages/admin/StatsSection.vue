@@ -3,6 +3,22 @@
        first), and a place to paste the SQL Claude gives him instead of Supabase's SQL Editor. Read only by default
        (no secrets); «كتابة» runs the whole script with full rights, all or nothing, after «نعم». All kept in the log. -->
   <div class="column gap-sm">
+    <!-- «ينتظر تطبيقك» first (owner 2026-10-30): the bar's line opens straight on it -->
+    <!-- «ينتظر تطبيقك» (Flexy Core 0087): what Claude put, one button; its SQL only to look at -->
+    <div v-for="p in pendingOpen" :key="p.uid" class="card column gap-xs pending">
+      <!-- The title on its own lines, the button under it, never cut (owner 2026-10-30: «ثلاث خطوات لأصل إلى SQL») -->
+      <div class="row items-center no-wrap gap-sm">
+        <q-icon name="build" color="indigo-8" size="22px" />
+        <div class="col" style="min-width:0"><div class="text-weight-bold">ينتظر تطبيقك</div><div class="ltr ellipsis-2-lines small" style="overflow-wrap:anywhere">{{ p.title }}</div></div>
+      </div>
+      <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" :label="p.mig && p.uid !== pendingOpen[0]?.uid ? 'بعد الذي قبله' : 'طبّق'" class="full-width"
+        :loading="busy === 'apply' + p.uid" :disable="!!p.mig && p.uid !== pendingOpen[0]?.uid" @click="apply(p)" />
+      <div v-if="p.last_error" class="small text-negative ltr">آخر محاولة فشلت: {{ p.last_error }}</div>
+      <q-expansion-item dense dense-toggle switch-toggle-side label="عرض SQL" header-class="small text-grey-8 q-px-none">
+        <pre class="sql-view ltr">{{ p.sql }}</pre>
+      </q-expansion-item>
+    </div>
+
     <!-- «سجل البطء» (owner 2026-10-30): this device's calls in the last 24 hours, slowest first, and the cause:
          the internet (the trip) or the server (its own time, x-flexy-ms). All devices: the ready query «البطء». -->
     <div class="card column gap-xs">
@@ -53,19 +69,6 @@
       </template>
     </div>
 
-
-    <!-- «ينتظر تطبيقك» (Flexy Core 0087): what Claude put, one button; its SQL only to look at -->
-    <div v-for="p in pendingOpen" :key="p.uid" class="card column gap-xs pending">
-      <div class="row items-center no-wrap gap-sm">
-        <q-icon name="build" color="indigo-8" size="22px" />
-        <div class="col"><div class="text-weight-bold">ينتظر تطبيقك</div><div>{{ p.title }}</div></div>
-        <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" label="طبّق" :loading="busy === 'apply' + p.uid" :disable="!!p.mig && p.uid !== pendingOpen[0]?.uid" @click="apply(p)" />
-      </div>
-      <div v-if="p.last_error" class="small text-negative ltr">آخر محاولة فشلت: {{ p.last_error }}</div>
-      <q-expansion-item dense dense-toggle switch-toggle-side label="عرض SQL" header-class="small text-grey-8 q-px-none">
-        <pre class="sql-view ltr">{{ p.sql }}</pre>
-      </q-expansion-item>
-    </div>
 
     <!-- Manual SQL, rarely used now (owner 2026-10-30: scripts come in «ينتظر تطبيقك»): folded -->
     <q-expansion-item class="card q-pa-none" dense icon="code" label="SQL يدوي والجداول" header-class="text-weight-bold">
@@ -197,6 +200,12 @@ async function call (key, fn) {
 }
 // «ينتظر تطبيقك»: applied by its id (the server reads the SQL), then the bar goes
 const pendingOpen = ref([])
+// Its name in words: the owner's quote «…» from its first comment line, else its first words (never the file name alone)
+function arabicName (m) {
+  const first = (String(m.sql || '').split('\n').find((l) => l.startsWith('--')) || '').replace(/^--\s*/, '')
+  const quoted = first.match(/«([^»]{3,60})»/)
+  return quoted ? quoted[1] : (first.split(/[(:]/)[0].trim().slice(0, 70) || m.title)
+}
 function apply (p) {
   if (busy.value) return
   Dialog.create({ title: 'طبّق: ' + p.title, message: 'ينفّذ كل الأوامر معًا بصلاحيات كاملة. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، طبّق' })
@@ -210,7 +219,7 @@ async function loadLog () {
   const b = await call('', () => flexy.ownerSql())
   if (b?.ok) { // The migrations this deploy carries, not applied yet, then the scripts put in the database (0087)
     pendingOpen.value = [
-      ...(b.migrations || []).map((m) => ({ uid: 'm' + m.key, mig: m.key, title: m.title, sql: m.sql })),
+      ...(b.migrations || []).map((m) => ({ uid: 'm' + m.key, mig: m.key, title: m.key + ' · ' + arabicName(m), sql: m.sql })),
       ...(b.pending?.open || []).map((p) => ({ ...p, uid: 'p' + p.id }))
     ]; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables', 'failed_ops', 'failed_reads', 'review_ops'].includes(r.key)); log.value = b.log || [] }
 }
