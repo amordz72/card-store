@@ -278,8 +278,8 @@
             <code class="ltr fix-line">{{ FIX_LINE }}</code>
             <!-- One button per window (owner 2026-10-30: «أريد أن ألصق من الموقع»): the line with its Enter, and DONE when it ran -->
             <!-- A file to carry (owner 2026-10-30): downloaded on the phone, moved by cable or AnyDesk, double-clicked: no typing, no Enter -->
-            <q-btn unelevated no-caps color="positive" icon="download" label="نزّل ملف الإصلاح (Flexy-fix.bat)" @click="downloadFix" />
-            <div class="small muted">انقله إلى الكمبيوتر بالكابل أو بنقل الملفات في AnyDesk، ثم اضغط عليه مرتين. يجد البرنامج بنفسه أينما كان، ويكتب DONE.</div>
+            <q-btn unelevated no-caps color="positive" icon="download" label="نزّل حزمة الإصلاح (Flexy-fix.zip)" @click="downloadFix" />
+            <div class="small muted">انقلها إلى الكمبيوتر بالكابل أو بنقل الملفات في AnyDesk، وفكّ ضغطها. فيها: ملف تشغّله بضغطتين، وآخر بصلاحية المدير، وملف PowerShell، وأوامر cmd وPowerShell وGit Bash لتنسخها بيدك، و«اقرأني» بالعربية.</div>
             <div class="row q-gutter-xs">
               <q-btn v-for="sh in SHELLS" :key="sh.key" unelevated dense no-caps size="sm" color="primary" icon="content_copy" :label="sh.label" @click="copyFix(sh)" />
             </div>
@@ -306,6 +306,7 @@ import { MONITOR_TABS } from 'src/api/sections'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { copyToClipboard, Dialog, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
+import { makeZip } from 'src/api/zip'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 import ModemPanel from 'src/components/ModemPanel.vue'
@@ -408,17 +409,49 @@ const FIX_PS = [
   "if ($dirs.Count -eq 0) { Write-Host 'NOT FOUND: the station program is not on this computer'; exit 1 }",
   "foreach ($r in $dirs) { git -C $r checkout -- agent/src agent/package.json; if ($?) { Write-Host ('DONE ' + $r) } else { Write-Host ('FAILED ' + $r) } }"
 ].join('\n')
+// Every way in one package (owner 2026-10-30: «لا تحكمني بملف واحد»): run it, run it as admin, run the .ps1, or copy a
+// line into cmd, PowerShell or Git Bash. The station's own folder first when it is known (Agent 0.9.1).
+const GIT_BASH_FIX = "r=$(for d in /c /d /e; do find \"$d\" -maxdepth 6 -path '*/agent/src/index.js' 2>/dev/null | head -1; done | head -1); r=${r%/agent/src/index.js}; " +
+  'if [ -n "$r" ]; then git -C "$r" checkout -- agent/src agent/package.json && echo "DONE $r"; else echo "NOT FOUND"; fi'
 function downloadFix () {
-  // -EncodedCommand: UTF-16LE in base64, so no quote of the script can break the .bat
+  // -EncodedCommand: UTF-16LE in base64, so no quote of the script can break cmd or the .bat
   const bytes = new Uint8Array(FIX_PS.length * 2)
   for (let i = 0; i < FIX_PS.length; i++) { const c = FIX_PS.charCodeAt(i); bytes[2 * i] = c & 255; bytes[2 * i + 1] = c >> 8 }
   let bin = ''
   bytes.forEach((b) => { bin += String.fromCharCode(b) })
-  const bat = ['@echo off', 'echo Flexy: fixing the station program files...',
-    'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + btoa(bin), 'echo.', 'echo Now press "update" on the devices page.', 'pause', ''].join('\r\n')
+  const encoded = 'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + btoa(bin)
+  const dir = places.value[actionsSt.value?.station_uuid]?.dir
+  const known = dir ? `git -C "${dir.replace(/\\/g, '/')}" checkout -- agent/src agent/package.json` : ''
+  const crlf = (lines) => lines.join('\r\n') + '\r\n'
+  const bat = crlf(['@echo off', 'echo Flexy: fixing the station program files...', encoded, 'echo.', 'echo Now press "update" on the devices page.', 'pause'])
+  const admin = crlf(['@echo off', 'rem Runs 1-run-me.bat as administrator (Windows asks Yes / No)',
+    'powershell -NoProfile -Command "Start-Process -FilePath \'%~dp01-run-me.bat\' -Verb RunAs"'])
+  const lines = (title, direct, search) => crlf([title, '', ...(known ? ['This computer (its folder is known):', direct, ''] : []),
+    'Any computer (finds the program itself):', search, ''])
+  const readme = '\uFEFF' + crlf([
+    'حزمة إصلاح برنامج المحطة (Flexy)',
+    '',
+    'الطريقة 1: اضغط مرتين على 1-run-me.bat ، وانتظر حتى يظهر DONE.',
+    'الطريقة 2: إن لم ينجح، اضغط مرتين على 2-run-as-admin.bat ثم اختر «نعم».',
+    'الطريقة 3: زر يمين على 3-Flexy-fix.ps1 ← Run with PowerShell.',
+    'الطريقة 4: افتح cmd أو PowerShell أو Git Bash، وانسخ السطر من الملف الذي باسمها (4 أو 5 أو 6)، ثم Enter.',
+    '',
+    'DONE مع مكان البرنامج = نجح: ارجع إلى صفحة الأجهزة واضغط «حدّث».',
+    'NOT FOUND = البرنامج ليس على هذا الكمبيوتر.',
+    ...(dir ? ['', 'مكان البرنامج على هذا الكمبيوتر: ' + dir] : [])
+  ])
+  const zip = makeZip([
+    { name: '0-README-اقرأني.txt', text: readme },
+    { name: '1-run-me.bat', text: bat },
+    { name: '2-run-as-admin.bat', text: admin },
+    { name: '3-Flexy-fix.ps1', text: '\uFEFF' + FIX_PS + '\r\nRead-Host "Press Enter to close"\r\n' },
+    { name: '4-cmd.txt', text: lines('cmd:', known + ' && echo DONE', encoded) },
+    { name: '5-powershell.txt', text: lines('PowerShell:', known + '; if ($?) { echo DONE }', FIX_PS.split('\n').join('; ')) },
+    { name: '6-git-bash.txt', text: lines('Git Bash:', known + ' && echo DONE', GIT_BASH_FIX) }
+  ])
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([bat], { type: 'application/octet-stream' }))
-  a.download = 'Flexy-fix.bat'
+  a.href = URL.createObjectURL(zip)
+  a.download = 'Flexy-fix' + (actionsSt.value?.code ? '-' + actionsSt.value.code : '') + '.zip'
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 5000)
 }
