@@ -2,6 +2,8 @@
 // heavy: a page that asks the server a lot on opening; on weak internet the first page opened is the home instead (weakHome.js)
 const routes = [
   { path: '/login', component: () => import('pages/customer/LoginPage.vue') },
+  // «صفحة الكمبيوتر الجديد» (Flexy Core 0117): no login; trusted from the owner's phone
+  { path: '/new', component: () => import('pages/NewPcPage.vue') },
   {
     path: '/',
     component: () => import('layouts/AppLayout.vue'),

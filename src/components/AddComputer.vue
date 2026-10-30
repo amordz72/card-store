@@ -33,6 +33,8 @@
       </template>
     </div>
     <div v-if="message" class="small" :class="messageBad ? 'text-negative' : 'text-positive'">{{ message }}</div>
+    <!-- «صفحة الكمبيوتر الجديد» (Flexy Core 0117): a computer asking from the site's /new page, always in sight -->
+    <TrustedComputers />
 
     <template v-if="open">
       <!-- The GitHub key: pasted once; never shown again -->
@@ -98,6 +100,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import TrustedComputers from 'components/TrustedComputers.vue'
 import * as flexy from 'src/api/flexy'
 
 const emit = defineEmits(['approved'])
