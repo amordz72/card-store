@@ -97,7 +97,7 @@ async function unknown (o) {
 function guessLine (o) {
   const g = o.guess || {}
   const nums = g.before !== undefined && g.after !== null && g.after !== undefined
-    ? `الرصيد ${g.before} (${when(g.before_at)}) ← ${g.after} (${when(g.after_at)})، والناجحة بينهما ${g.others_success ?? 0} دج` : ''
+    ? `الرصيد ${g.before} (${when(g.before_at)}) ← ${g.after} (${when(g.after_at)})${Number(g.topup) ? `، ودخلها شحن ${g.topup} دج (${(g.topups || []).map((t) => when(t.at)).join('، ')})` : ''}، والناجحة بينهما ${g.others_success ?? 0} دج` : ''
   switch (g.verdict) {
     case 'arrived': return { cls: 'text-positive text-weight-bold', text: `🤖 ${nums}: الباقي ${g.rest} = مبلغها: وصلت.` }
     case 'not_arrived': return { cls: 'text-negative text-weight-bold', text: `🤖 ${nums}: لا باقي: لم تصل.` }
@@ -107,7 +107,7 @@ function guessLine (o) {
       : { cls: 'muted', text: '🤖 لا قراءة لرصيد الشريحة قبل هذه العملية: الرصيد لا يحسمها، احكم بالأدلة الأخرى.' }
     case 'others_open': return { cls: 'text-deep-orange', text: `🤖 ${nums}: على الشريحة ${g.others_open} عمليات أخرى غير محسومة: لا يُحسم الآن.` }
     case 'amount_unknown': return { cls: 'text-deep-orange', text: '🤖 بين القراءتين عملية بلا مبلغ معروف: لا يُحسم بالرصيد.' }
-    case 'unclear': return { cls: 'text-deep-orange', text: `🤖 ${nums}: الباقي ${g.rest} لا يساوي مبلغها ولا صفرًا (شحن أو عملية أخرى): لا يُحسم.` }
+    case 'unclear': return { cls: 'text-deep-orange', text: `🤖 ${nums}: الباقي ${g.rest} لا يساوي مبلغها ولا صفرًا (ربما شحن بلا رسالة أو عملية أخرى): لا يُحسم.` }
     case 'no_sim': return { cls: 'muted', text: '🤖 لا نعرف الشريحة التي أرسلتها: لا يُحسم بالرصيد.' }
     default: return { cls: 'text-primary', text: '🤖 البرنامج يحاول…' }
   }

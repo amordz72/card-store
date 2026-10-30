@@ -6,7 +6,9 @@
        a tap opens it, a drag moves it -->
   <div class="qi-fab" :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @pointerdown="dragStart">
     <q-btn :fab-mini="!pos.big" :fab="pos.big" color="amber-8" text-color="dark" icon="lightbulb" aria-label="فكرة سريعة" @click="tapOpen">
-      <q-badge v-if="waiting" floating color="negative" :label="waiting" />
+      <!-- Red: not sent to Claude yet; green: done by Claude, waiting for your ✓ (owner N6: «يظهر 4 رغم أنه تمت») -->
+      <q-badge v-if="toSend.length" floating color="negative" :label="toSend.length" />
+      <q-badge v-else-if="doneCount" floating color="positive" :label="'✓' + doneCount" />
     </q-btn>
   </div>
   <!-- At the top (owner ideas #3, #4): the phone keyboard opens under it, never over it -->
@@ -147,7 +149,7 @@ const groups = computed(() => [
   { key: 'send', label: 'لم تصل Claude', cls: 'text-deep-orange', list: toSend.value },
   { key: 'got', label: 'وصلت Claude: يعمل عليها', cls: 'text-primary', list: notes.value.filter((n) => n.state === 'got') }
 ].filter((g) => g.list.length))
-const waiting = computed(() => toSend.value.length + notes.value.filter((n) => n.state === 'done').length)
+const doneCount = computed(() => notes.value.filter((n) => n.state === 'done').length)
 
 function setState (n, state) {
   n.state = state
