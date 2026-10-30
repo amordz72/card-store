@@ -25,20 +25,9 @@
       </div>
       <div v-for="a in simAlerts" :key="a.sim_uuid + a.code" class="small">{{ a.text }}</div>
     </div>
-    <!-- Never a full message store (Flexy Core 0040): «تصفير» empties every modem's store once the server saved each message -->
-    <div class="card column q-gutter-xs">
-      <div class="row items-center q-gutter-sm">
-        <div class="col text-weight-bold">مخزن الرسائل</div>
-        <q-btn outline no-caps color="negative" :label="`تصفير كل الشرائح (${wipeCount})`" :loading="wipeBusy" @click="askWipe(null)" />
-      </div>
-      <div class="small muted">كل رسالة تُحفظ في السيرفر أولًا ثم تُحذف من الشريحة. لا شيء يُحذف قرب عملية مالية.</div>
-      <div v-for="w in wipes.filter((x) => x.pending || x.last_error)" :key="w.sim_uuid" class="small"
-        :class="w.last_error && (!w.last_clean_at || w.last_error_at > w.last_clean_at) ? 'text-negative' : 'text-deep-orange'">
-        {{ w.label || w.sim_code || 'شريحة' }}:
-        <span v-if="w.pending">في الانتظار (الكمبيوتر ينفّذ خلال دقيقة)</span>
-        <span v-else-if="w.last_error">فشل الحذف: {{ w.last_error }}</span>
-        <span v-if="w.store"> · {{ w.store.used }}/{{ w.store.max }}</span>
-      </div>
+    <!-- A failed delete on a connected SIM stays in sight; the rest of «مخزن الرسائل» is folded at the end -->
+    <div v-for="w in wipeErrors" :key="w.sim_uuid" class="card small text-negative">
+      مخزن الرسائل · {{ w.label || w.sim_code || 'شريحة' }}: فشل الحذف: {{ w.last_error }}
     </div>
     <!-- One request to Flexy Core; refreshed every 30 seconds while this page is open and visible -->
     <div class="card column q-gutter-sm">
@@ -190,6 +179,19 @@
       </div>
     </div>
 
+    <!-- Never a full message store (Flexy Core 0040): «تصفير» empties every modem's store once the server saved each
+         message. Rarely used (owner 2026-10-30): folded at the end; SIMs not connected are not listed, their request waits. -->
+    <q-expansion-item class="card q-pa-none" dense icon="sms" label="مخزن الرسائل" header-class="text-weight-bold">
+      <div class="column q-gutter-xs q-pa-sm">
+        <div class="small muted">كل رسالة تُحفظ في السيرفر أولًا ثم تُحذف من الشريحة. لا شيء يُحذف قرب عملية مالية.</div>
+        <q-btn outline no-caps color="negative" class="self-start" :label="`تصفير كل الشرائح (${wipeCount})`" :loading="wipeBusy" @click="askWipe(null)" />
+        <div v-for="w in wipeShown" :key="w.sim_uuid" class="small" :class="w.pending ? 'text-deep-orange' : 'muted'">
+          {{ w.label || w.sim_code || 'شريحة' }}:
+          <span v-if="w.pending">في الانتظار (الكمبيوتر ينفّذ خلال دقيقة)</span>
+          <span v-else>{{ w.store ? w.store.used + '/' + w.store.max : '—' }}</span>
+        </div>
+      </div>
+    </q-expansion-item>
     <q-dialog v-model="details">
       <!-- On a phone the window never grows past the screen: long numbers and the tabs wrap or scroll inside it -->
       <q-card v-if="picked" class="sim-dialog">
@@ -575,6 +577,10 @@ async function loadWipes () {
   if (res.status === 200 && res.body?.ok) wipes.value = res.body.wipes || []
 }
 const wipeCount = computed(() => everySim.value.filter((r) => !r.old).length)
+// Only the SIMs connected now (owner 2026-10-30: a SIM gone since days, waiting forever, is noise)
+const connectedSims = computed(() => new Set(everySim.value.filter(isActive).map((r) => r.m.sim.sim_uuid)))
+const wipeShown = computed(() => wipes.value.filter((w) => connectedSims.value.has(w.sim_uuid)))
+const wipeErrors = computed(() => wipeShown.value.filter((w) => w.last_error && (!w.last_clean_at || w.last_error_at > w.last_clean_at)))
 // «كل الشرائح» = every SIM seen in the last 7 days (Flexy Core 0040): say how many, by operator (owner 2026-10-27)
 function wipeScope () {
   const rows = everySim.value.filter((r) => !r.old)
