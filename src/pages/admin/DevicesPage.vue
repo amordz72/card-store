@@ -777,6 +777,9 @@ const canRetryFirstBalance = (sim) => {
   const o = sim && onboardingOf(sim)
   return !!o && o.stage === 'alert' && RETRY_ALERTS.includes(o.alert_code)
 }
+// Why a read stopped after 30 minutes without its code leaving (Flexy Core 0101)
+const READ_WHY = { CODE_NOT_SENT: 'لم يُرسل الكود: المودم مشغول أو الطلب رُفض', MODEM_NOT_READY: 'المودم أو كمبيوتره لا يرد' }
+const since = (t) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 60000)); return m < 60 ? m + ' دقيقة' : Math.round(m / 60) + ' ساعة' }
 const noteOf = (sim) => onboardingOf(sim)?.note || ''
 function onboardingText (sim) {
   const o = onboardingOf(sim)
@@ -785,10 +788,11 @@ function onboardingText (sim) {
   if (o.stage === 'pin_wait') return 'ينتظر PIN منك قبل سؤال الرصيد'
   if (o.stage === 'balance') return 'يُسأل أول رصيد'
   // The last known balance stays in sight while the new one is read (owner 2026-10-28)
-  if (o.stage === 'read') return 'يُقرأ الرصيد…' + (sim.balance != null ? ' · السابق ' + money(sim.balance) : '')
+  // How long it has been reading (owner 2026-10-30: «يدور ساعات»): it stops by itself after 30 minutes (Flexy Core 0101)
+  if (o.stage === 'read') return 'يُقرأ الرصيد…' + (o.updated_at ? ' منذ ' + since(o.updated_at) : '') + (sim.balance != null ? ' · السابق ' + money(sim.balance) : '')
   if (o.stage === 'approved') return 'اعتُمدت آليًا بعد أول رصيد'
   if (o.stage === 'balance_only') return 'الرصيد ' + (o.probe_amount != null ? money(o.probe_amount) : 'مقروء') + ' (بلا اعتماد)'
-  if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code)
+  if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code) + (READ_WHY[o.alert_detail] ? ' (' + READ_WHY[o.alert_detail] + ')' : '')
   return ''
 }
 // A balance code is on its way: the page turns a spinner beside it
