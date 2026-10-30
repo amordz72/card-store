@@ -107,7 +107,17 @@
         <template #prepend><q-icon name="upload_file" /></template>
       </q-file>
       <q-input v-model="codeForm.lines" type="textarea" outlined rows="5" :disable="!codeForm.productId" input-class="ltr text-left"
-        :label="codeForm.productId ? 'الأكواد (كود في كل سطر، أو: الكود ; الرقم التسلسلي)' : 'اختر العلامة والبطاقة أولًا'" />
+        :label="codeForm.productId ? 'الصق رسالة المورّد كما هي، أو الأكواد (كود في كل سطر)' : 'اختر العلامة والبطاقة أولًا'" />
+      <!-- «قارئ المورّد» (v1.57): only the code lines are added; the rest is shown, never added -->
+      <div v-if="parsed.ignored.length" class="small q-pa-sm rounded-borders preview-ok">
+        <span>تُجوهل {{ parsed.ignored.length }} سطر ليس كودًا </span>
+        <q-btn flat dense no-caps size="sm" color="primary" :label="showIgnored ? 'إخفاء' : 'عرضها'" @click="showIgnored = !showIgnored" />
+        <div v-if="showIgnored" class="ltr text-left muted ignored">{{ parsed.ignored.join('\n') }}</div>
+      </div>
+      <div v-if="parsed.cardHint && hintProduct && hintProduct.product_id !== codeForm.productId" class="small q-pa-sm rounded-borders warn-loss">
+        الرسالة تقول <b>{{ parsed.cardHint.brand }} {{ parsed.cardHint.amount }}</b> والبطاقة المختارة {{ pickedProduct?.name }}.
+        <q-btn dense unelevated no-caps size="sm" color="primary" :label="'اختر ' + hintProduct.name" @click="useHint" />
+      </div>
       <div v-if="nameMismatch" class="small q-pa-sm rounded-borders warn-loss text-weight-bold">
         تنبيه: اسم الملف لا يطابق البطاقة المختارة ({{ pickedProduct.name }}). تأكد من البطاقة قبل الإضافة.
       </div>
@@ -116,6 +126,8 @@
         <b>عدد البطاقات: {{ parsed.cards }}</b>
         <span v-if="parsed.withSerial"> · منها {{ parsed.withSerial }} برقم تسلسلي</span>
         <span v-if="parsed.dups"> · {{ parsed.dups }} مكررة في الملف (تُضاف مرة واحدة)</span>
+        <div v-if="parsed.quantity != null">الرسالة تذكر <b>{{ parsed.quantity }}</b> بطاقة —
+          {{ parsed.quantity !== parsed.cards ? 'العدد مختلف! راجع قبل الإضافة.' : 'العدد مطابق ✓' }}</div>
         <div v-if="parsed.expected != null">اسم الملف يذكر <b>{{ parsed.expected }}</b> بطاقة —
           {{ parsed.mismatch ? 'العدد مختلف! راجع الملف قبل الإضافة.' : 'العدد مطابق ✓' }}</div>
         <div class="ltr text-left muted">أول بطاقة: {{ parsed.first.code }}<span v-if="parsed.first.serial"> | SN {{ parsed.first.serial }}</span></div>
@@ -124,6 +136,18 @@
         <q-select v-model="codeForm.supplierId" class="col" :options="supplierOptions" emit-value map-options dense outlined label="المصدر (المنصة / المورد)" />
         <q-btn outline color="primary" label="+ منصة" @click="addSupplierOpen = true" />
       </div>
+      <!-- This supplier's reader (v1.57): where its codes start and their length; kept for its next message -->
+      <q-expansion-item v-if="codeForm.supplierId" dense icon="tune" label="قارئ هذا المورّد" class="reader-box">
+        <div class="column q-gutter-sm q-pa-sm">
+          <q-input v-model="readerDraft.startAfter" dense outlined label="ابدأ القراءة بعد سطر فيه (اختياري، مثلًا -----)" input-class="ltr text-left" />
+          <div class="row q-gutter-sm no-wrap">
+            <q-input v-model.number="readerDraft.minLen" class="col" dense outlined type="number" label="طول الكود من" />
+            <q-input v-model.number="readerDraft.maxLen" class="col" dense outlined type="number" label="إلى" />
+          </div>
+          <div class="help small muted">يُحفظ لهذا المورّد ويُطبَّق على رسائله القادمة. إن تغيّر شكل رسالته، عدّله هنا.</div>
+          <q-btn outline dense no-caps color="primary" label="احفظ القارئ" class="self-start" @click="saveReader" />
+        </div>
+      </q-expansion-item>
       <q-input v-model.number="codeForm.cost" dense outlined type="number" inputmode="numeric" label="سعر الشراء للبطاقة الواحدة (دج) *"
         hint="إجباري — منه يُحسب ربحك وسعر الزبائن" />
       <!-- Read-only check before adding: selling price stays on the card, only the cost comes with the batch -->
@@ -283,6 +307,7 @@ import { newRequestId } from 'src/api/rpc'
 import * as api from 'src/api/admin'
 import { dateTime, money } from 'src/api/format'
 import * as flexy from 'src/api/flexy'
+import { DEFAULT_READER, readCodes, toLines } from 'src/api/codeReader'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import ImageField from 'components/ImageField.vue'
 import BannersAdmin from 'components/BannersAdmin.vue'
@@ -413,21 +438,39 @@ const file = ref(null)
 watch(() => codeForm.value.productId, (id) => {
   if (id != null && usualCost.value[id] != null) codeForm.value.cost = usualCost.value[id]
 })
-// Same reading rule as the database: one card per line; first ; , or | separates code and serial
+// «قارئ المورّد» (v1.57): the codes only, by this supplier's reader; the store gets only them (toLines)
 const fileName = ref('')
+const readers = ref({})
+const readerDraft = ref({ ...DEFAULT_READER })
+const showIgnored = ref(false)
+const readerOf = (id) => readers.value[id] || DEFAULT_READER
+watch(() => codeForm.value.supplierId, (id) => { readerDraft.value = { ...DEFAULT_READER, ...readerOf(id) } })
+const loadReaders = () => api.supplierReaders().then((m) => { readers.value = m || {}; readerDraft.value = { ...DEFAULT_READER, ...readerOf(codeForm.value.supplierId) } }, () => {})
+async function saveReader () {
+  const d = readerDraft.value
+  const reader = { startAfter: String(d.startAfter || '').trim(), minLen: Number(d.minLen) || DEFAULT_READER.minLen, maxLen: Number(d.maxLen) || DEFAULT_READER.maxLen }
+  if (await run(() => api.setSupplierReader(codeForm.value.supplierId, reader).then(() => true), { success: 'حُفظ قارئ المورّد.' })) {
+    readers.value = { ...readers.value, [codeForm.value.supplierId]: reader }
+  }
+}
+const read = computed(() => readCodes(codeForm.value.lines, readerOf(codeForm.value.supplierId)))
+// The card the message names («Mobilis -- 100»), if one matches
+const hintProduct = computed(() => {
+  const h = read.value.card
+  if (!h) return null
+  return activeStock.value.find((p) => p.brand.toLowerCase() === h.brand.toLowerCase() && (p.name.match(/\d+/g) || []).map(Number).includes(h.amount)) || null
+})
+function useHint () { pickBrand.value = hintProduct.value.brand; codeForm.value.productId = hintProduct.value.product_id }
 const parsed = computed(() => {
-  const rows = codeForm.value.lines.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
-    const sep = (l.match(/[;,|]/) || [';'])[0]
-    const i = l.indexOf(sep)
-    return i < 0 ? { code: l, serial: '' } : { code: l.slice(0, i).trim(), serial: l.slice(i + 1).trim() }
-  }).filter((r) => r.code)
-  const unique = new Set(rows.map((r) => r.code)).size
+  const rows = read.value.codes
+  const unique = rows.length
   // e.g. MOBILIS_1000_DA(50)_…txt or «Forfait 100 - 3 cards - 2026-10-23.txt»
   const m = fileName.value.match(/\((\d+)\)/) || fileName.value.match(/(\d+)\s*cards?\b/i)
   const expected = m ? Number(m[1]) : null
   return {
-    cards: unique, dups: rows.length - unique, withSerial: rows.filter((r) => r.serial).length,
-    first: rows[0] || {}, expected, mismatch: expected != null && expected !== unique
+    cards: unique, dups: read.value.dups, withSerial: rows.filter((r) => r.serial).length,
+    first: rows[0] || {}, expected, ignored: read.value.ignored, quantity: read.value.quantity, cardHint: read.value.card,
+    mismatch: (expected != null && expected !== unique) || (read.value.quantity != null && read.value.quantity !== unique)
   }
 })
 
@@ -453,7 +496,7 @@ watch(file, async (f) => {
 })
 
 async function addCodes () {
-  const res = await run(() => api.addCodes(codeForm.value.productId, codeForm.value.supplierId, codeForm.value.cost, codeForm.value.lines),
+  const res = await run(() => api.addCodes(codeForm.value.productId, codeForm.value.supplierId, codeForm.value.cost, toLines(read.value.codes)),
     { success: (r) => `أضيف ${r.added} كود${r.duplicates ? `، ورُفض ${r.duplicates} مكرر` : ''}.` })
   if (!res) return
   codeForm.value.lines = ''
@@ -716,10 +759,11 @@ function suspectToNormal (b) {
   })
 }
 
-onMounted(() => { load(); loadBatches(); loadCostChanges(); loadLow(); loadBuy(); loadAnnouncement() })
+onMounted(() => { load(); loadBatches(); loadCostChanges(); loadLow(); loadBuy(); loadReaders(); loadAnnouncement() })
 </script>
 
 <style scoped>
+.ignored { white-space: pre-wrap; word-break: break-all; }
 .buy-line { padding: 4px 0; border-top: 1px solid #EEF0F5; }
 .warn-loss { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
 .preview-ok { background: #F0F9FF; color: #075985; border: 1px solid #BAE6FD; }
