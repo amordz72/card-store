@@ -159,6 +159,8 @@ onMounted(async () => {
   if (data) catalog.value = data
   reset()
   timer = setInterval(async () => {
+    // Not while hidden (the database's load, 2026-10-30)
+    if (document.visibilityState !== 'visible') return
     tick++
     if (tick % 6 === 0) access.refresh()
     if (open.value) {

@@ -147,6 +147,8 @@ onMounted(async () => {
   await loadCards()
   reset()
   timer = setInterval(async () => {
+    // Not while hidden (the database's load, 2026-10-30)
+    if (document.visibilityState !== 'visible') return
     tick++
     if (tick % 3 === 0) game.refresh()
     if (open.value) {

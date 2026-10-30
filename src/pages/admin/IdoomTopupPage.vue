@@ -312,7 +312,7 @@ onMounted(async () => {
   fetch(new URL('apps/rech-doom.json', siteUrl), { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null)).then((j) => { apk.value = j }).catch(() => {})
   load()
-  timer = setInterval(load, 5000)
+  timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 5000)
 })
 onUnmounted(() => clearInterval(timer))
 watch(digits, loadInfo)
