@@ -10,9 +10,11 @@
     <div class="card column gap-sm">
       <div class="row items-center">
         <div class="col text-weight-bold">ضغط القاعدة</div>
-        <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy === 'load'" @click="loadDb" />
+        <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="loadState === 'busy'" @click="loadDb" />
       </div>
-      <div v-if="!hours?.last_at" class="small muted">البرنامج يأخذ صورة كل ساعة: تظهر الأرقام بعد ساعتين من تطبيق 0085.</div>
+      <!-- Never a spinner forever (owner 2026-10-30): 15 s, then «أعد المحاولة» -->
+      <div v-if="loadState === 'failed'" class="small text-negative">لم تصل الأرقام · <a href="#" @click.prevent="loadDb">أعد المحاولة</a></div>
+      <div v-else-if="loadState !== 'busy' && !hours?.last_at" class="small muted">البرنامج يأخذ صورة كل ساعة: تظهر الأرقام بعد ساعتين من تطبيق 0085.</div>
       <template v-else>
         <div class="tiles">
           <div v-for="t in tiles" :key="t.label" class="tile" :class="t.cls">
@@ -94,12 +96,16 @@
       <q-btn v-if="result.ok && result.rows?.length" flat dense no-caps icon="content_copy" label="نسخ" class="self-start" @click="copy" />
     </div>
 
-    <div class="card column gap-xs">
-      <div class="text-weight-bold">أكبر الجداول</div>
-      <div v-for="t in sizes" :key="t.table" class="line row no-wrap gap-sm">
-        <div class="col ltr small">{{ t.table }}</div><div class="small muted">{{ t.rows >= 0 ? t.rows + ' سطر' : '—' }}</div><div class="small" style="min-width:64px">{{ t.size }}</div>
+    <!-- Counted only when opened: nothing asked of the database on every visit -->
+    <q-expansion-item class="card q-pa-none" dense icon="dataset" label="أكبر الجداول" header-class="text-weight-bold" @show="loadSizes">
+      <div class="column gap-xs q-pa-sm">
+        <div v-if="sizesState === 'busy'" class="small muted">يُحسب…</div>
+        <div v-else-if="sizesState === 'failed'" class="small text-negative">لم تصل · <a href="#" @click.prevent="loadSizes">أعد المحاولة</a></div>
+        <div v-for="t in sizes" :key="t.table" class="line row no-wrap gap-sm">
+          <div class="col ltr small">{{ t.table }}</div><div class="small muted">{{ t.rows >= 0 ? t.rows + ' سطر' : '—' }}</div><div class="small" style="min-width:64px">{{ t.size }}</div>
+        </div>
       </div>
-    </div>
+    </q-expansion-item>
 
     <q-expansion-item class="card q-pa-none" dense icon="history" label="سجل SQL" header-class="text-weight-bold">
       <div v-for="(l, i) in log" :key="i" class="line small">
@@ -185,15 +191,28 @@ async function loadLog () {
       ...(b.pending?.open || []).map((p) => ({ ...p, uid: 'p' + p.id }))
     ]; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables'].includes(r.key)); log.value = b.log || [] }
 }
+// Each card its own state and a 15-second limit: a request lost on the phone's network never spins forever
+const loadState = ref('')
+const sizesState = ref('')
+const withLimit = (p, ms = 15000) => Promise.race([p, new Promise((resolve) => setTimeout(() => resolve({ status: 0, body: { ok: false, error: 'TIMEOUT' } }), ms))])
 async function loadDb () {
-  flexy.ownerAuto().then((r) => {
-    const l = (r.body?.limits || []).find((x) => x.key === 'monitor.db_calls_per_hour')
-    callsLimit.value = l ? Number(l.value) || 0 : 0
-  }).catch(() => {})
-  const a = await call('load', () => flexy.runReady('db_hours'))
-  if (a?.ok) hours.value = a.rows?.[0]?.hours || null
-  const b = await call('load', () => flexy.runReady('db_sizes'))
-  if (b?.ok) sizes.value = b.rows?.[0]?.sizes || []
+  if (loadState.value === 'busy') return
+  loadState.value = 'busy'
+  const [lim, a] = await Promise.all([withLimit(flexy.ownerAuto()).catch(() => null), withLimit(flexy.runReady('db_hours')).catch(() => null)])
+  const l = (lim?.body?.limits || []).find((x) => x.key === 'monitor.db_calls_per_hour')
+  callsLimit.value = l ? Number(l.value) || 0 : 0
+  if (a?.status === 200 && a.body?.ok) {
+    hours.value = a.body.rows?.[0]?.hours || null
+    loadState.value = ''
+  } else {
+    loadState.value = 'failed'
+  }
+}
+async function loadSizes () {
+  if (sizesState.value === 'busy' || sizes.value.length) return
+  sizesState.value = 'busy'
+  const b = await withLimit(flexy.runReady('db_sizes')).catch(() => null)
+  if (b?.status === 200 && b.body?.ok) { sizes.value = b.body.rows?.[0]?.sizes || []; sizesState.value = '' } else sizesState.value = 'failed'
 }
 // One run at a time; the answer always shows (a toast, then the page goes to it); a written script is cleared
 async function show (r, wrote) {
