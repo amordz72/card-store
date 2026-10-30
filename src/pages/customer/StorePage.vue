@@ -25,9 +25,10 @@
               <q-separator />
               <div class="text-weight-medium">{{ p.name }}</div>
             </template>
-            <div class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
-            <q-btn unelevated :color="p.available ? 'primary' : 'grey-4'" :text-color="p.available ? 'white' : 'grey-8'"
-              :label="p.available ? 'شراء' : 'نفد'" :disable="!p.available" @click="openBuy(p)" />
+            <div v-if="!p.available && splits[p.product_id]" class="small text-weight-medium text-deep-orange">متوفر من {{ partsText(splits[p.product_id]) }}</div>
+            <div v-else class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
+            <q-btn unelevated :color="canBuy(p) ? 'primary' : 'grey-4'" :text-color="canBuy(p) ? 'white' : 'grey-8'"
+              :label="canBuy(p) ? 'شراء' : 'نفد'" :disable="!canBuy(p)" @click="openBuy(p)" />
           </div>
         </div>
       </template>
@@ -40,17 +41,19 @@
       <q-card v-if="sel" style="width:100%;max-width:560px;border-radius:20px 20px 0 0">
         <q-card-section class="column q-gutter-sm">
           <div class="text-h6 text-weight-bold">تأكيد الشراء</div>
-          <div class="row justify-between"><span>{{ sel.name }}</span><span class="text-weight-medium">{{ money(sel.base_price) }}</span></div>
+          <div class="row justify-between"><span>{{ sel.name }}</span><span class="text-weight-medium">{{ money(unitPrice) }}</span></div>
+          <!-- v1.52 (owner: «مع التنبيه»): said before buying -->
+          <div v-if="selSplit" class="split-note">ستستلم {{ selSplit.parts.length === 2 ? 'كودين' : selSplit.parts.length + ' أكواد' }}: {{ selSplit.parts.join(' + ') }} = {{ selSplit.parts.reduce((a, b) => a + b, 0) }}. أدخلها كلها لنفس اللاعب.</div>
           <div class="row justify-between items-center">
             <span>الكمية</span>
             <div class="row items-center q-gutter-sm">
               <q-btn outline round icon="remove" aria-label="إنقاص" :disable="qty <= 1" @click="qty--" />
               <span class="text-weight-bold" style="min-width:24px;text-align:center;font-size:17px">{{ qty }}</span>
-              <q-btn outline round icon="add" aria-label="زيادة" :disable="qty >= 20" @click="qty++" />
+              <q-btn outline round icon="add" aria-label="زيادة" :disable="qty >= (selSplit ? 5 : 20)" @click="qty++" />
             </div>
           </div>
           <q-separator />
-          <div class="row justify-between"><span>المجموع (سعر البيع)</span><span class="text-weight-bold">{{ money(sel.base_price * qty) }}</span></div>
+          <div class="row justify-between"><span>المجموع (سعر البيع)</span><span class="text-weight-bold">{{ money(unitPrice * qty) }}</span></div>
           <div class="row justify-between small muted"><span>{{ buyer.isShop.value ? 'رصيد المحل الآن' : 'رصيدك الآن' }}</span><span>{{ buyer.hide.value ? '••••••' : money(buyer.balance.value) }}</span></div>
         </q-card-section>
         <q-card-actions class="q-pa-md q-gutter-sm">
@@ -128,9 +131,14 @@ const groups = computed(() => CATEGORIES.map((c) => {
   return { ...c, brands }
 }).filter((g) => g.brands.length))
 
+// v1.52: game cards out of stock that the cards in stock make up, with their price (the sum of the cards)
+const splits = ref({})
+const canBuy = (p) => p.available || !!splits.value[p.product_id]
+const partsText = (s) => (s.parts.length === 2 ? 'بطاقتين' : s.parts.length + ' بطاقات') + ' (' + s.parts.join(' + ') + ')'
 async function load () {
-  const rows = await run(() => buyer.catalog())
+  const [rows, sp] = await Promise.all([run(() => buyer.catalog()), buyer.splitOffers()])
   if (rows) products.value = rows
+  splits.value = sp || {}
   loaded.value = true
   openBrand()
 }
@@ -149,6 +157,8 @@ const buyOpen = ref(false)
 const sel = ref(null)
 const qty = ref(1)
 let requestId = null
+const selSplit = computed(() => (sel.value && !sel.value.available ? splits.value[sel.value.product_id] || null : null))
+const unitPrice = computed(() => (selSplit.value ? Number(selSplit.value.total) : sel.value?.base_price || 0))
 
 function openBuy (p) {
   interest('buy:' + p.name)
@@ -162,7 +172,7 @@ const codesOpen = ref(false)
 const bought = ref({ subtitle: '', codes: [], orderId: null })
 
 async function confirmBuy () {
-  const res = await run(() => buyer.buy(sel.value.product_id, qty.value, requestId))
+  const res = await run(() => (selSplit.value ? buyer.buySplit(sel.value.product_id, qty.value, requestId) : buyer.buy(sel.value.product_id, qty.value, requestId)))
   if (!res) {
     await load()
     return
@@ -175,7 +185,8 @@ async function confirmBuy () {
   bought.value = {
     subtitle: `${res.product_name} × ${res.qty} — احتفظ بالكود أو انسخه`,
     orderId: res.order_id,
-    codes: res.codes.map((c) => ({ ...c, id: idOf.get(c.code) ?? null, actionLabel: 'نسخ', action: () => copyText(c.code) }))
+    codes: res.codes.map((c) => ({ ...c, id: idOf.get(c.code) ?? null, actionLabel: 'نسخ', action: () => copyText(c.code),
+      ...(c.name ? { badge: { color: 'deep-orange', label: c.name } } : {}) }))
   }
   codesOpen.value = true
   run(() => buyer.refresh())
@@ -186,6 +197,7 @@ onMounted(load)
 </script>
 
 <style scoped>
+.split-note { background: #FFF7ED; color: #9A3412; border-radius: 10px; padding: 8px 10px; font-weight: 600; }
 .cat-title { font-size: 17px; font-weight: 700; margin-top: 8px; }
 .brand-title { font-size: 13px; font-weight: 600; color: #5B6170; margin-top: 2px; }
 .price-badge { background: #111827; color: #fff; font-size: 15px; font-weight: 700; padding: 2px 12px; border-radius: 999px; }

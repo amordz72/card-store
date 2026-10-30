@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { LocalStorage } from 'quasar'
 import * as api from 'src/api/customer'
+import { asciiDigits, normPhone } from 'src/api/format'
 
 const TOKEN_KEY = 'cs_token'
 const HIDE_KEY = 'cs_hide_amounts'
@@ -18,7 +19,8 @@ export const useCustomerStore = defineStore('customer', {
 
   actions: {
     async login (phone, password) {
-      const row = await api.login(phone, password)
+      // spaces, +213, Arabic digits: all accepted (owner 2026-10-30)
+      const row = await api.login(normPhone(phone), asciiDigits(password))
       if (!row) return false
       this.token = row.session_token
       LocalStorage.set(TOKEN_KEY, this.token)

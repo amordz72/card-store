@@ -84,3 +84,16 @@ export function gameAmount (name) {
   const unit = /جوهر/.test(name) ? 'جوهرة' : /\buc\b/i.test(name) ? 'UC' : ''
   return (n[1] + (unit ? ' ' + unit : '')).trim()
 }
+
+// A phone as people type it (owner 2026-10-30: «يرسله بفراغات… وحتى 213»): Arabic digits, spaces, dashes, +213 / 00213 /
+// 213 → «0XXXXXXXXX». The server does the same (store_norm_phone); here so the copied message and the login are clean.
+export function asciiDigits (s) {
+  return String(s ?? '').replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6F0))
+}
+export function normPhone (s) {
+  const x = asciiDigits(s).replace(/[^0-9]/g, '')
+  if (/^00213[0-9]{9}$/.test(x)) return '0' + x.slice(5)
+  if (/^213[0-9]{9}$/.test(x)) return '0' + x.slice(3)
+  if (/^[5-7][0-9]{8}$/.test(x)) return '0' + x
+  return x
+}

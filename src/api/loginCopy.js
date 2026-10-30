@@ -2,6 +2,7 @@
 // password is stored hashed, so it exists in clear only right when it is set: a new account, or a new password.
 import { Dialog } from 'quasar'
 import { copyText } from 'src/composables/useCopy'
+import { normPhone } from 'src/api/format'
 
 /** 8 digits, easy to type on a phone */
 export function easyPassword () {
@@ -13,7 +14,7 @@ export function easyPassword () {
 export const siteLink = () => window.location.origin + window.location.pathname
 
 export function loginMessage (name, phone, password) {
-  return `السلام عليكم ${name}\nرابط الموقع: ${siteLink()}\nرقم الهاتف: ${phone}\nكلمة السر: ${password}`
+  return `السلام عليكم ${name}\nرابط الموقع: ${siteLink()}\nرقم الهاتف: ${normPhone(phone)}\nكلمة السر: ${password}`
 }
 
 /** The message shown once, with «انسخ» (a fresh tap: the copy works on every phone) */

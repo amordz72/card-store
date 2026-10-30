@@ -26,6 +26,12 @@ export async function buy (token, productId, qty, requestId) {
   return rows[0]
 }
 
+// v1.52: a game card out of stock made up of cards in stock (310 = 210 + 100): what can be, and its purchase (all the codes)
+export const splitOffers = (token) => rpc('store_split_offers', { p_token: token })
+export async function buySplit (token, productId, qty, requestId) {
+  const rows = await rpc('store_buy_split', { p_token: token, p_product_id: productId, p_qty: qty, p_request_id: requestId })
+  return rows[0]
+}
 export const orders = (token, f) => rpc('store_orders', {
   p_token: token,
   p_category: f.category || null,

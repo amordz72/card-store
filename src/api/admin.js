@@ -1,13 +1,15 @@
 import { supabase } from 'boot/supabase'
 import { rpc } from './rpc'
 import { StoreError } from './errors'
+import { normPhone } from './format'
 
 // Admin API: requires a Supabase Auth session; the database also checks store.admins.
 
 export const isAdmin = () => rpc('store_admin_is_admin')
 
 export const customers = () => rpc('store_admin_customers')
-export const createCustomer = (name, phone, password) =>
+export const createCustomer = (name, phone, password) => createCustomerRaw(name, normPhone(phone), password)
+const createCustomerRaw = (name, phone, password) =>
   rpc('store_admin_create_customer', { p_name: name, p_phone: phone, p_password: password })
 export const updateCustomer = (id, patch) => rpc('store_admin_update_customer', {
   p_customer_id: id,
@@ -162,6 +164,11 @@ export const reconcile = () => rpc('store_admin_reconcile')
 export const shopCatalog = () => rpc('store_admin_shop_catalog_v2')
 export async function shopBuy (productId, qty, requestId) {
   const rows = await rpc('store_admin_shop_buy', { p_product_id: productId, p_qty: qty, p_request_id: requestId })
+  return rows[0]
+}
+export const shopSplitOffers = () => rpc('store_admin_shop_split_offers')
+export async function shopBuySplit (productId, qty, requestId) {
+  const rows = await rpc('store_admin_shop_buy_split', { p_product_id: productId, p_qty: qty, p_request_id: requestId })
   return rows[0]
 }
 export async function shopTopup (amount, note, requestId) {
