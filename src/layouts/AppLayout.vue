@@ -1,6 +1,12 @@
 <template>
   <q-layout view="hHh LpR lFf">
     <q-header class="bg-white text-dark" bordered>
+      <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it -->
+      <router-link v-if="session.isAdmin && needsYou" :to="needsYou.to" class="monitor-bar bg-indigo-8">
+        <q-icon name="build" size="18px" />
+        <span class="col">{{ needsYou.text }}</span>
+        <span class="text-underline">افتح</span>
+      </router-link>
       <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
       <router-link v-if="session.isAdmin && monitorBar" to="/flexy/monitor" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
         <q-icon name="warning" size="18px" />
@@ -278,7 +284,18 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+// «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
+const needsYou = computed(() => {
+  const items = [
+    sqlPending.value && { to: '/stats', text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
+    approvalsWaiting.value && { to: '/flexy/devices', text: approvalsWaiting.value === 1 ? 'كمبيوتر جديد ينتظر الاعتماد' : `${approvalsWaiting.value} كمبيوترات تنتظر الاعتماد` },
+    repoKeyLevel.value === 'dead' && { to: '/flexy/devices', text: 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' },
+    agentUpdates.value && { to: '/flexy/devices', text: `تحديث ${agentUpdateVersion.value} متاح لـ${agentUpdates.value} ${agentUpdates.value === 1 ? 'كمبيوتر' : 'كمبيوترات'}` }
+  ].filter(Boolean)
+  if (!items.length) return null
+  return items.length === 1 ? items[0] : { to: items[0].to, text: items[0].text + ` · و${items.length - 1} ${items.length === 2 ? 'شيء آخر' : 'أشياء أخرى'}` }
+})
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)

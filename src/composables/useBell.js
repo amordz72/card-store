@@ -34,6 +34,9 @@ const monitorIncidents = ref(0)
 const agentUpdates = ref(0)
 // v1.45: shops whose spending dropped or stopped this week, until the owner opens «المؤشرات» this week
 const shopsDown = ref(0)
+// «مطلوب منك» (Flexy Core 0087, owner 2026-10-30): what does not move without the owner's press, in the blue bar
+const sqlPending = ref(0)
+const approvalsWaiting = ref(0)
 const agentUpdateVersion = ref('')
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
@@ -58,7 +61,11 @@ async function refreshBell () {
   } catch { /* before v1.43, or keep the last value */ }
   try {
     const res = await flexyApi.ownerDevices()
-    if (res.status === 200) devicesDown.value = Number(res.body?.summary?.down) || 0
+    if (res.status === 200) {
+      devicesDown.value = Number(res.body?.summary?.down) || 0
+      approvalsWaiting.value = (res.body?.stations || []).filter((s) => !s.approved && !s.phone &&
+        !String(s.agent_version || '').startsWith('phone-') && (!s.status || s.status === 'pending')).length
+    }
   } catch { /* keep the last value */ }
   try {
     const res = await flexyApi.ownerOfferAlerts()
@@ -78,6 +85,7 @@ async function refreshBell () {
       monitorBar.value = res.body?.bar || null
       monitorAlerts.value = (res.body?.alerts || []).length
       monitorIncidents.value = res.body?.counts?.incidents || 0
+      sqlPending.value = Number(res.body?.sql_pending) || 0
     }
   } catch { /* keep the last value */ }
   try {
@@ -110,5 +118,5 @@ export function agentUpdatesOf (body, now = Date.now()) {
 }
 
 export function useBell () {
-  return { shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }
