@@ -19,7 +19,7 @@
         <div class="small muted q-mt-xs">آخر تحقق {{ ago(known.checked_at) }}<span v-if="!fresh"> — سيُتحقق من الخط عند الشحن</span></div>
       </div>
       <div v-else-if="lineOk && infoLoaded && !check" class="small muted text-center">لم يُتحقق من هذا الخط بعد — الهاتف يتحقق منه تلقائيًا قبل استعمال البطاقة</div>
-      <q-input v-model="line" dense outlined label="رقم الخط: ثابت 9 أرقام أو 4G يبدأ بـ 213" inputmode="tel" maxlength="16"
+      <q-input v-model="line" clearable @focus="(e) => e.target.select()" @clear="line = ''" dense outlined label="رقم الخط: ثابت 9 أرقام أو 4G يبدأ بـ 213" inputmode="tel" maxlength="16"
         placeholder="0XXXXXXXX" input-class="ltr text-right" />
       <q-btn outline color="primary" icon="search" label="تحقق (اختياري)" :loading="busy" :disable="!lineOk" @click="lookup" />
     </div>

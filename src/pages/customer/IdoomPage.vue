@@ -18,7 +18,7 @@
           <q-badge color="primary" class="q-pa-sm text-subtitle2"><bdi dir="ltr">idoom · {{ known.offer }}</bdi></q-badge>
           <div class="small muted q-mt-xs">من آخر تعبئة لك لهذا الخط</div>
         </div>
-        <q-input v-model="line" dense outlined label="رقم الخط: ثابت 9 أرقام أو 4G يبدأ بـ 213" inputmode="tel" maxlength="16"
+        <q-input v-model="line" clearable @focus="(e) => e.target.select()" @clear="line = ''" dense outlined label="رقم الخط: ثابت 9 أرقام أو 4G يبدأ بـ 213" inputmode="tel" maxlength="16"
           placeholder="0XXXXXXXX" input-class="ltr text-right" />
         <div class="small muted">يُخصم ثمن البطاقة من رصيدك عند الطلب. إن لم تتم التعبئة يُعاد المبلغ تلقائيًا.</div>
       </div>

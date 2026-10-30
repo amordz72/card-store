@@ -25,7 +25,7 @@
       <div class="column q-gutter-sm q-pa-md">
         <q-select v-model="form.customer" dense outlined use-input input-debounce="0" emit-value map-options :options="customerOpts"
           label="الزبون" @filter="filterCustomers" />
-        <q-input v-model="form.player" dense outlined inputmode="numeric" label="ID اللاعب" input-class="ltr text-left" />
+        <q-input v-model="form.player" clearable @focus="(e) => e.target.select()" @clear="form.player = ''" dense outlined inputmode="numeric" label="ID اللاعب" input-class="ltr text-left" />
         <div class="row q-gutter-xs">
           <q-btn v-for="p in forCards" :key="p.product_id" dense no-caps :unelevated="form.product === p.product_id" :outline="form.product !== p.product_id"
             color="primary" :label="p.name" @click="form.product = p.product_id; form.units = null; forPlan = null" />
