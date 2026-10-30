@@ -108,6 +108,11 @@ export const ownerAppOperations = (app, keys) =>
 export const ownerAuto = () => owner('auto', { method: 'GET' })
 export const setAutoTask = (key, on) => owner('auto', { method: 'POST', body: { key, on } })
 export const setAutoLimit = (limit, value) => owner('auto', { method: 'POST', body: { limit, value } })
+// «الإحصائيات» and the owner's SQL (Flexy Core 0084): ready queries, read only, or his whole script with «نعم»
+export const ownerSql = () => owner('sql', { method: 'GET' })
+export const runReady = (ready) => owner('sql', { method: 'POST', body: { ready } })
+export const runSql = (sql, write) => owner('sql', { method: 'POST', body: write ? { sql, write: true, confirm: 'نعم' } : { sql } })
+export const resetDbLoad = () => owner('sql', { method: 'POST', body: { reset: true } })
 export const ownerSwitch = () => owner('settings', { method: 'GET' })
 export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: { send_enabled: on } })
 // The shops' switch in Flexy Core (apps.630.send_enabled), read with ownerSwitch().
