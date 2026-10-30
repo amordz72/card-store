@@ -322,7 +322,7 @@
               <div v-if="!agentAtLeast(actionsSt, '0.9.4')" class="small text-deep-orange">يحتاج تحديث البرنامج إلى 0.9.4 على هذا الكمبيوتر أولًا.</div>
               <div v-else-if="lastAction('net_check')" class="small" style="white-space: pre-line" :class="lastAction('net_check').done_at ? (lastAction('net_check').ok ? 'text-positive' : 'text-negative') : 'text-primary'">
                 {{ lastAction('net_check').done_at ? (lastAction('net_check').ok ? '✓ ' : '✗ ') + (lastAction('net_check').message || '') : (lastAction('net_check').sent_at ? 'وصل الكمبيوتر، يفحص (حتى دقيقة)…' : 'ينتظر نبضة الكمبيوتر…') }}
-                <span class="muted"> · {{ clock(lastAction('net_check').done_at || lastAction('net_check').asked_at) }}</span>
+                <span class="muted"> · {{ clock(lastAction('net_check').done_at || lastAction('net_check').asked_at) }}{{ lastAction('net_check').source === 'local' ? ' · ضُغط على الكمبيوتر نفسه' : '' }}</span>
                 <q-btn v-if="lastAction('net_check').done_at" flat dense no-caps size="sm" color="primary" icon="smart_toy" label="انسخ لـClaude"
                   @click="copyToClipboard(`فحص الإنترنت · ${actionsSt.code || ''} · ${clock(lastAction('net_check').done_at)}\n${lastAction('net_check').message || ''}`).then(() => Notify.create({ type: 'positive', message: 'نُسخ.' }))" />
               </div>
@@ -334,7 +334,7 @@
             <div class="col"><div class="text-weight-bold">{{ a.label }}</div><div class="small muted">{{ a.note }}</div>
               <div v-if="lastAction(a.key)" class="small" :class="lastAction(a.key).done_at ? (lastAction(a.key).ok ? 'text-positive' : 'text-negative') : 'text-primary'">
                 {{ lastAction(a.key).done_at ? (lastAction(a.key).ok ? '✓ ' : '✗ ') + (lastAction(a.key).message || '') : (lastAction(a.key).sent_at ? 'وصل الكمبيوتر، يُنفَّذ…' : 'ينتظر نبضة الكمبيوتر…') }}
-                <span class="muted"> · {{ clock(lastAction(a.key).done_at || lastAction(a.key).asked_at) }}</span></div>
+                <span class="muted"> · {{ clock(lastAction(a.key).done_at || lastAction(a.key).asked_at) }}{{ lastAction(a.key).source === 'local' ? ' · ضُغط على الكمبيوتر نفسه' : '' }}</span></div>
             </div>
             <q-btn unelevated dense no-caps color="primary" label="نفّذ" :loading="busy" @click="askAction(a)" />
           </div>
