@@ -11,6 +11,11 @@
           :color="kind === k.id ? 'primary' : 'grey-8'" :icon="k.icon" :label="k.label" @click="kind = k.id" />
       </div>
       <q-input v-model="text" type="textarea" outlined autogrow :placeholder="'اكتب أو أملِ بالصوت (زر الميكروفون في لوحة المفاتيح)…'" />
+      <!-- A text file with it (Flexy Core 0090): a copied screen, a log, a CSV, a script; up to 1 MB. Pictures stay in the chat. -->
+      <q-file v-model="picked" dense outlined clearable accept=".txt,.csv,.sql,.log,.json,.md,text/*" label="أرفق ملفًا نصيًا (اختياري)"
+        :max-file-size="1000000" @rejected="error = 'الملف أكبر من 1 ميغابايت أو ليس نصيًا'">
+        <template #prepend><q-icon name="attach_file" /></template>
+      </q-file>
       <q-btn unelevated no-caps color="primary" icon="send" label="أرسل" class="self-start" :loading="busy === 'add'" :disable="!text.trim()" @click="add" />
     </div>
 
@@ -27,7 +32,16 @@
         <span class="small muted col">#{{ i.id }} · {{ when(i.at) }}</span>
         <q-badge :color="STATUS[statusOf(i)].color" :label="STATUS[statusOf(i)].label" />
       </div>
-      <div class="idea-text">{{ i.text }}</div>
+      <!-- Claude's one-line summary first; the owner's full text folded under it -->
+      <template v-if="i.reply?.summary">
+        <div class="text-weight-bold">{{ i.reply.summary }}</div>
+        <q-expansion-item dense dense-toggle switch-toggle-side label="النص الكامل" header-class="small text-grey-8 q-px-none">
+          <div class="idea-text">{{ i.text }}</div>
+        </q-expansion-item>
+      </template>
+      <div v-else class="idea-text">{{ i.text }}</div>
+      <div v-if="i.file_name" class="small muted"><q-icon name="attach_file" /> {{ i.file_name }} · {{ Math.ceil((i.file_size || 0) / 1024) }} KB</div>
+      <div v-if="i.edited_at" class="small muted">عُدّلت {{ when(i.edited_at) }}</div>
       <div v-if="i.reply" class="reply">
         <div class="small text-weight-bold">رد Claude</div>
         <div class="idea-text">{{ i.reply.reply }}</div>
@@ -36,6 +50,8 @@
       <div class="row q-gutter-sm">
         <q-btn v-if="statusOf(i) === 'proposed'" unelevated dense no-caps color="positive" icon="check" label="نفّذ"
           :loading="busy === 'a' + i.id" @click="mark(i, 'approve')" />
+        <q-btn v-if="!['building', 'done', 'impossible'].includes(statusOf(i))" flat dense no-caps color="primary" icon="edit" label="عدّل"
+          :loading="busy === 'e' + i.id" @click="editOne(i)" />
         <q-btn flat dense no-caps color="grey-7" icon="visibility_off" label="أخفِ" :loading="busy === 'h' + i.id" @click="mark(i, 'hide')" />
       </div>
     </div>
@@ -45,6 +61,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { Dialog } from 'quasar'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
@@ -91,7 +108,10 @@ async function call (key, fn) {
   try {
     const res = await fn()
     if (res.status !== 200 || !res.body?.ok) {
-      throw new Error(res.body?.error === 'IDEAS_NOT_READY' ? 'طبّق 0089 أولًا من «الإحصائيات و SQL»' : (res.body?.error || 'FLEXY_CORE'))
+      const e = res.body?.error
+      throw new Error(e === 'IDEAS_NOT_READY' ? 'طبّق 0089 و0090 أولًا من «الإحصائيات و SQL»'
+        : e === 'IDEA_ALREADY_STARTED' ? 'بدأ تنفيذها: اكتب فكرة جديدة بدل التعديل'
+          : e === 'IDEA_FILE_TOO_BIG' ? 'الملف أكبر من 1 ميغابايت' : (e || 'FLEXY_CORE'))
     }
     ideas.value = res.body.ideas || []
     return true
@@ -102,8 +122,23 @@ async function call (key, fn) {
     busy.value = ''
   }
 }
+const picked = ref(null)
 async function add () {
-  if (await call('add', () => flexy.addIdea(text.value.trim(), kind.value))) text.value = ''
+  let file = null
+  if (picked.value) {
+    try {
+      file = { name: picked.value.name, text: await picked.value.text() }
+    } catch {
+      error.value = 'تعذّرت قراءة الملف'
+      return
+    }
+  }
+  if (await call('add', () => flexy.addIdea(text.value.trim(), kind.value, file))) { text.value = ''; picked.value = null }
+}
+// His own edit, before Claude starts on it (after, a new idea)
+function editOne (i) {
+  Dialog.create({ title: 'عدّل #' + i.id, prompt: { model: i.text, type: 'textarea', isValid: (v) => !!String(v).trim() }, cancel: 'إلغاء', ok: 'احفظ' })
+    .onOk((v) => call('e' + i.id, () => flexy.editIdea(i.id, String(v).trim())))
 }
 const mark = (i, action) => call((action === 'approve' ? 'a' : 'h') + i.id, () => flexy.markIdea(i.id, action))
 const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '')
