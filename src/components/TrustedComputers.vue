@@ -10,7 +10,8 @@
     <q-expansion-item dense icon="verified_user" :label="`الأجهزة الموثوقة (${trusted.length}) · الأوامر والروابط`" header-class="small text-weight-bold">
       <div class="column q-gutter-sm q-pa-sm">
         <div class="small muted">على أي كمبيوتر افتح <b class="ltr">{{ newUrl }}</b>
-          <q-btn flat dense no-caps size="sm" color="primary" icon="content_copy" label="انسخ الرابط" @click="copy(newUrl)" /></div>
+          <q-btn flat dense no-caps size="sm" color="primary" icon="content_copy" label="انسخ الرابط" @click="copy(newUrl)" />
+          <q-btn unelevated dense no-caps size="sm" color="primary" icon="download" label="نزّل ملف الصفحة (للنقل بالكابل)" @click="shortcut" /></div>
         <div v-for="b in trusted" :key="b.id" class="row items-center q-gutter-sm line">
           <div class="col small"><b>{{ b.label }}</b> · وُثق {{ when(b.approved_at) }}<span v-if="b.last_seen_at"> · آخر فتح {{ when(b.last_seen_at) }}</span></div>
           <q-btn flat dense no-caps size="sm" color="negative" label="ألغِ" :loading="busy === 'r' + b.id" @click="set({ revoke: b.id }, 'r' + b.id)" />
@@ -81,6 +82,18 @@ const saveLinks = () => set({ links: lines(linksText.value).map(([label, url]) =
 async function copy (t) {
   try { await navigator.clipboard.writeText(t) } catch { /* shown anyway */ }
   Notify.create({ type: 'positive', message: 'نُسخ الرابط.' })
+}
+// A file to carry by cable (owner 2026-10-30): double-clicked on the new computer, it opens its page in the browser
+function shortcut () {
+  const html = `<!doctype html><meta charset="utf-8"><title>Flexy كمبيوتر جديد</title><meta http-equiv="refresh" content="0; url=${newUrl}"><a href="${newUrl}">Flexy · كمبيوتر جديد</a>`
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+  a.download = 'Flexy-كمبيوتر-جديد.html'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000)
+  Notify.create({ type: 'positive', message: 'نُزّل Flexy-كمبيوتر-جديد.html: انقله بالكابل وافتحه على الكمبيوتر الجديد.' })
 }
 let timer = null
 onMounted(() => {
