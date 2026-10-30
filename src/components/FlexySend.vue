@@ -71,6 +71,12 @@
               <q-btn dense unelevated no-caps size="sm" color="negative" label="فشلت" @click.stop="settle(j, 'failed')" />
               <q-btn dense outline no-caps size="sm" color="grey-8" label="لم تُرسل" @click.stop="settle(j, 'not_sent')" />
             </div>
+            <!-- The owner only: «غيّر الحكم» on one closed «لم تُرسل» / «فشلت» (Flexy Core 0108), e.g. he finished it by hand -->
+            <div v-if="settle && j.rejudge" class="row q-gutter-xs q-mt-xs items-center" @click.stop>
+              <span class="small muted">غيّر الحكم:</span>
+              <q-btn dense outline no-caps size="sm" color="positive" label="وصلت" @click.stop="settle(j, 'success')" />
+              <q-btn v-if="j.status !== 'failed'" dense outline no-caps size="sm" color="negative" label="لم تصل" @click.stop="settle(j, 'failed')" />
+            </div>
             <!-- The owner only: what was offline at that minute, for a complaint (Flexy Core 0070) -->
             <div v-if="presence" class="q-mt-xs" @click.stop>
               <q-btn dense flat no-caps size="sm" color="primary" icon="history" label="ماذا كان منقطعًا وقتها" :loading="presenceBusy === j.id" @click.stop="loadPresence(j)" />

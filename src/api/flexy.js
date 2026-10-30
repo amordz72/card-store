@@ -87,6 +87,9 @@ export const ownerSend590 = (phone, amount, idempotencyKey, extra = {}) => owner
 // The owner settles an open operation himself (Flexy Core 0057): to = success | failed | not_sent, note = his evidence
 // «لا أدري» (Flexy Core 0097): kept on the operation; the answer is its SIM, whose balance the page then asks
 export const ownerUnknown = (operationId) => owner('operations/unknown', { method: 'POST', body: { operation_id: operationId } })
+// «غيّر الحكم» (Flexy Core 0108)
+export const ownerRejudge = (operationId, to, note) => owner('operations/rejudge', { method: 'POST', body: { operation_id: operationId, to, note } })
+export const ownerRejudgeable = () => owner('operations/rejudge', { method: 'GET' })
 export const ownerSettle = (operationId, to, note) => owner('operations/settle', { method: 'POST', body: { operation_id: operationId, to, note } })
 // Replies before «1» and offers no path knows yet (Flexy Core 0056)
 export const ownerNewReplies = () => owner('new-replies', { method: 'GET' })
