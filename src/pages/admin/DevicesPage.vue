@@ -444,8 +444,9 @@ function downloadFix () {
   const bat = crlf(['@echo off', 'echo Flexy: fixing the station program files...', encoded, 'echo.', 'echo Now press "update" on the devices page.', 'pause'])
   const admin = crlf(['@echo off', 'rem Runs 1-run-me.bat as administrator (Windows asks Yes / No)',
     'powershell -NoProfile -Command "Start-Process -FilePath \'%~dp01-run-me.bat\' -Verb RunAs"'])
-  const lines = (title, direct, search) => crlf([title, '', ...(known ? ['This computer (its folder is known):', direct, ''] : []),
-    'Any computer (finds the program itself):', search, ''])
+  // Only commands, nothing else (owner 2026-10-30: he pasted the whole file, its titles ran as commands): the direct
+  // line when the folder is known, else the searching one; then a line so the paste runs the first
+  const lines = (_title, direct, search) => crlf([known ? direct : search, 'echo FIN'])
   const readme = '\uFEFF' + crlf([
     'حزمة إصلاح برنامج المحطة (Flexy)',
     '',
@@ -453,7 +454,8 @@ function downloadFix () {
     'الطريقة 2: إن لم ينجح، اضغط مرتين على 2-run-as-admin.bat ثم اختر «نعم».',
     'الطريقة 3: زر يمين على 3-Flexy-fix.ps1 ← Run with PowerShell.',
     'الطريقة 4: افتح cmd أو PowerShell أو Git Bash، وانسخ السطر من الملف الذي باسمها (4 أو 5 أو 6)، ثم Enter.',
-    'الطريقة 5: من داخل مجلد البرنامج نفسه، بلا بحث: الملف 7.',
+    'الطريقة 5: من داخل مجلد البرنامج نفسه (فيه agent وserver وstart-agent.bat): اضغط شريط العنوان، اكتب cmd، Enter، والصق الملف 7.',
+    'كل ملف أوامر فيه الأمر وحده: انسخه كله والصقه.',
     '',
     'DONE مع مكان البرنامج = نجح: ارجع إلى صفحة الأجهزة واضغط «حدّث».',
     'NOT FOUND = البرنامج ليس على هذا الكمبيوتر.',
@@ -468,8 +470,7 @@ function downloadFix () {
     { name: '5-powershell.txt', text: lines('PowerShell:', known + '; if ($?) { echo DONE }', FIX_PS.split('\n').join('; ')) },
     { name: '6-git-bash.txt', text: lines('Git Bash:', known + ' && echo DONE', GIT_BASH_FIX) },
     // Standing inside the program's folder (owner 2026-10-30): the plain line, no search
-    { name: '7-inside-the-folder.txt', text: crlf(['Open the program folder (it holds: agent, server, contract, start-agent.bat).',
-      'Click the address bar, type cmd, press Enter. Then paste:', '', 'git checkout -- agent/src agent/package.json && echo DONE', 'echo FIN']) }
+    { name: '7-inside-the-folder.txt', text: crlf(['git checkout -- agent/src agent/package.json && echo DONE', 'echo FIN']) }
   ])
   const a = document.createElement('a')
   a.href = URL.createObjectURL(zip)
