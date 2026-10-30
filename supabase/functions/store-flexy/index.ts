@@ -93,7 +93,9 @@ const OP_760 = "djezzy.flexy.ordinary.760";
 const OP_590 = "ooredoo.flexy.ordinary.590";
 // The shops' Ooredoo offers (owner 2026-10-30, v1.55): bought by the catalog name, at the price Flexy Core names
 const OP_OFFER_585 = "ooredoo.flexy.offer.585";
-const offerKey = (phone: string) => (phone.startsWith("05") ? OP_OFFER_585 : OP_OFFER);
+// … and Djezzy's (v1.56), the same way
+const OP_OFFER_760 = "djezzy.flexy.offer.760";
+const offerKey = (phone: string) => (phone.startsWith("05") ? OP_OFFER_585 : phone.startsWith("07") ? OP_OFFER_760 : OP_OFFER);
 
 // The shop's switches: v4 (v1.55) names its Ooredoo offers; before it, v1 (Mobilis offers only)
 async function flexyStatusOf(token: string): Promise<Record<string, unknown> | null> {
@@ -110,8 +112,8 @@ async function flexyStatusOf(token: string): Promise<Record<string, unknown> | n
   return null;
 }
 
-// An Ooredoo offer's price is not in its name: the one Flexy Core shows for this number now (its kept menu, no session)
-async function ooredooPrice(phone: string, label: string): Promise<number | null> {
+// An Ooredoo or Djezzy offer's price is not in its name: the one Flexy Core shows for this number now (its kept menu)
+async function corePrice(phone: string, label: string): Promise<number | null> {
   try {
     const res = await fetch(`${FLEXY_API}/offers/lookup`, {
       method: "POST",
@@ -249,9 +251,9 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     const kind = body.kind === "offer" ? "offer" : "630";
     const label = kind === "offer" ? String(body.offer ?? "").trim() : null;
     const phone = String(body.phone ?? "");
-    const ooredooOffer = kind === "offer" && phone.replace(/\D/g, "").startsWith("05");
-    // Mobilis: the number its name ends with; Ooredoo: the price Flexy Core shows for it (Flexy Core checks it again)
-    const amount = ooredooOffer ? (await ooredooPrice(phone.replace(/\D/g, ""), label ?? "")) ?? NaN
+    const ooredooOffer = kind === "offer" && /^0[57]/.test(phone.replace(/\D/g, ""));
+    // Mobilis: the number its name ends with; Ooredoo / Djezzy: the price Flexy Core shows for it (Flexy Core checks it again)
+    const amount = ooredooOffer ? (await corePrice(phone.replace(/\D/g, ""), label ?? "")) ?? NaN
       : kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
     if (ooredooOffer && !Number.isFinite(amount)) return json(req, 422, { ok: false, error: "FLEXY_OFFER_INVALID" });
     if (!ooredooOffer && !(await coreAvailable(kind === "offer" ? OP_OFFER : creditKey(phone), amount, label))) {
@@ -297,9 +299,10 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     const s = await flexyStatusOf(token);
     if (!s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
     if (!s.enabled) return json(req, 403, { ok: false, error: "FLEXY_NOT_ENABLED" });
-    // An Ooredoo number: its offers have their own switch for this shop (v1.55)
-    const isOoredoo = /^0?5/.test(String(body.phone ?? "").replace(/\D/g, "").replace(/^213/, "0"));
-    if (!s.open || !(isOoredoo ? s.offers_ooredoo : s.offers)) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
+    // An Ooredoo or Djezzy number: its offers have their own switch for this shop (v1.55, v1.56)
+    const prefix = String(body.phone ?? "").replace(/\D/g, "").replace(/^213/, "0").slice(0, 2);
+    const allowed = prefix === "05" ? s.offers_ooredoo : prefix === "07" ? s.offers_djezzy : s.offers;
+    if (!s.open || !allowed) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
     try {
       const res = await fetch(`${FLEXY_API}/offers/lookup`, {
         method: "POST",

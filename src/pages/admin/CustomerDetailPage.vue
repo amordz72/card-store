@@ -176,7 +176,8 @@ async function setOperator (v) {
 const FLEXY_SERVICES = [
   { key: 'mobilis', name: 'موبيليس', col: 'rate_630', arg: 'rate630' }, { key: 'offer', name: 'عروض', col: 'rate_offer', arg: 'rateOffer' },
   { key: 'ooredoo', name: 'أوريدو', col: 'rate_630_ooredoo', arg: 'rateOoredoo' }, { key: 'djezzy', name: 'جازي', col: 'rate_630_djezzy', arg: 'rateDjezzy' },
-  { key: 'offer_ooredoo', name: 'عروض أوريدو', col: 'rate_offer_ooredoo', arg: null }
+  { key: 'offer_ooredoo', name: 'عروض أوريدو', col: 'rate_offer_ooredoo', arg: null },
+  { key: 'offer_djezzy', name: 'عروض جازي', col: 'rate_offer_djezzy', arg: null }
 ]
 const flexyRow = ref(null)
 const rates = ref({})
