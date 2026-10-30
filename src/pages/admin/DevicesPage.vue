@@ -111,7 +111,9 @@
             <tr v-for="st in stationRows" :key="st.station_uuid" class="static">
               <td><span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span><span v-if="st.label" class="muted"> · {{ st.label }}</span>
                 <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div>
-                <q-badge v-if="updates && !isAbsent(st) && !active(st) && newInMain(st)" outline color="primary" :label="'⬆ ' + newInMain(st).main_version" /></td>
+                <q-badge v-if="updates && !isAbsent(st) && !active(st) && newInMain(st)" outline color="primary" :label="'⬆ ' + newInMain(st).main_version" />
+                <!-- «صفحة الكمبيوتر» (owner 2026-10-30): its fixed actions from here, the same as its local page -->
+                <div v-if="!isPhone(st) && st.approved"><q-btn flat dense no-caps size="sm" color="primary" icon="settings" label="أوامر" @click="openActions(st)" /></div></td>
               <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
                 <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
                 <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
@@ -140,7 +142,8 @@
                   <span v-else-if="mainOf(st)?.main_error && keyRefused(mainOf(st).main_error)" class="small text-deep-orange">GitHub رفض مفتاح هذا الكمبيوتر (انتهى أو حُذف).
                     <a :href="GITHUB_KEYS" target="_blank" rel="noopener noreferrer">مفاتيحي ↗</a>: Regenerate، ثم احفظه في «إضافة كمبيوتر»؛ يصل الكمبيوتر خلال ساعة.</span>
                   <span v-else-if="mainOf(st)?.main_error && offline(mainOf(st).main_error)" class="small muted">لا يصل إلى GitHub الآن، يعيد المحاولة كل دقيقة</span>
-                  <span v-else-if="mainOf(st)?.main_error" class="small text-deep-orange">لا يمكن التحديث: {{ MAIN_ERRORS[mainOf(st).main_error] || mainOf(st).main_error }}</span>
+                  <span v-else-if="mainOf(st)?.main_error" class="small text-deep-orange">لا يمكن التحديث: {{ MAIN_ERRORS[mainOf(st).main_error] || mainOf(st).main_error }}
+                    <a v-if="mainOf(st).main_error === 'GIT_LOCAL_CHANGES'" href="#" @click.prevent="openActions(st)">← كيف أصلحه</a></span>
                   <span v-else-if="mainOf(st)" class="small muted">على آخر main</span>
                   <div v-if="editStations">
                     <q-btn v-if="st.gateway === 'old'" flat dense no-caps size="sm" color="primary" label="انقل إلى بوابة النواة" :loading="busy" @click="askGateway(st, 'flexy-gateway')" />
@@ -257,6 +260,33 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    <!-- «صفحة الكمبيوتر»: the computer runs one of its fixed actions with its next heartbeat (about 20 s) -->
+    <q-dialog v-model="actionsOpen">
+      <q-card style="width:100%;max-width:520px">
+        <q-card-section class="column q-gutter-sm">
+          <div class="row items-center no-wrap">
+            <div class="col text-weight-bold">أوامر {{ actionsSt?.code || 'الكمبيوتر' }}</div>
+            <q-btn flat round dense icon="close" v-close-popup />
+          </div>
+          <!-- Before 0.9.0 the computer cannot take them: the one line by hand, once (or through AnyDesk) -->
+          <div v-if="actionsSt && !agentAtLeast(actionsSt, '0.9.0')" class="column q-gutter-xs warn-box">
+            <div class="small text-weight-bold">هذا الكمبيوتر على نسخة قديمة ({{ actionsSt.agent_version || '؟' }}): لا يأخذ الأوامر من هنا بعد.</div>
+            <div class="small">مرة واحدة أمامه أو عبر AnyDesk: زر Windows ← اكتب cmd ← Enter، والصق هذا السطر ثم Enter، ثم اضغط «حدّث» هنا:</div>
+            <div class="row items-center no-wrap"><code class="col ltr fix-line">{{ FIX_LINE }}</code>
+              <q-btn flat dense icon="content_copy" aria-label="انسخ" @click="copyFix" /></div>
+          </div>
+          <div v-if="actionsSt?.gateway === 'old'" class="small text-deep-orange">هذا الكمبيوتر على البوابة القديمة: الأوامر تصل عبر بوابة النواة فقط (تعديل ← انقل إلى بوابة النواة).</div>
+          <div v-for="a in STATION_ACTIONS" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
+            <div class="col"><div class="text-weight-bold">{{ a.label }}</div><div class="small muted">{{ a.note }}</div>
+              <div v-if="lastAction(a.key)" class="small" :class="lastAction(a.key).done_at ? (lastAction(a.key).ok ? 'text-positive' : 'text-negative') : 'text-primary'">
+                {{ lastAction(a.key).done_at ? (lastAction(a.key).ok ? '✓ ' : '✗ ') + (lastAction(a.key).message || '') : (lastAction(a.key).sent_at ? 'وصل الكمبيوتر، يُنفَّذ…' : 'ينتظر نبضة الكمبيوتر…') }}
+                <span class="muted"> · {{ clock(lastAction(a.key).done_at || lastAction(a.key).asked_at) }}</span></div>
+            </div>
+            <q-btn unelevated dense no-caps color="primary" label="نفّذ" :loading="busy" @click="askAction(a)" />
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -264,7 +294,7 @@
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { MONITOR_TABS } from 'src/api/sections'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Dialog } from 'quasar'
+import { copyToClipboard, Dialog, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
@@ -299,6 +329,55 @@ async function simAlertsSeen () {
 const tree = ref(null)
 const error = ref('')
 const busy = ref(false)
+// «صفحة الكمبيوتر» (Flexy Core 0099, Agent 0.9.0): the same three actions as the computer's local page
+const STATION_ACTIONS = [
+  { key: 'fix_update', label: 'أصلح ملفات التحديث', note: 'يعيد ملفات البرنامج إلى نسختها النظيفة، فيقبل التحديث بعدها.' },
+  { key: 'restart_agent', label: 'أعد تشغيل البرنامج', note: 'حين لا يعمل شيء على المودمات (ثوانٍ).' },
+  { key: 'reconnect_wifi', label: 'أعد الاتصال بالواي فاي', note: 'يقطع الواي فاي ويعيده إلى الشبكة نفسها.' }
+]
+const FIX_LINE = 'git -C C:\\MyTool\\station-connect checkout -- agent/src agent/package.json'
+const actionsOpen = ref(false)
+const actionsSt = ref(null)
+const actionsList = ref([])
+let actionsTimer = null
+const agentAtLeast = (st, v) => {
+  const a = String(st.agent_version || '0').split('.').map(Number)
+  const b = v.split('.').map(Number)
+  for (let i = 0; i < 3; i++) if ((a[i] || 0) !== b[i]) return (a[i] || 0) > b[i]
+  return true
+}
+async function loadActions () {
+  const r = await flexy.stationActions().catch(() => null)
+  if (r?.status === 200 && r.body?.ok) actionsList.value = r.body.actions || []
+}
+const lastAction = (key) => actionsList.value.find((x) => x.station_uuid === actionsSt.value?.station_uuid && x.key === key) || null
+function openActions (st) {
+  actionsSt.value = st
+  actionsOpen.value = true
+  loadActions()
+  clearInterval(actionsTimer)
+  // While open: the result shows when the computer says it (its heartbeat every 20 s)
+  actionsTimer = setInterval(() => { if (actionsOpen.value) loadActions(); else clearInterval(actionsTimer) }, 5000)
+}
+function askAction (a) {
+  Dialog.create({ title: a.label + '؟', message: `${actionsSt.value.code || 'الكمبيوتر'} ينفّذه مع نبضته التالية (نحو 20 ثانية).`, cancel: 'لا', ok: 'نعم' })
+    .onOk(async () => {
+      busy.value = true
+      try {
+        const r = await flexy.askStationAction(actionsSt.value.station_uuid, a.key)
+        if (r.status !== 200 || r.body?.ok === false) throw new Error(r.body?.error === 'ACTIONS_NOT_READY' ? 'طبّق 0099 أولًا' : (r.body?.error || 'FLEXY_CORE'))
+        await loadActions()
+      } catch (e) {
+        Notify.create({ type: 'negative', message: 'لم يُطلب: ' + (e.message || ''), position: 'top' })
+      } finally {
+        busy.value = false
+      }
+    })
+}
+async function copyFix () {
+  await copyToClipboard(FIX_LINE)
+  Notify.create({ type: 'positive', message: 'نُسخ السطر', position: 'top', timeout: 1200 })
+}
 const clock = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
 
 // The phone is apart (owner 2026-10-28): computers only in the counts, the tables and the SIMs.
@@ -768,4 +847,7 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
 .sims td { padding: 8px 10px; border-top: 1px solid #EEF0F4; vertical-align: top; }
 .sims tbody tr { cursor: pointer; }
 .sims tbody tr:hover { background: #F6F7F9; }
+.warn-box { background: #FFF7ED; border: 1px solid #FDBA74; border-radius: 8px; padding: 8px; }
+.fix-line { font-size: 12px; overflow-wrap: anywhere; }
+.act-row { border-top: 1px solid #eef0f4; padding-top: 8px; }
 </style>
