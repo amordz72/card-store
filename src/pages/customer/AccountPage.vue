@@ -6,6 +6,7 @@
       <div class="text-weight-bold ltr text-right">{{ admin.email }}</div>
       <div class="small muted">كلمة سر المدير وحمايته الثنائية تُدار من Supabase.</div>
     </div>
+    <PushSettings v-if="session.isAdmin" />
 
     <template v-if="!session.isAdmin">
     <div v-if="p" class="card grid-3">
@@ -47,6 +48,7 @@ import { money, debtView } from 'src/api/format'
 import { useSessionStore } from 'stores/session'
 import { useAdminStore } from 'stores/admin'
 import LockSettings from 'components/LockSettings.vue'
+import PushSettings from 'components/PushSettings.vue'
 import { weakHomeOn, setWeakHome } from 'src/api/weakHome'
 import { showHelp, setShowHelp } from 'src/api/help'
 import { useLockStore } from 'stores/lock'
