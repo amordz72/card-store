@@ -1,5 +1,16 @@
 <template>
   <q-page class="page">
+    <!-- «هل وصل للزبون؟» (owner 2026-10-30): the shop knows its customer; asked before the owner, its answer moves no money -->
+    <div v-for="q in questions" :key="q.job_id" class="card column q-gutter-xs question" style="border: 2px solid #e64a19">
+      <div class="text-weight-bold">هل وصل للزبون؟</div>
+      <div class="small"><span class="ltr">{{ q.phone }}</span> · {{ q.kind === 'offer' ? offerTitle(q.offer_label) : money(q.amount) }} · {{ when(q.created_at) }}</div>
+      <div class="small muted">لم يصلنا دليل من الشبكة. اسأل الزبون وأجبنا.</div>
+      <div class="row q-gutter-xs">
+        <q-btn unelevated dense no-caps color="positive" label="نعم، وصل" :loading="answering === q.job_id + 'arrived'" @click="answer(q, 'arrived')" />
+        <q-btn unelevated dense no-caps color="negative" label="لا، لم يصل" :loading="answering === q.job_id + 'not_arrived'" @click="answer(q, 'not_arrived')" />
+        <q-btn flat dense no-caps color="grey-8" label="لا أعرف" :loading="answering === q.job_id + 'unknown'" @click="answer(q, 'unknown')" />
+      </div>
+    </div>
     <div v-if="!access.enabled.value" class="card text-center column q-gutter-sm q-pa-lg">
       <q-icon name="send_to_mobile" size="40px" color="grey-6" class="self-center" />
       <div class="text-weight-bold">الفليكسي غير مفعّل لحسابك</div>
@@ -25,6 +36,8 @@ import * as api from 'src/api/customer'
 import { money } from 'src/api/format'
 import { offerTitle } from 'src/api/flexyExplain'
 import FlexySend from 'src/components/FlexySend.vue'
+import { when } from 'src/api/when'
+import { Notify } from 'quasar'
 
 // The shop's side of the shared send screen (FlexySend): its balance pays through store-flexy.
 // Light on purpose (owner rule: fast on weak networks): one request to send, small pages of
@@ -122,9 +135,28 @@ async function afterSend () {
   schedule()
 }
 
+// The shop's questions (v1.47; before it, none)
+const questions = ref([])
+const answering = ref('')
+const loadQuestions = () => api.flexyQuestions(customer.token).then((l) => { questions.value = l || [] }).catch(() => null)
+async function answer (q, a) {
+  answering.value = q.job_id + a
+  try {
+    const r = await api.flexyAnswer(customer.token, q.job_id, a)
+    if (r !== 'OK') throw new Error(r)
+    questions.value = questions.value.filter((x) => x.job_id !== q.job_id)
+    Notify.create({ type: 'positive', message: 'شكرًا، وصل جوابك', position: 'top', timeout: 1500 })
+  } catch {
+    Notify.create({ type: 'negative', message: 'لم يُحفظ، حاول مرة أخرى', position: 'top' })
+  } finally {
+    answering.value = ''
+  }
+}
+
 onMounted(async () => {
   await access.refresh()
   if (!access.enabled.value) return
+  loadQuestions()
   await loadFirst().catch(() => null)
   schedule()
 })

@@ -1,6 +1,7 @@
 <template>
-  <!-- «تحتاج حكمك» (owner 2026-10-30, Flexy Core 0092): operations whose outcome is unknown (review, or accepted and not
-       settled). Money may have left: the program never decides; the owner does, with the evidence (the SIM's messages
+  <!-- «تحتاج حكمك» (owner 2026-10-30, Flexy Core 0092/0095): operations whose outcome is unknown (review, or accepted and not
+       settled). The clear ones the program closes itself (rejudge, every 10 minutes); here each says its evidence and
+       which way it points («موافق»), the shop is asked first; otherwise the owner decides, with the evidence (the SIM's messages
        after the operation, its balance), through the settle path that already exists. Hidden when nothing waits. -->
   <div v-if="ops.length || state === 'failed'" class="card column gap-sm review">
     <div class="row items-center">
@@ -19,10 +20,13 @@
         <q-btn flat round dense size="sm" icon="smart_toy" aria-label="نسخ لـClaude" @click="copyForClaude('تحتاج حكمك', forClaude(o))" />
       </div>
       <div class="small">{{ o.offer || (o.amount ? o.amount + ' دج' : '') }} · {{ WAYS[o.way] || o.way }} · {{ o.shop ? 'المحل: ' + o.shop : (o.app === 'owner-console' ? 'صفحتك أو المختبر' : o.app) }}</div>
-      <div v-if="o.later_success_at" class="small text-positive text-weight-bold">✅ نجحت لهذا الرقم عملية لاحقة ({{ when(o.later_success_at) }}): الأرجح أن هذه قديمة وحُلّت أو لم تصل</div>
+      <!-- The evidence, and what it says (owner 2026-10-30: «قل لي كيف أحكم، لا تطلب حكمي فقط») -->
+      <div class="evidence column gap-xs">
+        <div v-for="(e, i) in evidenceOf(o)" :key="i" class="small" :class="e.cls">{{ e.text }}</div>
+      </div>
 
       <div class="tl">
-        <div class="tl-item"><span class="dot" /> <b>{{ when(o.at) }}</b> · أُرسلت من {{ o.sim || 'شريحة ؟' }} · صارت «{{ o.status === 'review' ? 'مراجعة' : 'مقبولة' }}»<span v-if="o.code" class="tiny muted ltr"> {{ o.code }}</span></div>
+        <div class="tl-item"><span class="dot" /> <b>{{ when(o.at) }}</b> · أُرسلت من {{ o.sim || 'شريحة ؟' }} · صارت «{{ o.status === 'review' ? 'مراجعة' : 'مقبولة' }}»<span v-if="CODES[o.code]" class="muted">: {{ CODES[o.code] }}</span></div>
         <div v-if="!(o.messages || []).length" class="tl-item small muted"><span class="dot" /> لا رسالة على الشريحة في الساعتين بعدها</div>
         <div v-for="(m, i) in o.messages || []" :key="i" class="tl-item small">
           <span class="dot" :class="mineOf(o, m)" /> <b>{{ when(m.at) }}</b> · {{ m.from }}
@@ -36,8 +40,10 @@
         </div>
       </div>
       <div class="row gap-sm">
-        <q-btn unelevated dense no-caps color="positive" icon="check" label="وصلت" :loading="busy === o.id + 's'" @click="settle(o, 'success')" />
-        <q-btn unelevated dense no-caps color="negative" icon="close" label="لم تصل" :loading="busy === o.id + 'f'" @click="settle(o, 'failed')" />
+        <q-btn :unelevated="suggest(o) !== 'failed'" :outline="suggest(o) === 'failed'" dense no-caps color="positive" icon="check"
+          :label="suggest(o) === 'success' ? 'موافق: وصلت' : 'وصلت'" :loading="busy === o.id + 's'" @click="settle(o, 'success')" />
+        <q-btn :unelevated="suggest(o) !== 'success'" :outline="suggest(o) === 'success'" dense no-caps color="negative" icon="close"
+          :label="suggest(o) === 'failed' ? 'موافق: لم تصل' : 'لم تصل'" :loading="busy === o.id + 'f'" @click="settle(o, 'failed')" />
       </div>
     </div>
   </div>
@@ -95,9 +101,65 @@ function mineOf (o, m) {
   if (!d) return ''
   return String(o.phone || '').replace(/\D/g, '').endsWith(d.slice(-8)) ? 'mine' : 'other'
 }
+// Why it is in review, in words (never the code)
+const CODES = { '630_FAILURE_SMS_SEEN': 'رأى رسالة «فشلت»', '630_SMS_AMBIGUOUS': 'رسالة تحتمل عمليتين', '630_NO_FINAL_SMS': 'لم تصل رسالة في الوقت' }
+const sms = (t) => String(t || '')
+const isSuccess = (t) => /Vous avez rech?arg/i.test(sms(t))
+const isFailure = (t) => /échou|insuffisant|incorrect/i.test(sms(t))
+const SLACK = 30000
+// Each line: what a proof says (the program closes the clear ones itself every 10 minutes, Flexy Core rejudge)
+function evidenceOf (o) {
+  const sent = Date.parse(o.at)
+  const out = []
+  const msgs = o.messages || []
+  const mineOk = msgs.find((m) => isSuccess(m.text) && mineOf(o, m) === 'mine' && Date.parse(m.at) >= sent - SLACK)
+  const failBefore = msgs.find((m) => isFailure(m.text) && Date.parse(m.at) < sent - SLACK)
+  const failAfter = msgs.find((m) => isFailure(m.text) && Date.parse(m.at) >= sent - SLACK)
+  if (mineOk) out.push({ cls: 'text-positive text-weight-bold', text: '✅ رسالة نجاح لرقمها بعد الإرسال: وصلت. البرنامج يغلقها وحده خلال 10 دقائق، أو اضغط «موافق».' })
+  if (failBefore) out.push({ cls: 'muted', text: `• رسالة «فشلت» ${when(failBefore.at)} جاءت قبل الإرسال: تخص عملية سابقة، لا هذه.` })
+  if (failAfter && !mineOk) out.push({ cls: 'text-negative', text: `• رسالة «فشلت» بعد الإرسال (${when(failAfter.at)}): قد تكون لهذه أو لعملية أخرى على نفس الشريحة.` })
+  // Our SIM's balance around the send (0095): did the money leave our SIM?
+  const b = o.balance
+  if (b && b.before !== null && b.after !== null) {
+    const drop = Number(b.drop)
+    const line = `رصيد ${o.sim || 'الشريحة'}: ${b.before} (${when(b.before_at)}) ← ${b.after} (${when(b.after_at)})`
+    if (drop === 0) out.push({ cls: 'text-negative', text: `• ${line}: لم ينقص، فلم يخرج المال: الأرجح لم تصل.` })
+    else if (Number(b.sessions) <= 1 && drop === Number(o.amount)) out.push({ cls: 'text-positive', text: `• ${line}: نقص ${drop} دج = هذه وحدها: خرج المال.` })
+    else out.push({ cls: 'muted', text: `• ${line}: نقص ${drop} دج مع ${b.sessions} عمليات: لا يكفي وحده.` })
+  } else {
+    out.push({ cls: 'muted', text: '• لا قراءة لرصيد الشريحة بعد هذه العملية: الرصيد لا يحسمها.' })
+  }
+  // The shop knows its customer: asked first (card-store v1.47)
+  if (o.shop) {
+    const said = { arrived: 'وصلت', not_arrived: 'لم تصل', unknown: 'لا يعرف' }[o.shop_answer]
+    out.push(said ? { cls: 'text-weight-bold', text: `• المحل ${o.shop} قال: ${said} (${when(o.shop_answer_at)}).` }
+      : { cls: 'muted', text: `• سُئل المحل ${o.shop} في تطبيقه «هل وصل للزبون؟»: لم يجب بعد.` })
+  }
+  // A later success proves the number accepts it, never that this one arrived
+  if (o.later_success_at) {
+    out.push({ cls: 'muted', text: `• نجحت لنفس الرقم عملية لاحقة ${when(o.later_success_at)} (${o.later_app === 'owner-console' ? 'من المختبر أو صفحتك' : 'من محل'}): الرقم يقبل العرض فقط، ولا يثبت هذه.` })
+  }
+  if (!mineOk && !(b && b.before !== null && b.after !== null) && !(o.shop && o.shop_answer)) {
+    out.push({ cls: 'text-deep-orange', text: o.shop ? 'لا دليل بعد: انتظر جواب المحل، أو اسأل الزبون.' : 'لا دليل: احكم أنت (مثلًا من هاتف الزبون).' })
+  }
+  return out
+}
+function suggest (o) {
+  const sent = Date.parse(o.at)
+  if ((o.messages || []).some((m) => isSuccess(m.text) && mineOf(o, m) === 'mine' && Date.parse(m.at) >= sent - SLACK)) return 'success'
+  const b = o.balance
+  if (b && b.before !== null && b.after !== null) {
+    if (Number(b.drop) === 0) return 'failed'
+    if (Number(b.sessions) <= 1 && Number(b.drop) === Number(o.amount)) return 'success'
+  }
+  if (o.shop_answer === 'arrived') return 'success'
+  if (o.shop_answer === 'not_arrived') return 'failed'
+  return ''
+}
 const ageDays = (t) => { const a = new Date(t); const b = new Date(); a.setHours(0, 0, 0, 0); b.setHours(0, 0, 0, 0); return Math.round((b - a) / 86400000) }
 const forClaude = (o) => ({ id: o.id, at: o.at, op: o.op, way: o.way, status: o.status, code: o.code, phone: o.phone, offer: o.offer, amount: o.amount,
-  app: o.app, shop: o.shop, sim: o.sim, later_success_at: o.later_success_at, balance_now: o.sim_balance, balance_at: o.sim_balance_at,
+  app: o.app, shop: o.shop, sim: o.sim, later_success_at: o.later_success_at, later_app: o.later_app, shop_answer: o.shop_answer, balance: o.balance,
+  evidence: evidenceOf(o).map((e) => e.text), suggest: suggest(o), balance_now: o.sim_balance, balance_at: o.sim_balance_at,
   messages: (o.messages || []).map((m) => m.at + ' ' + m.text) })
 registerForClaude('تحتاج حكمك', () => ops.value.map(forClaude))
 async function copy (p) { await copyToClipboard(p); Notify.create({ message: 'نُسخ الرقم', color: 'positive', position: 'top', timeout: 1000 }) }

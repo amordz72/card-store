@@ -99,6 +99,9 @@ export async function flexyStatus (token) {
   const rows = await rpc('store_flexy_status_v3', { p_token: token })
   return rows?.[0] || { enabled: false, open: false, max_amount: 0, offers: false, mobilis: false, djezzy: false, ooredoo: false }
 }
+// v1.47: «هل وصل للزبون؟» for its operations the program could not prove; the answer moves no money
+export const flexyQuestions = (token) => rpc('store_flexy_questions', { p_token: token })
+export const flexyAnswer = (token, jobId, answer) => rpc('store_flexy_answer', { p_token: token, p_job_id: jobId, p_answer: answer })
 export const flexyJobs = (token, limit, before) => rpc('store_flexy_jobs', { p_token: token, p_limit: limit, p_before: before ?? null })
 async function shop (path, body) {
   const { data, error } = await supabase.functions.invoke('store-flexy/shop/' + path, { method: 'POST', body })
