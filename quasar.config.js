@@ -50,6 +50,8 @@ export default defineConfig(() => ({
       cfg.navigateFallbackDenylist = [/\/apps\//]
       cfg.globIgnores = [...(cfg.globIgnores || []), 'apps/**']
       cfg.runtimeCaching = []
+      // Phone notifications (Flexy Core 0111): the push and its tap, in public/push-sw.js
+      cfg.importScripts = [...(cfg.importScripts || []), 'push-sw.js']
     }
   }
 }))

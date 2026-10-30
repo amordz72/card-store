@@ -90,6 +90,8 @@ export const ownerUnknown = (operationId) => owner('operations/unknown', { metho
 // «غيّر الحكم» (Flexy Core 0108)
 export const ownerRejudge = (operationId, to, note) => owner('operations/rejudge', { method: 'POST', body: { operation_id: operationId, to, note } })
 export const ownerRejudgeable = () => owner('operations/rejudge', { method: 'GET' })
+// Phone notifications (Flexy Core 0111): null = read; {subscribe, kinds} / {unsubscribe} / {test}
+export const ownerPush = (body) => owner('push', body ? { method: 'POST', body } : { method: 'GET' })
 export const ownerSettle = (operationId, to, note) => owner('operations/settle', { method: 'POST', body: { operation_id: operationId, to, note } })
 // Replies before «1» and offers no path knows yet (Flexy Core 0056)
 export const ownerNewReplies = () => owner('new-replies', { method: 'GET' })
