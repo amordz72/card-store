@@ -1,6 +1,5 @@
 <template>
-  <q-page class="page">
-    <SectionTabs :tabs="MONITOR_TABS" />
+  <div class="column gap-sm">
     <!-- «المراقبة» (owner 2026-10-29, Flexy Core 0068): what needs the owner now, then the balances.
          One request to Flexy Core; refreshed every 30 seconds while this page is open and visible. -->
     <!-- The three tiles filter what is below (owner 2026-10-29): critical or orange alerts only, or the ready SIMs
@@ -145,13 +144,11 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </q-page>
+  </div>
 </template>
 
 <script setup>
-import SectionTabs from 'src/components/SectionTabs.vue'
-import { MONITOR_TABS } from 'src/api/sections'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { money } from 'src/api/format'
@@ -268,9 +265,12 @@ function openUnavailable (o, which) {
 }
 
 let timer = null
+// A tab of «المراقبة والإحصائيات»: asks every 30 s only while its tab is the one shown
+const props = defineProps({ active: { type: Boolean, default: true } })
+watch(() => props.active, (a) => { if (a) load() })
 onMounted(() => {
   load()
-  timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 30000)
+  timer = setInterval(() => { if (document.visibilityState === 'visible' && props.active) load() }, 30000)
 })
 onBeforeUnmount(() => clearInterval(timer))
 </script>

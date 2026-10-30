@@ -2,10 +2,7 @@
   <!-- «الإحصائيات و SQL» (owner 2026-10-30, Flexy Core 0084): the database's load (Supabase warned of its Disk IO
        first), and a place to paste the SQL Claude gives him instead of Supabase's SQL Editor. Read only by default
        (no secrets); «كتابة» runs the whole script with full rights, all or nothing, after «نعم». All kept in the log. -->
-  <q-page class="q-pa-md column gap-sm page">
-    <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
-    <ReviewCard />
-    <FailuresCard />
+  <div class="column gap-sm">
 
     <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press.
          Indicators first (owner 2026-10-30: «الناس لا يقرؤون الكتابات»): tiles, then standing bars, the words folded. -->
@@ -119,18 +116,14 @@
       </div>
     </q-expansion-item>
     <div v-if="error" class="small text-negative">{{ error }}</div>
-  </q-page>
+  </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { Dialog, Notify, copyToClipboard } from 'quasar'
-import SectionTabs from 'src/components/SectionTabs.vue'
 import BarChart from 'src/components/BarChart.vue'
-import FailuresCard from 'src/components/FailuresCard.vue'
 import { copyForClaude, registerForClaude } from 'src/composables/useClaudeCopy'
-import ReviewCard from 'src/components/ReviewCard.vue'
-import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
 import { useBell } from 'src/composables/useBell'
 

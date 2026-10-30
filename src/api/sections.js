@@ -1,6 +1,6 @@
 // The Flexy menu in three entries (owner 2026-10-29): daily pages apart, rare ones grouped behind tabs.
 export const MONITOR_TABS = [
-  { to: '/flexy/monitor', label: 'المراقبة', icon: 'monitor_heart' },
+  { to: '/flexy/monitor', label: 'المراقبة والإحصائيات', icon: 'monitor_heart' },
   { to: '/flexy/devices', label: 'الأجهزة', icon: 'router' }
 ]
 export const ADMIN_TABS = [
@@ -9,7 +9,7 @@ export const ADMIN_TABS = [
   { to: '/flexy/numbers', label: 'ذاكرة الأرقام', icon: 'psychology' },
   { to: '/flexy/switches', label: 'المفاتيح', icon: 'toggle_on' },
   { to: '/usage', label: 'الاستعمال', icon: 'insights' },
-  { to: '/stats', label: 'الإحصائيات و SQL', icon: 'storage' },
+  { to: '/flexy/monitor?tab=db', label: 'القاعدة و SQL', icon: 'storage' },
   { to: '/ideas', label: 'أفكار وأوامر', icon: 'lightbulb' },
   { to: '/flexy', label: 'اختبار', icon: 'bolt' }
 ]
