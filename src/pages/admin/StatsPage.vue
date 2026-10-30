@@ -4,6 +4,7 @@
        (no secrets); «كتابة» runs the whole script with full rights, all or nothing, after «نعم». All kept in the log. -->
   <q-page class="q-pa-md column gap-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
+    <ReviewCard />
     <FailuresCard />
 
     <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press.
@@ -124,6 +125,7 @@ import { Dialog, Notify, copyToClipboard } from 'quasar'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import BarChart from 'src/components/BarChart.vue'
 import FailuresCard from 'src/components/FailuresCard.vue'
+import ReviewCard from 'src/components/ReviewCard.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
 import { useBell } from 'src/composables/useBell'
@@ -191,7 +193,7 @@ async function loadLog () {
     pendingOpen.value = [
       ...(b.migrations || []).map((m) => ({ uid: 'm' + m.key, mig: m.key, title: m.title, sql: m.sql })),
       ...(b.pending?.open || []).map((p) => ({ ...p, uid: 'p' + p.id }))
-    ]; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables', 'failed_ops', 'failed_reads'].includes(r.key)); log.value = b.log || [] }
+    ]; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables', 'failed_ops', 'failed_reads', 'review_ops'].includes(r.key)); log.value = b.log || [] }
 }
 // Each card its own state and a 15-second limit: a request lost on the phone's network never spins forever
 const loadState = ref('')
