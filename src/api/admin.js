@@ -268,3 +268,7 @@ export const flexyResolve = (jobId, done) => rpc('store_admin_flexy_resolve', { 
 // v1.44: the pages the owner and the shops open (light: one per page per person every 10 minutes)
 export const pageSeen = (page) => rpc('store_admin_page_seen', { p_page: page })
 export const usage = (days) => rpc('store_admin_usage', { p_days: days })
+
+// v1.45: each shop's spending, this period against the one before; the two numbers are the owner's
+export const indicators = (days) => rpc('store_admin_indicators', { p_days: days })
+export const setIndicators = (changePct, minAmount) => rpc('store_admin_set_indicators', { p_change_pct: changePct, p_min_amount: minAmount })

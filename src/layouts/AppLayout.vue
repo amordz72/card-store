@@ -64,6 +64,11 @@
                 <q-item-section>شرائح متوقفة</q-item-section>
                 <q-item-section side><q-badge :color="simAlerts ? 'negative' : 'grey-5'" :label="simAlerts" /></q-item-section>
               </q-item>
+              <q-item v-if="shopsDown" v-close-popup clickable to="/usage">
+                <q-item-section avatar><q-icon name="trending_down" color="negative" /></q-item-section>
+                <q-item-section>{{ shopsDown }} {{ shopsDown === 1 ? 'محل انخفض' : 'محلات انخفض' }} استهلاكها هذا الأسبوع</q-item-section>
+                <q-item-section side><q-badge color="negative" :label="shopsDown" /></q-item-section>
+              </q-item>
               <q-item v-if="agentUpdates" v-close-popup clickable to="/flexy/devices">
                 <q-item-section avatar><q-icon name="system_update" color="primary" /></q-item-section>
                 <q-item-section>تحديث {{ agentUpdateVersion }} متاح لـ{{ agentUpdates }} {{ agentUpdates === 1 ? 'كمبيوتر' : 'كمبيوترات' }}</q-item-section>
@@ -273,7 +278,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
