@@ -85,6 +85,7 @@
 import { computed, ref, watch } from 'vue'
 import { copyToClipboard, Dialog, LocalStorage, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
+import { CLAUDE_REMINDER } from 'src/composables/useClaudeCopy'
 
 const props = defineProps({
   // The page as «نسخ الشاشة» gives it (AppLayout), and its title
@@ -169,7 +170,7 @@ function setState (n, state) {
   keepNotes()
 }
 async function copyToSend () {
-  const t = 'ملاحظاتي السريعة (Flexy). ضع في آخر ردك سطرًا: FLEXY N1=تمت N2=وصلت\n' +
+  const t = CLAUDE_REMINDER + '\nملاحظاتي السريعة (Flexy). ضع في آخر ردك سطرًا: FLEXY N1=تمت N2=وصلت\n' +
     toSend.value.map((n) => `N${n.id}${n.state === 'reopen' ? ' (أُعيدت)' : ''}. ${n.text} (${n.page})`).join('\n')
   try {
     await copyToClipboard(t)

@@ -187,7 +187,7 @@
 </template>
 
 <script setup>
-import { claudePageText } from 'src/composables/useClaudeCopy'
+import { claudePageText, CLAUDE_REMINDER } from 'src/composables/useClaudeCopy'
 import QuickIdea from 'src/components/QuickIdea.vue'
 import { weakFrom, setWeakHome } from 'src/api/weakHome'
 import { perfUnsent, perfMarkSent } from 'src/api/perfLog'
@@ -265,6 +265,7 @@ function pageText () {
 function screenText () {
   const page = pageText() + '\n\n' + widthCheck() + claudePageText()
   return [
+    CLAUDE_REMINDER,
     title.value + ' · ' + new Date().toLocaleString('ar-DZ'),
     session.isAdmin && monitorBar.value ? '⚠ ' + monitorBar.value.text : '',
     page
