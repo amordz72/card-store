@@ -2,12 +2,12 @@
   <!-- «الإحصائيات و SQL» (owner 2026-10-30, Flexy Core 0084): the database's load (Supabase warned of its Disk IO
        first), and a place to paste the SQL Claude gives him instead of Supabase's SQL Editor. Read only by default
        (no secrets); «كتابة» runs the whole script with full rights, all or nothing, after «نعم». All kept in the log. -->
-  <q-page class="q-pa-md column q-gutter-sm page">
+  <q-page class="q-pa-md column gap-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
 
     <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press.
          Indicators first (owner 2026-10-30: «الناس لا يقرؤون الكتابات»): tiles, then standing bars, the words folded. -->
-    <div class="card column q-gutter-sm">
+    <div class="card column gap-sm">
       <div class="row items-center">
         <div class="col text-weight-bold">ضغط القاعدة</div>
         <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="busy === 'load'" @click="loadDb" />
@@ -22,7 +22,7 @@
         <div class="small muted">كل عمود ساعة · اضغط عمودًا لترى رقمه<span v-if="callsLimit"> · الخط المتقطع: الحد {{ callsLimit }}/ساعة</span></div>
         <BarChart :items="hourBars" :limit="callsLimit" :height="130" />
         <q-expansion-item dense dense-toggle switch-toggle-side label="التفاصيل: آخر ساعة" header-class="small text-grey-8 q-px-none">
-          <div v-for="r in hours.last_hour" :key="r.what" class="line row items-center no-wrap q-gutter-sm">
+          <div v-for="r in hours.last_hour" :key="r.what" class="line row items-center no-wrap gap-sm">
             <div class="col">{{ nameOf(r.what) }}</div>
             <div class="small text-right" style="min-width:76px"><b>{{ r.per_minute }}</b>/دقيقة</div>
             <div class="small text-right" style="min-width:70px" :class="r.writes > 1000 ? 'text-deep-orange' : 'muted'">✎ {{ r.writes }}</div>
@@ -34,8 +34,8 @@
 
 
     <!-- «ينتظر تطبيقك» (Flexy Core 0087): what Claude put, one button; its SQL only to look at -->
-    <div v-for="p in pendingOpen" :key="p.uid" class="card column q-gutter-xs pending">
-      <div class="row items-center no-wrap q-gutter-sm">
+    <div v-for="p in pendingOpen" :key="p.uid" class="card column gap-xs pending">
+      <div class="row items-center no-wrap gap-sm">
         <q-icon name="build" color="indigo-8" size="22px" />
         <div class="col"><div class="text-weight-bold">ينتظر تطبيقك</div><div>{{ p.title }}</div></div>
         <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" label="طبّق" :loading="busy === 'apply' + p.uid" :disable="!!p.mig && p.uid !== pendingOpen[0]?.uid" @click="apply(p)" />
@@ -47,7 +47,7 @@
     </div>
 
     <!-- The SQL first: the page is opened mostly to paste a script -->
-    <div class="card column q-gutter-sm">
+    <div class="card column gap-sm">
       <!-- No «قراءة/كتابة» to choose (owner 2026-10-30): one SELECT reads, anything else executes -->
       <div class="text-weight-bold">SQL</div>
       <!-- Long lines scroll inside the box, never widen the page (owner 2026-10-30: «شاشة عريضة») -->
@@ -56,19 +56,19 @@
       <div v-if="text.trim()" class="small" :class="write ? 'text-deep-orange' : 'muted'">
         {{ write ? 'تعديل: كل الأوامر معًا بصلاحيات كاملة، إما تنجح كلها أو لا يتغيّر شيء. يُسجَّل.' : 'قراءة فقط: بلا أسرار، 200 سطر على الأكثر.' }}
       </div>
-      <div class="row q-gutter-sm">
+      <div class="row gap-sm">
         <q-btn unelevated no-caps :color="write ? 'deep-orange' : 'primary'" :icon="write ? 'play_arrow' : 'search'" :label="write ? 'نفّذ' : 'اقرأ'"
           :loading="busy === 'sql'" :disable="!text.trim()" @click="run" />
         <q-btn flat no-caps label="مسح" :disable="!text" @click="text = ''; result = null" />
       </div>
-      <div class="row q-gutter-xs">
+      <div class="row gap-xs">
         <q-btn outline dense rounded no-caps size="sm" color="primary" icon="table_chart" label="الجداول"
           :loading="busy === 'tables'" @click="toggleTables" />
         <q-btn v-for="r in ready" :key="r.key" outline dense rounded no-caps size="sm" color="grey-8" :label="r.name"
           :loading="busy === r.key" @click="runReady(r)" />
       </div>
       <!-- «الجداول» (owner 2026-10-30: «أريد أن أتعمق في قواعد البيانات»): what may be read; a tap shows its first 20 rows -->
-      <div v-if="tables" class="column q-gutter-xs">
+      <div v-if="tables" class="column gap-xs">
         <q-input v-model="tableFilter" dense outlined clearable placeholder="ابحث عن جدول" input-class="ltr" />
         <div class="tables-list">
           <button v-for="t in shownTables" :key="t.schema + '.' + t.table" type="button" class="table-row" @click="openTable(t)">
@@ -79,7 +79,7 @@
       </div>
     </div>
 
-    <div v-if="result" ref="resultBox" class="card column q-gutter-xs">
+    <div v-if="result" ref="resultBox" class="card column gap-xs">
       <div v-if="result.ok" class="small text-positive">
         تم في {{ result.ms }} ms<span v-if="result.count !== null && result.count !== undefined"> · {{ result.count }} سطر</span><span v-if="result.more"> · يظهر أول 200</span>
       </div>
@@ -94,10 +94,10 @@
       <q-btn v-if="result.ok && result.rows?.length" flat dense no-caps icon="content_copy" label="نسخ" class="self-start" @click="copy" />
     </div>
 
-    <div class="card column q-gutter-xs">
+    <div class="card column gap-xs">
       <div class="text-weight-bold">أكبر الجداول</div>
-      <div v-for="t in sizes" :key="t.table" class="line row no-wrap q-gutter-sm">
-        <div class="col ltr small">{{ t.table }}</div><div class="small muted">{{ t.rows }} سطر</div><div class="small" style="min-width:64px">{{ t.size }}</div>
+      <div v-for="t in sizes" :key="t.table" class="line row no-wrap gap-sm">
+        <div class="col ltr small">{{ t.table }}</div><div class="small muted">{{ t.rows >= 0 ? t.rows + ' سطر' : '—' }}</div><div class="small" style="min-width:64px">{{ t.size }}</div>
       </div>
     </div>
 
@@ -288,6 +288,15 @@ body.body--dark .tile { background: rgba(255, 255, 255, 0.06); }
 .sql :deep(textarea) { font-family: monospace; font-size: 13px; overflow-x: auto; white-space: pre; }
 .pending { border: 2px solid var(--q-primary); border-color: #283593; }
 .sql-view { font-size: 12px; max-height: 260px; overflow: auto; background: rgba(0, 0, 0, 0.04); padding: 8px; border-radius: 6px; margin: 0; }
+.gap-xs { gap: 4px; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 16px; }
+.row.gap-xs, .row.gap-sm, .row.gap-md { flex-wrap: wrap; }
+.row.no-wrap.gap-xs, .row.no-wrap.gap-sm, .row.no-wrap.gap-md { flex-wrap: nowrap; }
+/* long names (tables, migrations) break instead of widening the card */
+.col, .card > * { min-width: 0; }
+.ltr, .text-weight-bold, .sql-view { overflow-wrap: anywhere; }
+.sql-view { max-width: 100%; }
 .tables-list { max-height: 320px; overflow-y: auto; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 8px; }
 .table-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
   border: 0; border-bottom: 1px solid rgba(0, 0, 0, 0.06); background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
