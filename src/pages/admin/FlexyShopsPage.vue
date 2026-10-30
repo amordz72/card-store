@@ -108,7 +108,11 @@
     <!-- The same window for the selection and for one shop: edits stay in the window until «حفظ»; only what was changed is sent -->
     <q-dialog v-model="editing" persistent>
       <q-card v-if="form" style="min-width: 320px">
-        <q-card-section class="text-weight-bold">{{ form.title }}</q-card-section>
+        <q-card-section class="row items-center justify-between text-weight-bold">
+          <span>{{ form.title }}</span>
+          <!-- All of this account in one page (owner 2026-10-31) -->
+          <q-btn v-if="form.single" flat dense no-caps size="sm" color="primary" icon="manage_accounts" label="كل حسابه" :disable="busy" @click="openAccount" />
+        </q-card-section>
         <q-card-section class="column q-gutter-xs">
           <template v-if="form.single">
             <q-toggle v-model="form.enabled" label="تفعيل الفليكسي" :disable="busy" />
@@ -138,6 +142,7 @@
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Dialog, Notify } from 'quasar'
 import * as api from 'src/api/admin'
 import * as flexy from 'src/api/flexy'
@@ -147,6 +152,7 @@ import { useBell } from 'src/composables/useBell'
 
 const { busy, run } = useRun()
 const { refreshBell } = useBell()
+const router = useRouter()
 const ROLES = { trader: 'تاجر', wholesale: 'تاجر الجملة' }
 const ROLE_OPTIONS = [{ label: 'تاجر', value: 'trader' }, { label: 'تاجر الجملة', value: 'wholesale' }]
 const ROLE_FILTER = [{ label: 'الكل', value: null }, ...ROLE_OPTIONS]
@@ -350,6 +356,12 @@ async function saveForm () {
   await reloadShops()
   if (done.length) Notify.create({ type: 'positive', message: `حُفظ لـ ${n} محل: ${done.join('، ')}.` })
   if (ok) editing.value = false
+}
+function openAccount () {
+  const id = form.value.ids[0]
+  const go = () => { editing.value = false; router.push({ path: '/customers/' + id, query: { tab: 'flexy' } }) }
+  if (!formChanges.value.length) { go(); return }
+  Dialog.create({ title: 'خروج بلا حفظ؟', message: 'التغييرات في هذه النافذة لن تُحفظ.', cancel: 'رجوع', ok: 'خروج بلا حفظ' }).onOk(go)
 }
 function closeForm () {
   if (!formChanges.value.length) { editing.value = false; return }

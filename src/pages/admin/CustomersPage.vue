@@ -21,6 +21,8 @@
         <q-item-section>
           <q-item-label class="text-weight-bold">{{ c.name }}<q-badge v-if="!c.active" color="grey" class="q-ml-sm">موقوف</q-badge></q-item-label>
           <q-item-label caption class="ltr text-right">{{ c.phone }}</q-item-label>
+          <!-- Its settings at a glance (owner 2026-10-31), without opening it -->
+          <q-item-label caption>{{ summary(c) }}</q-item-label>
         </q-item-section>
         <q-item-section side class="items-end">
           <span class="text-weight-bold amount-pos">رصيد {{ money(c.balance) }}</span>
@@ -53,10 +55,19 @@ const shown = computed(() => {
   return q ? list.value.filter((c) => c.name.includes(q) || c.phone.includes(q.replace(/\s/g, ''))) : list.value
 })
 
+// Flexy of each account (the same list as «فليكسي المحلات»), by customer id
+const flexyOf = ref({})
 async function load () {
   const data = await run(() => api.customers())
   if (data) list.value = data
   loaded.value = true
+  const rows = await api.flexyCustomers().catch(() => null)
+  flexyOf.value = Object.fromEntries((rows || []).map((r) => [Number(r.customer_id), r]))
+}
+function summary (c) {
+  const f = flexyOf.value[Number(c.customer_id)]
+  const flexyText = !f ? '' : f.enabled ? 'فليكسي مفعّل' + (f.max_amount != null ? ' · أكبر مبلغ ' + money(f.max_amount) : '') : 'فليكسي غير مفعّل'
+  return [flexyText, 'حد الدين ' + money(c.debt_limit), c.self_topup ? 'شحن ذاتي' : ''].filter(Boolean).join(' · ')
 }
 
 async function add () {
