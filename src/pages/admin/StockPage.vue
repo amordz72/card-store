@@ -14,7 +14,7 @@
           <span class="text-weight-bold">{{ x.brand }} · {{ x.name }}</span>
           <q-badge :color="x.left === 0 ? 'negative' : 'deep-orange'" :label="x.left === 0 ? 'نفدت' : 'بقي ' + x.left" />
         </div>
-        <div class="small muted">تُباع {{ x.per_day }} في اليوم<template v-if="x.days_left !== null && x.left > 0"> · تكفي نحو {{ x.days_left }} يوم</template></div>
+        <div class="small muted">{{ salesLine(x) }}</div>
         <div v-if="x.made_up" class="small text-positive">تُباع الآن من بطاقات أخرى (تقسيم)، لكن أضف منها.</div>
         <q-btn unelevated dense no-caps color="primary" icon="add_shopping_cart" label="اشترِ الآن: أضف أكوادها" class="self-start" @click="addCodesFor(x)" />
       </div>
@@ -29,7 +29,7 @@
         <div class="help small muted">{{ g.help }}</div>
         <div v-for="x in buyOf(g.id)" :key="x.product_id" class="row items-center no-wrap q-gutter-sm buy-line">
           <span class="col">{{ x.brand }} · {{ x.name }}
-            <span class="small muted"><template v-if="x.per_day > 0"> · {{ x.per_day }}/يوم</template> · بقي {{ x.left }}</span></span>
+            <span class="small muted"> · {{ sold7(x) ? 'بيعت ' + sold7(x) + ' في 7 أيام' : 'لم تُبع في 7 أيام' }} · بقيت {{ x.left }}</span></span>
           <b v-if="g.id !== 'idle'">× {{ x.qty }}</b>
           <q-btn v-if="g.id !== 'idle'" flat round dense color="primary" icon="add_shopping_cart" aria-label="اشترِ الآن" @click="addCodesFor(x)" />
           <span v-else class="small text-deep-orange">مجمّد {{ money(x.idle_value) }}</span>
@@ -664,6 +664,23 @@ function copyOrder () {
   const day = new Date().toLocaleDateString('ar-DZ', { day: 'numeric', month: 'numeric' })
   const total = orderLines.value.reduce((a, x) => a + (Number(x.unit_cost) || 0) * x.qty, 0)
   copyText([`طلبية ${day}:`, ...orderLines.value.map((x) => `${x.brand} ${x.name} × ${x.qty}`), total ? `المجموع التقريبي: ${money(total)}` : ''].filter(Boolean).join('\n'))
+}
+// Whole cards, never «0.1 في اليوم» (owner 2026-10-30: «بطاقة لا تتجزّأ»): what sold in 7 days, what is left, when it may
+// run out at that pace. per_day is the 7 days' count over 7, to one decimal: ×7 gives the count back
+const sold7 = (x) => Math.round((Number(x.per_day) || 0) * 7)
+function runsOut (d) {
+  if (d == null) return ''
+  if (d < 1.5) return 'قد تنفد خلال يوم'
+  if (d < 2.5) return 'قد تنفد خلال يومين'
+  if (d < 6.5) return `قد تنفد خلال ${Math.round(d)} أيام`
+  if (d < 10.5) return 'قد تنفد خلال أسبوع'
+  if (d < 17.5) return 'قد تنفد خلال أسبوعين'
+  return `قد تنفد خلال ${Math.round(d / 7)} أسابيع`
+}
+function salesLine (x) {
+  const n = sold7(x)
+  if (!n) return `لم تُبع في آخر 7 أيام · بقيت ${x.left}`
+  return `بيعت ${n} في آخر 7 أيام · بقيت ${x.left}` + (x.left > 0 && x.days_left != null ? ' · ' + runsOut(Number(x.days_left)) : x.left === 0 ? ' · نفدت' : '')
 }
 // v1.53: «تكاد تنفد»
 const low = ref({ items: [], days: 2, count: 3 })
