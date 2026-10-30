@@ -86,7 +86,17 @@ async function copy (t) {
 }
 // A file to carry by cable (owner 2026-10-30): double-clicked on the new computer, it opens its page in the browser
 function shortcut () {
-  const html = `<!doctype html><meta charset="utf-8"><title>Flexy كمبيوتر جديد</title><meta http-equiv="refresh" content="0; url=${newUrl}"><a href="${newUrl}">Flexy · كمبيوتر جديد</a>`
+  // Plain HTML that Internet Explorer opens too (owner 2026-10-30: a fresh Windows with IE only, the site never loaded):
+  // IE gets «نزّل Chrome» first (the direct installer), any other browser goes straight to the page
+  const chrome = 'https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe'
+  const html = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>Flexy كمبيوتر جديد</title>
+<style>body{font-family:Tahoma,sans-serif;background:#f6f7f9;padding:24px;font-size:18px}a.b{display:inline-block;background:#c2410c;color:#fff;padding:14px 20px;border-radius:10px;text-decoration:none;margin:8px 0;font-weight:bold}.k{color:#555;font-size:15px}</style></head><body>
+<h2>Flexy · كمبيوتر جديد</h2>
+<div id="ie" style="display:none"><p><b>هذا Internet Explorer: موقعك لا يعمل عليه.</b></p>
+<p>1. <a class="b" href="${chrome}">نزّل Chrome وثبّته</a></p>
+<p class="k">2. بعد التثبيت: اضغط هذا الملف بالزر الأيمن ← Open with ← Google Chrome.</p></div>
+<div id="go"><p><a class="b" href="${newUrl}">افتح صفحة الكمبيوتر الجديد</a></p></div>
+<script>if (document.documentMode) { document.getElementById('ie').style.display = 'block'; document.getElementById('go').style.display = 'none' } else { location.replace('${newUrl}') }</` + `script></body></html>`
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
   a.download = 'Flexy-كمبيوتر-جديد.html'
