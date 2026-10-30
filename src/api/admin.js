@@ -233,6 +233,8 @@ export const setGameOperator = (customerId, enabled) => rpc('store_admin_set_gam
 export const gameOperators = () => rpc('store_admin_game_operators')
 export const setPlayerTopup = (productId, enabled) => rpc('store_admin_set_player_topup', { p_product_id: productId, p_enabled: enabled })
 export const playerTopupProducts = () => rpc('store_admin_player_topup_products')
+// v1.49: orders by player id accepted any time (null = read only)
+export const gameAlwaysOpen = (on = null) => rpc('store_admin_game_always_open', { p_on: on })
 export const setGameUrl = (url) => rpc('store_admin_set_game_url', { p_url: url || null })
 
 // Site links (v1.32): the shared official link, and extra sites allowed to call store-flexy
