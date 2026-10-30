@@ -238,6 +238,8 @@ onMounted(async () => {
   await loadBoard()
   await loadOpen()
   timer = setInterval(async () => {
+    // Not while hidden (the database's load, 2026-10-30)
+    if (document.visibilityState !== 'visible') return
     tick++
     if (tick % 4 === 0 && board.value?.me_available) api.gamePresence(tok(), null).catch(() => {})
     await loadOpen()

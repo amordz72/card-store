@@ -365,7 +365,9 @@ const needsYou = computed(() => {
 // Three lines at most, the rest behind «اعرضها»
 const needsAll = ref(false)
 const shownNeeds = computed(() => (needsAll.value ? needsYou.value : needsYou.value.slice(0, 3)))
-const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
+// Not while the page is hidden (2026-10-30, the database's load): a phone in a pocket asks nothing
+const refreshBellIfAdmin = () => { if (session.isAdmin && document.visibilityState === 'visible') refreshBell() }
+document.addEventListener('visibilitychange', refreshBellIfAdmin)
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
 function weakBack () { const to = weakFrom.value.path; weakFrom.value = null; router.push(to) }
