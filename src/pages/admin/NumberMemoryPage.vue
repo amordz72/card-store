@@ -37,7 +37,7 @@
       </div>
       <q-btn outline no-caps color="deep-orange" icon="person" label="انسَ الأرقام التي أرسلتُ لها أنا"
         :loading="busy === 'mine'" @click="forgetMany('mine')" />
-      <div class="small muted">من شاشتك أو من هاتف الإدارة، في آخر 30 يومًا. أرقام المحلات لا تُمسّ.</div>
+      <div class="help small muted">من شاشتك أو من هاتف الإدارة، في آخر 30 يومًا. أرقام المحلات لا تُمسّ.</div>
       <q-btn outline no-caps color="negative" icon="delete_sweep" label="انسَ آخر 30 يومًا (كل الأرقام)"
         :loading="busy === 'recent'" @click="forgetMany('recent')" />
     </div>

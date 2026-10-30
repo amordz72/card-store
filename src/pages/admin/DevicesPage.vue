@@ -197,7 +197,7 @@
          message. Rarely used (owner 2026-10-30): folded at the end; SIMs not connected are not listed, their request waits. -->
     <q-expansion-item class="card q-pa-none" dense icon="sms" label="مخزن الرسائل" header-class="text-weight-bold">
       <div class="column q-gutter-xs q-pa-sm">
-        <div class="small muted">كل رسالة تُحفظ في السيرفر أولًا ثم تُحذف من الشريحة. لا شيء يُحذف قرب عملية مالية.</div>
+        <div class="help small muted">كل رسالة تُحفظ في السيرفر أولًا ثم تُحذف من الشريحة. لا شيء يُحذف قرب عملية مالية.</div>
         <q-btn outline no-caps color="negative" class="self-start" :label="`تصفير كل الشرائح (${wipeCount})`" :loading="wipeBusy" @click="askWipe(null)" />
         <div v-for="w in wipeShown" :key="w.sim_uuid" class="small" :class="w.pending ? 'text-deep-orange' : 'muted'">
           {{ w.label || w.sim_code || 'شريحة' }}:
@@ -298,7 +298,7 @@
           <!-- Only what this computer needs now (owner 2026-10-30: «زر لا حاجة له يختفي»); the rest folded, for a problem
                the page cannot see -->
           <!-- Agent 0.9.3 repairs a modem gone by itself (restart, then its USB port): no button to press for it -->
-          <div v-if="actionsSt && agentAtLeast(actionsSt, '0.9.3')" class="small text-primary">🔧 الإصلاح الذاتي يعمل: إذا اختفى مودم، يعيد البرنامج تشغيل نفسه بعد دقيقتين، ثم منفذ USB الخاص به، ثم ينبّهك إن لم يرجع.</div>
+          <div v-if="actionsSt && agentAtLeast(actionsSt, '0.9.3')" class="help small text-primary">🔧 الإصلاح الذاتي يعمل: إذا اختفى مودم، يعيد البرنامج تشغيل نفسه بعد دقيقتين، ثم منفذ USB الخاص به، ثم ينبّهك إن لم يرجع.</div>
           <div v-if="actionsSt && !neededActions.length" class="small text-positive">✓ لا يحتاج هذا الكمبيوتر شيئًا الآن.</div>
           <div v-for="a in neededActions" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
             <div class="col"><div class="text-weight-bold">{{ a.label }}</div><div class="small muted">{{ a.note }}</div>

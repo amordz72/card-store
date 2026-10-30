@@ -2,7 +2,7 @@
   <q-page class="page">
     <q-form class="card column q-gutter-sm" @submit.prevent="add">
       <div class="text-weight-bold">إضافة زبون</div>
-      <div class="small muted">تضيفه يدويًا وتعطيه رقم هاتفه وكلمة السر ليدخل بهما.</div>
+      <div class="help small muted">تضيفه يدويًا وتعطيه رقم هاتفه وكلمة السر ليدخل بهما.</div>
       <div class="grid-2">
         <q-input v-model="form.name" dense outlined label="الاسم" />
         <q-input v-model="form.phone" dense outlined label="رقم الهاتف" inputmode="tel" placeholder="05xxxxxxxx" input-class="ltr text-right" />

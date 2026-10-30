@@ -29,7 +29,7 @@
       <div v-if="core.forcedOff" class="small text-negative">الإرسال موقوف من الخادم (طوارئ).</div>
       <div v-else-if="core.apps === null" class="small text-negative">تعذّرت قراءة مفتاح Flexy Core.</div>
       <div v-else-if="settings.open !== core.apps" class="small text-deep-orange">نصف مفتوح: المتجر {{ settings.open ? 'مفتوح' : 'مقفل' }} وFlexy Core {{ core.apps ? 'مفتوح' : 'مقفل' }}. أعد الضغط لتوحيدهما.</div>
-      <div class="small muted">الرئيسي يوقف إرسال كل المحلات فورًا. مفتاح متعامل مقفل = «قريبًا» عند المحل. إرسالك أنت له مفتاحه الخاص.</div>
+      <div class="help small muted">الرئيسي يوقف إرسال كل المحلات فورًا. مفتاح متعامل مقفل = «قريبًا» عند المحل. إرسالك أنت له مفتاحه الخاص.</div>
     </div>
 
     <!-- Rates, one row per service in the owner's order: the rate is kept as the default (shops enabled
@@ -46,7 +46,7 @@
         <q-input v-model.number="defaults.max" dense outlined type="number" />
         <q-btn flat no-caps color="primary" label="حفظ" :loading="busy" @click="saveMax" />
       </div>
-      <div class="small muted">محل له نسبة لا يتغير. النسبة المكتوبة تبقى للمحلات التي تُفعَّل لاحقًا. نسبة فارغة لمتعامل = مقفل لذلك المحل.</div>
+      <div class="help small muted">محل له نسبة لا يتغير. النسبة المكتوبة تبقى للمحلات التي تُفعَّل لاحقًا. نسبة فارغة لمتعامل = مقفل لذلك المحل.</div>
     </div>
 
     <!-- «تحديد» (owner 2026-10-29): pick shops (e.g. every trader through the filter and «الكل»), then

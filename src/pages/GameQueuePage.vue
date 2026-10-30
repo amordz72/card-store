@@ -12,7 +12,7 @@
         <q-btn unelevated size="lg" :color="board?.me_available ? 'positive' : 'grey-7'" :loading="busy && switching"
           :label="board?.me_available ? 'متاح' : 'غير متاح'" :icon="board?.me_available ? 'toggle_on' : 'toggle_off'" @click="toggle" />
       </div>
-      <div class="small muted">اضغط «غير متاح» عند التوقف. يُغلق تلقائيًا بعد 30 دقيقة إذا أُغلق الموقع.</div>
+      <div class="help small muted">اضغط «غير متاح» عند التوقف. يُغلق تلقائيًا بعد 30 دقيقة إذا أُغلق الموقع.</div>
       <q-btn v-if="board?.url" outline color="primary" icon="open_in_new" label="فتح موقع الشحن" :href="board.url" target="_blank" />
     </div>
 
@@ -20,14 +20,14 @@
     <q-expansion-item v-if="session.isAdmin" class="card q-pa-none" icon="settings" label="إعدادات الشحن بالمعرّف" @show="loadSettings">
       <div class="column q-gutter-sm q-pa-md">
         <div class="text-weight-bold">البطاقات التي تُشحن بالمعرّف</div>
-        <div class="small muted">تبقى في المتجر لمن يريد شراء الكود، وتظهر أيضًا في صفحة الشحن عند فتح الخدمة.</div>
+        <div class="help small muted">تبقى في المتجر لمن يريد شراء الكود، وتظهر أيضًا في صفحة الشحن عند فتح الخدمة.</div>
         <q-toggle v-for="p in gameProducts" :key="p.product_id" :model-value="marked.includes(Number(p.product_id))"
           :label="`${p.brand} · ${p.name} (متوفر ${p.available})`" @update:model-value="(v) => mark(p, v)" />
         <div v-if="!gameProducts.length" class="muted">لا توجد بطاقات ألعاب في المخزن بعد.</div>
         <q-separator />
         <q-input v-model="url" dense outlined label="رابط موقع الشحن (https://…)" input-class="ltr text-left" />
         <q-btn unelevated color="primary" label="حفظ الرابط" :disable="busy" @click="saveUrl" />
-        <div class="small muted">عامل الشحن: حساب زبون تفعّل له «عامل شحن الألعاب» من صفحة الزبون.</div>
+        <div class="help small muted">عامل الشحن: حساب زبون تفعّل له «عامل شحن الألعاب» من صفحة الزبون.</div>
       </div>
     </q-expansion-item>
 

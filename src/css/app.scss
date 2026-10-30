@@ -59,3 +59,6 @@ body {
 .q-btn:not(.q-btn--round):not(.q-btn--flat) { border-radius: 999px; }
 .q-btn-toggle { border-radius: 999px; overflow: hidden; }
 .card { box-shadow: 0 1px 3px rgba(27, 31, 42, 0.06); }
+
+/* Explanations of how the program works: hidden unless «أظهر الشروح» (src/api/help.js) */
+body:not(.show-help) .help { display: none !important; }
