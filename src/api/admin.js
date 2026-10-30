@@ -238,6 +238,12 @@ export const gameAlwaysOpen = (on = null) => rpc('store_admin_game_always_open',
 // v1.50: the owner orders a top-up FOR a customer (WhatsApp); his short balance becomes debt
 export const gameOrderFor = (customerId, productId, playerId, requestId) =>
   rpc('store_admin_game_order', { p_customer_id: customerId, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
+// v1.51: by amount, split into cards; and the owner's «يسمح بالتقسيم» per game
+export const gameSplitPreviewFor = (customerId, brand, units) => rpc('store_admin_game_split_preview', { p_customer_id: customerId, p_brand: brand, p_units: units })
+export const gameOrderUnitsFor = (customerId, brand, units, playerId, requestId) =>
+  rpc('store_admin_game_order_units', { p_customer_id: customerId, p_brand: brand, p_units: units, p_player_id: playerId, p_request_id: requestId })
+export const gameBrands = () => rpc('store_admin_game_brands')
+export const setGameSplit = (brand, on) => rpc('store_admin_set_game_split', { p_brand: brand, p_on: on })
 export const setGameUrl = (url) => rpc('store_admin_set_game_url', { p_url: url || null })
 
 // Site links (v1.32): the shared official link, and extra sites allowed to call store-flexy

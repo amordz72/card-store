@@ -28,12 +28,22 @@
         <q-input v-model="form.player" dense outlined inputmode="numeric" label="ID اللاعب" input-class="ltr text-left" />
         <div class="row q-gutter-xs">
           <q-btn v-for="p in forCards" :key="p.product_id" dense no-caps :unelevated="form.product === p.product_id" :outline="form.product !== p.product_id"
-            color="primary" :label="p.name" @click="form.product = p.product_id" />
+            color="primary" :label="p.name" @click="form.product = p.product_id; form.units = null; forPlan = null" />
         </div>
         <div v-if="!forCards.length" class="muted small">لا بطاقة ألعاب متوفرة الآن.</div>
+        <div class="row q-gutter-sm no-wrap items-start">
+          <q-select v-if="splitBrands.length > 1" v-model="form.brand" dense outlined :options="splitBrands.map((b) => b.brand)" label="اللعبة" style="min-width:120px" />
+          <q-input v-model.number="form.units" class="col" dense outlined type="number" inputmode="numeric" label="أو كمية (مثلًا 300)"
+            @update:model-value="form.product = null; forPlan = null" />
+          <q-btn outline color="primary" label="احسب" :disable="!form.customer || !(form.units > 0)" @click="previewFor" />
+        </div>
+        <div v-if="forPlan" class="small" :class="forPlan.ok ? '' : 'text-negative'">
+          <template v-if="forPlan.ok">{{ forPlan.units }} = {{ forPlan.parts.map((x) => x.units).join(' + ') }} · السعر {{ forPlan.total }} دج</template>
+          <template v-else>{{ PLAN_WHY[forPlan.reason] || forPlan.reason }}</template>
+        </div>
         <div class="help small muted">يُخصم سعره من رصيده، وإن لم يكفِ يُضاف الناقص إلى دينه. ثم يظهر الطلب هنا في الانتظار.</div>
         <q-btn unelevated no-caps color="primary" icon="send" label="أرسل الطلب" :loading="busy && ordering"
-          :disable="!form.customer || !form.product || !/^[0-9]{5,15}$/.test(form.player.replace(/\s/g, ''))" @click="orderFor" />
+          :disable="!form.customer || !(form.product || forPlan?.ok) || !/^[0-9]{5,15}$/.test(form.player.replace(/\s/g, ''))" @click="orderFor" />
       </div>
     </q-expansion-item>
 
@@ -44,6 +54,11 @@
         <q-toggle v-for="p in gameProducts" :key="p.product_id" :model-value="marked.includes(Number(p.product_id))"
           :label="`${p.brand} · ${p.name} (متوفر ${p.available})`" @update:model-value="(v) => mark(p, v)" />
         <div v-if="!gameProducts.length" class="muted">لا توجد بطاقات ألعاب في المخزن بعد.</div>
+        <q-separator />
+        <div class="text-weight-bold">التقسيم (كمية من عدة بطاقات)</div>
+        <q-toggle v-for="b in splitBrands" :key="b.brand" :model-value="b.split" :label="`${b.brand}: يسمح بالتقسيم`"
+          @update:model-value="(v) => setSplit(b, v)" />
+        <div class="help small muted">لا يُعرض التقسيم إن كان ربحه أقل من البطاقة الواحدة بنفس الكمية، أو إن بيع جزء منه بأقل من سعر شرائه.</div>
         <q-separator />
         <q-input v-model="url" dense outlined label="رابط موقع الشحن (https://…)" input-class="ltr text-left" />
         <q-btn unelevated color="primary" label="حفظ الرابط" :disable="busy" @click="saveUrl" />
@@ -61,6 +76,7 @@
         <div class="row items-center no-wrap q-gutter-sm">
           <div class="col">
             <div class="text-weight-bold">{{ g.product_name }}</div>
+            <div v-if="groups[g.game_id]" class="small text-deep-orange text-weight-bold">مقسّم: {{ groups[g.game_id].units }} = {{ groups[g.game_id].names }} · جزء {{ groups[g.game_id].part }} من {{ groups[g.game_id].parts }}</div>
             <div class="small muted">{{ g.customer_name }} · {{ ago(g.created_at) }}<span v-if="g.cards_used"> · بطاقات مستعملة: {{ g.cards_used }}</span></div>
           </div>
           <q-badge :color="g.status === 'queued' ? 'grey-7' : 'info'">{{ g.status === 'queued' ? 'في الانتظار' : 'يشحنه: ' + (g.taken_by || '') }}</q-badge>
@@ -163,6 +179,8 @@ async function loadOpen () {
     Notify.create({ type: 'info', message: 'طلب شحن جديد', icon: 'sports_esports' })
   }
   openRows.value = data
+  // v1.51: the split parts (before v1.51: none)
+  api.gameGroups(tok()).then((m) => { groups.value = m || {} }, () => {})
   if (session.isAdmin) refreshBell()
 }
 const { rows: doneRows, total: doneTotal, loadingMore, reset: resetDone, more, size } =
@@ -240,13 +258,27 @@ const gameProducts = ref([])
 const marked = ref([])
 const url = ref('')
 // «اطلب شحنًا باسم زبون» (v1.50)
-const form = ref({ customer: null, product: null, player: '' })
+const form = ref({ customer: null, product: null, player: '', units: null, brand: null })
+const groups = ref({})
+const splitBrands = ref([])
+const forPlan = ref(null)
+const PLAN_WHY = { NO_COMBINATION: 'لا يمكن تكوينها من البطاقات المتوفرة', SPLIT_OFF: 'اللعبة لا تسمح بالتقسيم', SPLIT_LESS_PROFIT: 'التقسيم أقل ربحًا من البطاقة الواحدة', SPLIT_NO_PROFIT: 'جزء يُباع بأقل من سعر شرائه' }
+const loadSplitBrands = () => adminApi.gameBrands().then((b) => { splitBrands.value = b || []; if (!form.value.brand && b?.length) form.value.brand = b[0].brand }, () => {})
+async function setSplit (b, v) {
+  if (await run(() => adminApi.setGameSplit(b.brand, v).then(() => true))) loadSplitBrands()
+}
+async function previewFor () {
+  const f = form.value
+  const p = await run(() => adminApi.gameSplitPreviewFor(f.customer, f.brand || splitBrands.value[0]?.brand, Math.round(f.units)))
+  if (p) forPlan.value = p
+}
 const allCustomers = ref([])
 const customerOpts = ref([])
 const forCards = ref([])
 const ordering = ref(false)
 let orderRequest = newRequestId()
 async function loadForm () {
+  loadSplitBrands()
   const [cs, stock, ids] = await Promise.all([run(() => adminApi.customers()), run(() => adminApi.stock()), run(() => adminApi.playerTopupProducts())])
   if (cs) allCustomers.value = cs.filter((c) => c.active && !c.is_shop).map((c) => ({ label: `${c.name} · …${String(c.phone).slice(-4)}`, value: c.customer_id, name: c.name }))
   customerOpts.value = allCustomers.value
@@ -260,12 +292,15 @@ async function orderFor () {
   const f = form.value
   const who = allCustomers.value.find((c) => c.value === f.customer)?.name || ''
   ordering.value = true
-  const r = await run(() => adminApi.gameOrderFor(f.customer, f.product, f.player.replace(/\s/g, ''), orderRequest),
-    { success: (x) => `أُرسل طلب ${who}` + (x.debt_added > 0 ? ` · أُضيف ${x.debt_added} دج إلى دينه` : '') })
+  const player = f.player.replace(/\s/g, '')
+  const r = await run(() => (f.product ? adminApi.gameOrderFor(f.customer, f.product, player, orderRequest)
+    : adminApi.gameOrderUnitsFor(f.customer, f.brand || splitBrands.value[0]?.brand, forPlan.value.units, player, orderRequest)),
+  { success: (x) => `أُرسل طلب ${who}` + (x.debt_added > 0 ? ` · أُضيف ${x.debt_added} دج إلى دينه` : '') })
   ordering.value = false
   if (r) {
     orderRequest = newRequestId()
-    form.value = { customer: null, product: null, player: '' }
+    form.value = { customer: null, product: null, player: '', units: null, brand: form.value.brand }
+    forPlan.value = null
     loadOpen()
   }
 }
@@ -276,6 +311,7 @@ async function setAlwaysOpen (v) {
   if (r !== undefined) { alwaysOpen.value = r === true; loadBoard() }
 }
 async function loadSettings () {
+  loadSplitBrands()
   const [stock, ids] = await Promise.all([run(() => adminApi.stock()), run(() => adminApi.playerTopupProducts())])
   if (stock) gameProducts.value = stock.filter((p) => p.category === 'game' && p.active && p.brand_active)
   if (ids) marked.value = ids.map(Number)
