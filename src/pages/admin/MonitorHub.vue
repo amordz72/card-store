@@ -1,6 +1,7 @@
 <template>
   <!-- «المراقبة والإحصائيات» (owner 2026-10-30: «متقاربان ويخلطان؛ تبويب لكل معنى، والمهمات مجتمعة»):
-       three tabs, each with the count of what waits in it; all three stay mounted so «نسخ الشاشة» copies them all.
+       three tabs, each with the count of what waits in it. A tab asks the server only once opened (weak internet,
+       owner 2026-10-30), then stays, so «نسخ الشاشة» copies every tab opened.
        ?tab=now|judge|db: the bar and the menu open the right one. -->
   <q-page class="page">
     <div class="hub-head column gap-sm">
@@ -11,17 +12,17 @@
         </q-tab>
       </q-tabs>
     </div>
-    <div v-show="tab === 'now'" class="hub-panel" data-title="الآن"><MonitorSection :active="tab === 'now'" /></div>
-    <div v-show="tab === 'judge'" class="hub-panel column gap-sm" data-title="حكمك والفشل">
+    <div v-if="seen.now" v-show="tab === 'now'" class="hub-panel" data-title="الآن"><MonitorSection :active="tab === 'now'" /></div>
+    <div v-if="seen.judge" v-show="tab === 'judge'" class="hub-panel column gap-sm" data-title="حكمك والفشل">
       <ReviewCard />
       <FailuresCard />
     </div>
-    <div v-show="tab === 'db'" class="hub-panel" data-title="القاعدة وSQL"><StatsSection /></div>
+    <div v-if="seen.db" v-show="tab === 'db'" class="hub-panel" data-title="القاعدة وSQL"><StatsSection /></div>
   </q-page>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import ReviewCard from 'src/components/ReviewCard.vue'
@@ -43,4 +44,6 @@ const tab = computed({
   get: () => (TABS.some((t) => t.id === route.query.tab) ? route.query.tab : 'now'),
   set: (v) => router.replace({ query: { ...route.query, tab: v } })
 })
+const seen = reactive({})
+watch(tab, (t) => { seen[t] = true }, { immediate: true })
 </script>

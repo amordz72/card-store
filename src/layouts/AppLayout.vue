@@ -13,6 +13,13 @@
           و{{ needsYou.length - shownNeeds.length }} أخرى: اعرضها
         </button>
       </template>
+      <!-- Weak internet: started from the home page (startup.js); one press back to where he was going -->
+      <div v-if="weakFrom" class="monitor-bar bg-grey-8">
+        <q-icon name="network_check" size="18px" />
+        <span class="col">الإنترنت ضعيف: بدأنا من الرئيسية</span>
+        <a href="#" class="text-underline" @click.prevent="weakBack">ارجع إلى {{ weakFrom.title || 'الصفحة' }}</a>
+        <a href="#" class="text-underline" @click.prevent="weakOff">لا تفعل هذا</a>
+      </div>
       <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
       <router-link v-if="session.isAdmin && monitorBar" to="/flexy/monitor?tab=now" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
         <q-icon name="warning" size="18px" />
@@ -166,6 +173,9 @@
 <script setup>
 import { claudePageText } from 'src/composables/useClaudeCopy'
 import QuickIdea from 'src/components/QuickIdea.vue'
+import { weakFrom, setWeakHome } from 'src/api/weakHome'
+import { perfUnsent, perfMarkSent } from 'src/api/perfLog'
+import * as flexyApi from 'src/api/flexy'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { copyToClipboard, useQuasar } from 'quasar'
@@ -358,6 +368,25 @@ const shownNeeds = computed(() => (needsAll.value ? needsYou.value : needsYou.va
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
+function weakBack () { const to = weakFrom.value.path; weakFrom.value = null; router.push(to) }
+function weakOff () {
+  setWeakHome(false)
+  $q.notify({ message: 'لن ننقلك بعد الآن. تعيده من «حسابي».', position: 'top', timeout: 2500 })
+  weakBack()
+}
+watch(() => route.path, (p) => { if (p !== '/') weakFrom.value = null })
+// «سجل البطء»: the owner's phone sends what is new every 5 minutes, and when the internet comes back
+async function sendPerf () {
+  if (!session.isAdmin || !navigator.onLine) return
+  const list = perfUnsent()
+  if (!list.length) return
+  const r = await flexyApi.ownerPerf(list).catch(() => null)
+  if (r?.status === 200 && r.body?.ok) perfMarkSent(list[list.length - 1].at)
+}
+const perfTimer = setInterval(sendPerf, 5 * 60000)
+setTimeout(sendPerf, 30000)
+window.addEventListener('online', sendPerf)
+onBeforeUnmount(() => { clearInterval(perfTimer); window.removeEventListener('online', sendPerf) })
 onBeforeUnmount(() => clearInterval(bellTimer))
 const lock = useLockStore()
 

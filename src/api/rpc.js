@@ -4,7 +4,7 @@ import { toStoreError } from './errors'
 // Every store_* call goes through here so errors are always mapped the same way.
 export async function rpc (fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, args)
-  if (error) throw toStoreError(error)
+  if (error) throw toStoreError(error, fn)
   return data
 }
 

@@ -2,7 +2,7 @@
 import { defineConfig } from '#q-app/wrappers'
 
 export default defineConfig(() => ({
-  boot: ['supabase'],
+  boot: ['supabase', 'startup'],
   css: ['app.scss'],
   extras: ['material-icons'],
 
