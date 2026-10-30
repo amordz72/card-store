@@ -33,18 +33,28 @@
     </div>
 
 
+    <!-- «ينتظر تطبيقك» (Flexy Core 0087): what Claude put, one button; its SQL only to look at -->
+    <div v-for="p in pendingOpen" :key="p.id" class="card column q-gutter-xs pending">
+      <div class="row items-center no-wrap q-gutter-sm">
+        <q-icon name="build" color="indigo-8" size="22px" />
+        <div class="col"><div class="text-weight-bold">ينتظر تطبيقك</div><div>{{ p.title }}</div></div>
+        <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" label="طبّق" :loading="busy === 'apply' + p.id" @click="apply(p)" />
+      </div>
+      <div v-if="p.last_error" class="small text-negative ltr">آخر محاولة فشلت: {{ p.last_error }}</div>
+      <q-expansion-item dense dense-toggle switch-toggle-side label="عرض SQL" header-class="small text-grey-8 q-px-none">
+        <pre class="sql-view ltr">{{ p.sql }}</pre>
+      </q-expansion-item>
+    </div>
+
     <!-- The SQL first: the page is opened mostly to paste a script -->
     <div class="card column q-gutter-sm">
-      <div class="row items-center">
-        <div class="col text-weight-bold">SQL</div>
-        <q-btn-toggle v-model="write" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: 'قراءة', value: false }, { label: 'كتابة', value: true }]" />
-      </div>
+      <!-- No «قراءة/كتابة» to choose (owner 2026-10-30): one SELECT reads, anything else executes -->
+      <div class="text-weight-bold">SQL</div>
       <!-- Long lines scroll inside the box, never widen the page (owner 2026-10-30: «شاشة عريضة») -->
       <q-input v-model="text" type="textarea" outlined class="sql" input-class="ltr" :input-style="{ whiteSpace: 'pre', overflowX: 'auto' }"
         rows="8" wrap="off" placeholder="الصق SQL هنا" :disable="busy === 'sql'" />
-      <div class="small" :class="write ? 'text-deep-orange' : 'muted'">
-        {{ write ? 'كتابة: كل الأوامر معًا بصلاحيات كاملة، إما تنجح كلها أو لا يتغيّر شيء. يُسجَّل.' : 'قراءة: SELECT واحد فقط، بلا أسرار، 200 سطر على الأكثر.' }}
+      <div v-if="text.trim()" class="small" :class="write ? 'text-deep-orange' : 'muted'">
+        {{ write ? 'تعديل: كل الأوامر معًا بصلاحيات كاملة، إما تنجح كلها أو لا يتغيّر شيء. يُسجَّل.' : 'قراءة فقط: بلا أسرار، 200 سطر على الأكثر.' }}
       </div>
       <div class="row q-gutter-sm">
         <q-btn unelevated no-caps :color="write ? 'deep-orange' : 'primary'" :icon="write ? 'play_arrow' : 'search'" :label="write ? 'نفّذ' : 'اقرأ'"
@@ -108,6 +118,9 @@ import SectionTabs from 'src/components/SectionTabs.vue'
 import BarChart from 'src/components/BarChart.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
+import { useBell } from 'src/composables/useBell'
+
+const { refreshBell } = useBell()
 
 // What each heavy call is, in words
 const NAMES = {
@@ -123,7 +136,11 @@ const NAMES = {
 const nameOf = (w) => NAMES[w] || (w.startsWith('insert into cron') || w.startsWith('update cron') ? 'سجل الدورة الآلية' : w)
 
 const text = ref('')
-const write = ref(false)
+// One SELECT/WITH (a trailing «;» allowed) reads; anything else is a script to execute
+const write = computed(() => {
+  const q = text.value.trim().replace(/;\s*$/, '')
+  return !(/^(select|with)\b/i.test(q) && !q.includes(';'))
+})
 const ready = ref([])
 const result = ref(null)
 const hours = ref(null)
@@ -149,9 +166,20 @@ async function call (key, fn) {
     busy.value = ''
   }
 }
+// «ينتظر تطبيقك»: applied by its id (the server reads the SQL), then the bar goes
+const pendingOpen = ref([])
+function apply (p) {
+  if (busy.value) return
+  Dialog.create({ title: 'طبّق: ' + p.title, message: 'ينفّذ كل الأوامر معًا بصلاحيات كاملة. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، طبّق' })
+    .onOk(async () => {
+      await show(await call('apply' + p.id, () => flexy.applyPending(p.id)), false)
+      await loadLog()
+      refreshBell()
+    })
+}
 async function loadLog () {
   const b = await call('', () => flexy.ownerSql())
-  if (b?.ok) { ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables'].includes(r.key)); log.value = b.log || [] }
+  if (b?.ok) { pendingOpen.value = b.pending?.open || []; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables'].includes(r.key)); log.value = b.log || [] }
 }
 async function loadDb () {
   flexy.ownerAuto().then((r) => {
@@ -200,7 +228,6 @@ async function toggleTables () {
 function openTable (t) {
   const cols = (t.columns || []).map((c) => '"' + c + '"').join(', ') || '*'
   text.value = `select ${cols} from ${t.schema}."${t.table}" limit 20`
-  write.value = false
   run()
 }
 async function runReady (r) {
@@ -246,6 +273,8 @@ body.body--dark .tile { background: rgba(255, 255, 255, 0.06); }
 .ltr { direction: ltr; text-align: left; }
 .sql { max-width: 100%; min-width: 0; }
 .sql :deep(textarea) { font-family: monospace; font-size: 13px; overflow-x: auto; white-space: pre; }
+.pending { border: 2px solid var(--q-primary); border-color: #283593; }
+.sql-view { font-size: 12px; max-height: 260px; overflow: auto; background: rgba(0, 0, 0, 0.04); padding: 8px; border-radius: 6px; margin: 0; }
 .tables-list { max-height: 320px; overflow-y: auto; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 8px; }
 .table-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
   border: 0; border-bottom: 1px solid rgba(0, 0, 0, 0.06); background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
