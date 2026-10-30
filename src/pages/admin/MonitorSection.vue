@@ -134,7 +134,7 @@
           <div v-for="s in pickedSims" :key="s.sim_uuid" class="column">
             <div class="row"><b class="col"><span class="dot" :class="s.online ? 'ok' : 'down'" /> {{ s.code || 'شريحة' }}<span class="small" :class="s.online ? 'text-positive' : 'text-negative'"> · {{ s.online ? 'متصلة' : 'غير متصلة' }}</span></b><span class="column items-end"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
               <span class="tiny" :class="s.stale ? 'text-negative' : 'muted'">{{ picked.which === 'selling' ? 'رصيدها' : 'رصيدها المحفوظ' }}<template v-if="s.balance_checked_at">، قُرئ {{ ago(s.balance_checked_at) }}</template><template v-else>، لم يُقرأ</template><template v-if="s.stale"> · قراءة قديمة</template></span></span></div>
-            <div class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.spent_since_read"> · آخر قراءة {{ money(s.balance_read) }}، بيع بعدها {{ money(s.spent_since_read) }}</template><template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></div>
+            <div class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.spent_since_read || s.topup_since_read"> · آخر قراءة {{ money(s.balance_read) }}<template v-if="s.spent_since_read">، بيع بعدها {{ money(s.spent_since_read) }}</template><template v-if="s.topup_since_read">، شحن +{{ money(s.topup_since_read) }} (من رسالته)</template></template><template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></div>
             <div v-if="s.reason_text" class="small text-negative">السبب: {{ s.reason_text }}</div>
           </div>
         </q-card-section>
