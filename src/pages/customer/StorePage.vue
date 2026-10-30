@@ -68,6 +68,8 @@ import { money, CATEGORIES } from 'src/api/format'
 import CodesDialog from 'components/CodesDialog.vue'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import CardImage from 'components/CardImage.vue'
+import * as customerApi from 'src/api/customer'
+import { useCustomerStore } from 'stores/customer'
 
 const buyer = useBuyer()
 const { busy, run } = useRun()
@@ -82,6 +84,17 @@ const readAvail = () => { try { return LocalStorage.getItem(AVAIL_KEY) !== false
 const availOnly = ref(readAvail())
 watch(availOnly, (v) => { try { LocalStorage.set(AVAIL_KEY, v) } catch { /* storage blocked: default next time */ } })
 const brand = ref('all')
+// What the shop looks at without buying (owner 2026-10-30, v1.46): the brand it opens, the card whose sheet it opens,
+// what it searches. Its own name only, never a number; the same light rule as the pages (once per 10 minutes).
+const customer = useCustomerStore()
+const interest = (what) => { if (!buyer.isShop.value && customer.token) customerApi.pageSeen(customer.token, ('/store/' + what).slice(0, 60)).catch(() => {}) }
+watch(brand, (b) => { if (b && b !== 'all') interest('brand:' + b) })
+let searchTimer = null
+watch(query, (q) => {
+  clearTimeout(searchTimer)
+  const t = (q || '').trim()
+  if (t.length >= 2) searchTimer = setTimeout(() => interest('search:' + t), 1500)
+})
 const inCat = (p) => cat.value === 'all' || p.category === cat.value
 const brandList = computed(() => [...new Set(products.value.filter(inCat).map((p) => p.brand))])
 
@@ -129,6 +142,7 @@ const qty = ref(1)
 let requestId = null
 
 function openBuy (p) {
+  interest('buy:' + p.name)
   sel.value = p
   qty.value = 1
   requestId = newRequestId()   // one id per purchase attempt; a retry reuses it
