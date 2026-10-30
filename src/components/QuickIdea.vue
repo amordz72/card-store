@@ -15,7 +15,12 @@
   <q-dialog v-model="open" position="top">
     <q-card style="width:100%;max-width:560px;border-radius:0 0 20px 20px">
       <q-card-section class="column q-gutter-sm">
-        <div class="text-weight-bold">💡 فكرة سريعة</div>
+        <div class="row items-center no-wrap">
+          <div class="col text-weight-bold">💡 فكرة سريعة</div>
+          <!-- The screen behind, copied from here (owner N8: «المربع يغطي زر النسخ») -->
+          <q-btn flat dense no-caps size="sm" color="primary" icon="content_copy" label="انسخ الشاشة" @click="copyScreen" />
+          <q-btn flat round dense icon="close" aria-label="أغلق" v-close-popup />
+        </div>
         <div class="row q-gutter-xs">
           <q-btn v-for="k in KINDS" :key="k.id" rounded dense no-caps size="sm" :unelevated="kind === k.id" :outline="kind !== k.id"
             :color="kind === k.id ? 'primary' : 'grey-8'" :label="k.label" @click="kind = k.id" />
@@ -34,7 +39,8 @@
              what Claude has not answered; Claude ends his reply with «FLEXY N1=تمت N2=وصلت»; «الصق رد Claude» reads
              that line and moves them; the owner closes ✓ or reopens ↺. Kept on this phone. -->
         <div v-if="notes.length" class="notes column q-gutter-xs">
-          <div class="row items-center q-gutter-xs">
+          <!-- Outside the list's scroll: always seen (owner N7: the paste button was out of sight) -->
+          <div class="row items-center q-gutter-xs wrap">
             <q-btn unelevated dense no-caps size="sm" color="primary" icon="content_copy" :label="`انسخ ما لم يصل (${toSend.length})`"
               :disable="!toSend.length" @click="copyToSend" />
             <q-btn outline dense no-caps size="sm" color="primary" icon="content_paste" label="الصق رد Claude" @click="pasteReply" />
@@ -43,6 +49,7 @@
             <q-input v-model="pasted" type="textarea" outlined dense autogrow autofocus placeholder="الصق هنا رد Claude (أو سطر FLEXY وحده)" input-class="ltr" />
             <q-btn unelevated dense no-caps size="sm" color="primary" label="اقرأه" class="self-start" :disable="!pasted.trim()" @click="applyReply(pasted)" />
           </div>
+          <div class="notes-list column q-gutter-xs">
           <div v-for="g in groups" :key="g.key" class="column q-gutter-xs">
             <div class="small text-weight-bold" :class="g.cls">{{ g.label }} ({{ g.list.length }})</div>
             <div v-for="n in g.list" :key="n.id" class="row items-center no-wrap small note">
@@ -61,6 +68,7 @@
             </div>
             <q-btn flat dense no-caps size="sm" color="grey-7" label="امسح المغلقة" @click="clearClosed" />
           </q-expansion-item>
+          </div>
         </div>
       </q-card-section>
       <q-card-actions align="right">
@@ -207,7 +215,21 @@ function clearClosed () {
     .onOk(() => { notes.value = notes.value.filter((n) => n.state !== 'closed'); keepNotes() })
 }
 
+async function copyScreen () {
+  try {
+    await copyToClipboard(props.screenText())
+    Notify.create({ type: 'positive', message: 'نُسخت الشاشة: الصقها في المحادثة', position: 'top', timeout: 1500 })
+  } catch {
+    Notify.create({ type: 'negative', message: 'تعذّر النسخ', position: 'top' })
+  }
+}
+
 async function save () {
+  // Claude's FLEXY line typed or pasted here is a reply, not a note (owner N7)
+  if (/^\s*FLEXY\b/i.test(text.value) || /\bFLEXY\s+N\d+\s*=/.test(text.value)) {
+    if (applyReply(text.value)) text.value = ''
+    return
+  }
   busy.value = true
   error.value = ''
   // On this phone first: whatever happens next, the note stays
@@ -232,6 +254,7 @@ async function save () {
 
 <style scoped>
 .qi-fab { position: fixed; z-index: 2000; touch-action: none; }
-.notes { border-top: 1px solid rgba(0, 0, 0, 0.08); padding-top: 6px; max-height: 300px; overflow-y: auto; }
+.notes { border-top: 1px solid rgba(0, 0, 0, 0.08); padding-top: 6px; }
+.notes-list { max-height: 34vh; overflow-y: auto; }
 .note { overflow-wrap: anywhere; }
 </style>
