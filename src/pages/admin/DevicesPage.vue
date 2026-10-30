@@ -541,7 +541,9 @@ function downloadFix () {
   a.href = URL.createObjectURL(zip)
   // A number on everything given (owner 2026-10-30: «أي ملف تعطيه له ترقيم»): the package's version and the minute it was
   // made, so an old download is never taken for the new one
-  const stamp = new Date().toTimeString().slice(0, 5).replace(':', '')
+  const d = new Date()
+  const p2 = (x) => String(x).padStart(2, '0')
+  const stamp = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}_${p2(d.getHours())}-${p2(d.getMinutes())}`
   a.download = `Flexy-fix-v${FIX_VERSION}` + (actionsSt.value?.code ? '-' + actionsSt.value.code : '') + '-' + stamp + '.zip'
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 5000)
