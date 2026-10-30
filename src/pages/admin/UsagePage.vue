@@ -4,7 +4,11 @@
        Counted lightly: one per page per person every 10 minutes; kept 90 days. -->
   <q-page class="q-pa-md column q-gutter-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
+    <q-btn-toggle v-model="view" spread unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
+      :options="[{ label: 'المؤشرات', value: 'money' }, { label: 'الصفحات', value: 'pages' }]" />
+    <ShopIndicators v-if="view === 'money'" />
 
+    <template v-else>
     <div class="row q-gutter-xs">
       <q-btn v-for="d in [1, 7, 30]" :key="d" rounded no-caps :unelevated="days === d" :outline="days !== d"
         :color="days === d ? 'primary' : 'grey-8'" :label="d === 1 ? 'اليوم' : d === 7 ? 'أسبوع' : 'شهر'" @click="days = d" />
@@ -31,12 +35,14 @@
         <div class="small muted" style="min-width:90px">{{ s.top_page ? titleOf(s.top_page) : '' }}</div>
       </div>
     </div>
+    </template>
   </q-page>
 </template>
 
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import SectionTabs from 'src/components/SectionTabs.vue'
+import ShopIndicators from 'src/components/ShopIndicators.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as adminApi from 'src/api/admin'
 import routes from 'src/router/routes'
@@ -46,6 +52,8 @@ const TITLES = Object.fromEntries((routes.find((r) => r.path === '/')?.children 
   .map((r) => ['/' + r.path, r.meta?.title]).filter(([, t]) => t))
 const titleOf = (path) => TITLES[path] || path
 
+// «المؤشرات» first (owner 2026-10-30): the money matters more than the pages
+const view = ref('money')
 const days = ref(7)
 const pages = ref([])
 const shops = ref([])
@@ -76,6 +84,7 @@ function ago (t) {
 const stale = (s) => !s.last_at || Date.now() - Date.parse(s.last_at) > 3 * 86400_000
 watch(days, load)
 onMounted(load)
+watch(view, (v) => { if (v === 'pages') load() })
 </script>
 
 <style scoped>

@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import * as adminApi from 'src/api/admin'
 import * as customerApi from 'src/api/customer'
 import * as flexyApi from 'src/api/flexy'
+import { indicatorsSeenThisWeek } from 'src/components/ShopIndicators.vue'
 
 // Owner's header bell (pattern 18): open card reports + customers' IDOOM top-ups waiting for review
 // + game top-ups waiting for an operator (v1.25) + shops' Flexy sends waiting for the owner's decision (v1.33)
@@ -31,11 +32,13 @@ const monitorAlerts = ref(0)
 const monitorIncidents = ref(0)
 // The station computers that can take a newer Agent from main (owner 2026-10-30): count and the version
 const agentUpdates = ref(0)
+// v1.45: shops whose spending dropped or stopped this week, until the owner opens «المؤشرات» this week
+const shopsDown = ref(0)
 const agentUpdateVersion = ref('')
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
 const repoKeyAlert = computed(() => (repoKeyLevel.value === 'dead' || repoKeyLevel.value === 'expiring' ? 1 : 0))
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value + agentUpdates.value)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value + agentUpdates.value + shopsDown.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
@@ -78,6 +81,13 @@ async function refreshBell () {
     }
   } catch { /* keep the last value */ }
   try {
+    if (indicatorsSeenThisWeek()) shopsDown.value = 0
+    else {
+      const d = await adminApi.indicators(7)
+      shopsDown.value = (d?.shops || []).filter((s) => s.grp === 'down' || s.grp === 'stopped').length
+    }
+  } catch { /* before v1.45, or keep the last value */ }
+  try {
     const res = await flexyApi.ownerUpdates()
     if (res.status === 200 && res.body?.ok) {
       const u = agentUpdatesOf(res.body)
@@ -100,5 +110,5 @@ export function agentUpdatesOf (body, now = Date.now()) {
 }
 
 export function useBell () {
-  return { agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }
