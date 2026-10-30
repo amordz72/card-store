@@ -12,7 +12,10 @@
         <q-btn unelevated size="lg" :color="board?.me_available ? 'positive' : 'grey-7'" :loading="busy && switching"
           :label="board?.me_available ? 'متاح' : 'غير متاح'" :icon="board?.me_available ? 'toggle_on' : 'toggle_off'" @click="toggle" />
       </div>
-      <div class="help small muted">اضغط «غير متاح» عند التوقف. يُغلق تلقائيًا بعد 30 دقيقة إذا أُغلق الموقع.</div>
+      <!-- v1.49 (owner 2026-10-30): open always, the order waits in the queue (and the bell) until it is done -->
+      <q-toggle v-if="session.isAdmin && alwaysOpen !== null" :model-value="alwaysOpen" label="الطلب مفتوح دائمًا (حتى وأنا غير متاح)"
+        @update:model-value="setAlwaysOpen" />
+      <div class="help small muted">{{ alwaysOpen ? 'يطلب الزبون في أي وقت، وينتظر طلبه هنا وفي الجرس حتى تنفّذه.' : 'اضغط «غير متاح» عند التوقف. يُغلق تلقائيًا بعد 30 دقيقة إذا أُغلق الموقع.' }}</div>
       <q-btn v-if="board?.url" outline color="primary" icon="open_in_new" label="فتح موقع الشحن" :href="board.url" target="_blank" />
     </div>
 
@@ -218,6 +221,12 @@ function failed (g) {
 const gameProducts = ref([])
 const marked = ref([])
 const url = ref('')
+const alwaysOpen = ref(null)
+const loadAlwaysOpen = () => adminApi.gameAlwaysOpen().then((v) => { alwaysOpen.value = v === true }, () => {})
+async function setAlwaysOpen (v) {
+  const r = await run(() => adminApi.gameAlwaysOpen(v), { success: v ? 'الطلب مفتوح دائمًا.' : 'الطلب مفتوح فقط وأنت «متاح».' })
+  if (r !== undefined) { alwaysOpen.value = r === true; loadBoard() }
+}
 async function loadSettings () {
   const [stock, ids] = await Promise.all([run(() => adminApi.stock()), run(() => adminApi.playerTopupProducts())])
   if (stock) gameProducts.value = stock.filter((p) => p.category === 'game' && p.active && p.brand_active)
@@ -235,6 +244,7 @@ async function saveUrl () {
 let timer = null
 let tick = 0
 onMounted(async () => {
+  if (session.isAdmin) loadAlwaysOpen()
   await loadBoard()
   await loadOpen()
   timer = setInterval(async () => {
