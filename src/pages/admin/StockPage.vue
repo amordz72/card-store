@@ -91,18 +91,25 @@
       </div>
       <template v-if="pickBrand">
         <div class="small muted">2. البطاقة ({{ pickBrand }})</div>
-        <div class="row q-gutter-xs">
-          <q-btn v-for="p in pickProducts" :key="p.product_id" no-caps dense class="q-px-sm" :ripple="false"
-            :unelevated="codeForm.productId === p.product_id" :outline="codeForm.productId !== p.product_id"
-            :color="codeForm.productId === p.product_id ? 'primary' : 'grey-8'" @click="choose(p.brand, p.product_id)">
-            <div class="column items-center" style="line-height:1.25">
-              <span class="text-weight-medium">{{ shortName(p) }}</span>
-              <span style="font-size:11px">متوفر {{ p.available }}</span>
-            </div>
-          </q-btn>
+        <!-- v1.58 (owner 2026-10-30): tiles, not look-alike text buttons — picture, the amount big, each amount its own color -->
+        <div class="card-tiles">
+          <button v-for="(p, n) in pickProducts" :key="p.product_id" type="button" class="card-tile" :class="{ on: codeForm.productId === p.product_id }"
+            :style="{ '--tile': TILE_COLORS[n % TILE_COLORS.length] }" :aria-pressed="codeForm.productId === p.product_id" @click="choose(p.brand, p.product_id)">
+            <img v-if="p.image || p.brand_image" :src="p.image || p.brand_image" alt="">
+            <b class="tile-amount">{{ tileParts(p).big }}</b>
+            <span v-if="tileParts(p).rest" class="tile-rest">{{ tileParts(p).rest }}</span>
+            <span class="tile-rest">متوفر {{ p.available }}</span>
+          </button>
         </div>
       </template>
-      <div v-if="pickedProduct" class="small text-weight-medium" style="color:#C2410C">البطاقة المختارة: {{ pickedProduct.name }}</div>
+      <!-- Where the codes go, big, right above them -->
+      <div class="picked-bar row items-center no-wrap q-gutter-sm" :class="{ none: !pickedProduct }">
+        <template v-if="pickedProduct">
+          <img v-if="pickedProduct.image || pickedProduct.brand_image" :src="pickedProduct.image || pickedProduct.brand_image" alt="">
+          <span class="col">✔ ستُضاف إلى: <b>{{ pickedProduct.name }}</b></span>
+        </template>
+        <span v-else>اختر البطاقة أولًا</span>
+      </div>
       <!-- Codes only after a card is chosen, so they cannot land on a card picked afterwards -->
       <q-file v-model="file" dense outlined accept=".txt,.csv,text/plain,text/csv" :disable="!codeForm.productId" clearable
         :label="codeForm.productId ? 'رفع ملف أكواد (txt أو csv) — أو الصق في الخانة التالية' : 'اختر العلامة والبطاقة أولًا'">
@@ -225,7 +232,11 @@
       </div>
       <div class="small muted">{{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}
         <q-btn flat dense size="sm" color="primary" icon="edit" label="عدّل سعر الشراء" @click="editCost(b)" />
+        <q-btn flat dense size="sm" color="primary" icon="tune" label="عدّل" @click="openBatchEdit(b)" />
       </div>
+      <div v-for="(c, n) in batchChanges[b.batch_id] || []" :key="'e' + n" class="small text-deep-orange">
+        <template v-if="c.old_supplier !== c.new_supplier">المورّد: {{ c.old_supplier }} ← {{ c.new_supplier }} </template>
+        <template v-if="c.old_product !== c.new_product">البطاقة: {{ c.old_product }} ← {{ c.new_product }} </template>· {{ dateTime(c.at) }}</div>
       <div v-for="(c, n) in costChanges[b.batch_id] || []" :key="n" class="small text-deep-orange">عُدّل من {{ money(c.old) }} إلى {{ money(c.new) }} · {{ dateTime(c.at) }}</div>
       <!-- Each card has exactly one state, so the parts always add up to the total -->
       <div class="row q-gutter-md small">
@@ -252,6 +263,27 @@
       {{ batchList.length ? 'لا توجد دفعات مطابقة' + (bf.availOnly ? ' فيها متوفر — اضغط «فيها متوفر فقط» لعرض الكل' : '') : 'لا توجد دفعات بعد.' }}
     </div>
     </div>
+
+    <!-- v1.58: a batch on the wrong supplier / card, corrected in place -->
+    <q-dialog v-model="batchEditOpen">
+      <q-card v-if="batchEdit" style="width:100%;max-width:460px">
+        <q-card-section class="column q-gutter-sm">
+          <div class="text-weight-bold">تعديل الدفعة #{{ batchEdit.b.batch_id }} · {{ batchEdit.b.product_name }}</div>
+          <q-select v-model="batchEdit.supplierId" :options="supplierOptions" emit-value map-options dense outlined label="المورّد" />
+          <q-select v-model="batchEdit.productId" :options="productOptions" emit-value map-options dense outlined label="البطاقة"
+            :disable="batchEdit.b.sold > 0" :hint="batchEdit.b.sold > 0 ? 'بيع منها ' + batchEdit.b.sold + ': لا تُنقل إلى بطاقة أخرى' : 'إن أُدخلت على بطاقة خطأ: اختر الصحيحة'" />
+          <div class="row q-gutter-sm">
+            <q-btn outline dense no-caps color="primary" icon="payments" label="سعر الشراء" @click="batchEditOpen = false; editCost(batchEdit.b)" />
+            <q-btn outline dense no-caps color="primary" icon="sell" label="سعر البيع" @click="editBase(batchEdit.b.product_id)" />
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat no-caps label="رجوع" v-close-popup />
+          <q-btn unelevated no-caps color="primary" label="احفظ" :loading="busy" @click="saveBatchEdit"
+            :disable="batchEdit.supplierId === batchEdit.supplierId0 && batchEdit.productId === batchEdit.b.product_id" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <q-dialog v-model="productOpen">
       <q-card style="width:100%;max-width:460px">
@@ -352,8 +384,9 @@ const preview = computed(() => {
 })
 
 // «تعديل سعر البيع»: changes the card's selling price for everyone (e.g. games when the dollar rate moves)
-function openBase () {
-  const p = stock.value.find((x) => x.product_id === codeForm.value.productId)
+const openBase = () => editBase(codeForm.value.productId)
+function editBase (productId) {
+  const p = stock.value.find((x) => x.product_id === productId)
   if (!p) return
   Dialog.create({
     title: 'تعديل سعر البيع', message: `${p.name}: السعر الجديد يظهر في المتجر لكل الزبائن.`,
@@ -382,6 +415,12 @@ const pickBrands = computed(() => {
 })
 const pickProducts = computed(() => activeStock.value.filter((p) => p.brand === pickBrand.value))
 const pickedProduct = computed(() => stock.value.find((p) => p.product_id === codeForm.value.productId) || null)
+// A tile: «1500» big, «150GO / شهر» small; neighbours never share a color
+const TILE_COLORS = ['#1D4ED8', '#B91C1C', '#047857', '#7C3AED', '#C2410C', '#0E7490', '#A21CAF', '#4D7C0F']
+function tileParts (p) {
+  const [big, ...rest] = shortName(p).split(' · ')
+  return { big, rest: rest.join(' · ') }
+}
 // «Idoom 4G 1500 · 150GO / شهر» → «1500 · 150GO / شهر» (the brand is already chosen)
 function shortName (p) {
   const n = p.name.trim()
@@ -497,7 +536,21 @@ watch(file, async (f) => {
   Notify.create({ type: 'info', message: `قُرئ الملف: ${parsed.value.cards} بطاقة. راجع العدد ثم اضغط «إضافة للمخزن».` })
 })
 
-async function addCodes () {
+// v1.58: a confirmation naming the card in full; a message naming another card must be confirmed as such
+function addCodes () {
+  const p = pickedProduct.value
+  if (!p) return
+  const other = parsed.value.cardHint && hintProduct.value && hintProduct.value.product_id !== p.product_id
+  Dialog.create({
+    title: other ? '⚠ الرسالة تذكر بطاقة أخرى' : 'تأكيد الإضافة',
+    message: (other ? `رسالة المورّد تقول ${parsed.value.cardHint.brand} ${parsed.value.cardHint.amount}، وأنت اخترت غيرها.\n\n` : '') +
+      `${parsed.value.cards} كود ← ${p.name}\nسعر الشراء ${money(codeForm.value.cost)} للبطاقة`,
+    style: 'white-space: pre-line',
+    cancel: 'رجوع',
+    ok: other ? { label: `أضفها إلى ${p.name} رغم ذلك`, color: 'negative', 'no-caps': true } : { label: 'أضف', color: 'primary' }
+  }).onOk(saveCodes)
+}
+async function saveCodes () {
   const res = await run(() => api.addCodes(codeForm.value.productId, codeForm.value.supplierId, codeForm.value.cost, toLines(read.value.codes)),
     { success: (r) => `أضيف ${r.added} كود${r.duplicates ? `، ورُفض ${r.duplicates} مكرر` : ''}.` })
   if (!res) return
@@ -652,6 +705,30 @@ function editCost (b) {
   })
 }
 
+// v1.58: the batch's supplier / card; before v1.58: none shown
+const batchChanges = ref({})
+const loadBatchChanges = () => api.batchChanges().then((m) => { batchChanges.value = m || {} }, () => {})
+const batchEditOpen = ref(false)
+const batchEdit = ref(null)
+const productOptions = computed(() => stock.value.map((p) => ({ value: p.product_id, label: p.name })))
+function openBatchEdit (b) {
+  const sid = suppliers.value.find((x) => x.name === b.supplier)?.supplier_id ?? null
+  batchEdit.value = { b, supplierId: sid, supplierId0: sid, productId: b.product_id }
+  batchEditOpen.value = true
+}
+function saveBatchEdit () {
+  const e = batchEdit.value
+  const to = stock.value.find((p) => p.product_id === e.productId)
+  const moving = e.productId !== e.b.product_id
+  const go = async () => {
+    const r = await run(() => api.batchEdit(e.b.batch_id, e.supplierId === e.supplierId0 ? null : e.supplierId, moving ? e.productId : null), { success: (x) => `عُدّلت الدفعة #${e.b.batch_id}: ${x.codes} كود.` })
+    if (r) { batchEditOpen.value = false; await reloadAll(); loadBatchChanges() }
+  }
+  if (!moving) return go()
+  Dialog.create({ title: 'نقل الدفعة إلى بطاقة أخرى', message: `${e.b.available + e.b.frozen + e.b.suspect + e.b.voided} كود من «${e.b.product_name}» ← «${to?.name}». متابعة؟`, cancel: 'رجوع', ok: { label: 'انقل', color: 'primary' } })
+    .onOk(go)
+}
+
 const bf = ref({ brand: null, product: null, supplier: 'all', availOnly: true })
 const brandImage = computed(() => Object.fromEntries(stock.value.map((p) => [p.brand, p.brand_image])))
 const batchBrands = computed(() => [...new Set(batchList.value.map((b) => b.brand))].map((name) => ({ name, image: brandImage.value[name] })))
@@ -761,7 +838,7 @@ function suspectToNormal (b) {
   })
 }
 
-onMounted(() => { load(); loadBatches(); loadCostChanges(); loadLow(); loadBuy(); loadReaders(); loadAnnouncement() })
+onMounted(() => { load(); loadBatches(); loadCostChanges(); loadBatchChanges(); loadLow(); loadBuy(); loadReaders(); loadAnnouncement() })
 </script>
 
 <style scoped>
@@ -775,5 +852,16 @@ onMounted(() => { load(); loadBatches(); loadCostChanges(); loadLow(); loadBuy()
 .brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
 .brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.card-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.card-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 10px; cursor: pointer;
+  border: 2px solid var(--tile); background: #fff; color: var(--tile); font: inherit; line-height: 1.2; }
+.card-tile img { height: 28px; max-width: 100%; object-fit: contain; }
+.card-tile .tile-amount { font-size: 20px; }
+.card-tile .tile-rest { font-size: 11px; color: #4B5563; text-align: center; }
+.card-tile.on { background: var(--tile); color: #fff; box-shadow: 0 0 0 3px #FDBA74; }
+.card-tile.on .tile-rest { color: #fff; }
+.picked-bar { padding: 10px; border-radius: 10px; background: #ECFDF5; border: 2px solid #059669; color: #065F46; font-size: 16px; }
+.picked-bar img { height: 32px; max-width: 56px; object-fit: contain; }
+.picked-bar.none { background: #FEF2F2; border-color: #FCA5A5; color: #B91C1C; }
 .brand-pick.on { border-color: #C2410C; box-shadow: 0 0 0 2px #C7CAF5; }
 </style>

@@ -109,6 +109,9 @@ export const batches = (productId, limit, offset) =>
 export const batchCostPreview = (batchId, cost) => rpc('store_admin_batch_cost_preview', { p_batch_id: batchId, p_cost: cost })
 export const batchCostSet = (batchId, cost) => rpc('store_admin_batch_cost_set', { p_batch_id: batchId, p_cost: cost })
 export const batchCostChanges = () => rpc('store_admin_batch_cost_changes')
+// v1.58: the batch's supplier and/or card (null keeps it); the card only when nothing of it was sold or used
+export const batchEdit = (batchId, supplierId, productId) => rpc('store_admin_batch_edit', { p_batch_id: batchId, p_supplier_id: supplierId, p_product_id: productId })
+export const batchChanges = () => rpc('store_admin_batch_changes')
 export const batchCodes = (batchId) => rpc('store_admin_batch_codes_v2', { p_batch_id: batchId })
 export const freezeCodes = (codeIds, frozen) => rpc('store_admin_codes_freeze', { p_code_ids: codeIds, p_frozen: frozen })
 export const voidCodes = (codeIds, reason) => rpc('store_admin_codes_void', { p_code_ids: codeIds, p_reason: reason })
