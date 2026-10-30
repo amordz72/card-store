@@ -12,6 +12,7 @@
     <div class="card column gap-sm">
       <div class="row items-center">
         <div class="col text-weight-bold">ضغط القاعدة</div>
+        <q-btn flat round dense icon="smart_toy" aria-label="نسخ لـClaude" @click="copyForClaude('ضغط القاعدة', loadForClaude())" />
         <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="loadState === 'busy'" @click="loadDb" />
       </div>
       <!-- Never a spinner forever (owner 2026-10-30): 15 s, then «أعد المحاولة» -->
@@ -23,8 +24,9 @@
             <div class="n">{{ t.n }}</div><div class="small">{{ t.label }}</div>
           </div>
         </div>
-        <div class="small muted">كل عمود ساعة · اضغط عمودًا لترى رقمه<span v-if="callsLimit"> · الخط المتقطع: الحد {{ callsLimit }}/ساعة</span></div>
-        <BarChart :items="hourBars" :limit="callsLimit" :height="130" />
+        <!-- Each bar = one measured window (its time under it), in requests per minute; the running hour light (partial) -->
+        <div class="small muted">كل عمود = ساعة مقيسة، ارتفاعه طلبات في الدقيقة · الفاتح = الساعة الجارية حتى الآن<span v-if="callsLimit"> · المتقطع: الحد {{ Math.round(callsLimit / 60) }}/دقيقة</span></div>
+        <BarChart :items="hourBars" :limit="callsLimit ? callsLimit / 60 : 0" :height="130" />
         <q-expansion-item dense dense-toggle switch-toggle-side label="التفاصيل: آخر ساعة" header-class="small text-grey-8 q-px-none">
           <div v-for="r in hours.last_hour" :key="r.what" class="line row items-center no-wrap gap-sm">
             <div class="col">{{ nameOf(r.what) }}</div>
@@ -50,10 +52,10 @@
       </q-expansion-item>
     </div>
 
-    <!-- The SQL first: the page is opened mostly to paste a script -->
-    <div class="card column gap-sm">
+    <!-- Manual SQL, rarely used now (owner 2026-10-30: scripts come in «ينتظر تطبيقك»): folded -->
+    <q-expansion-item class="card q-pa-none" dense icon="code" label="SQL يدوي والجداول" header-class="text-weight-bold">
+    <div class="column gap-sm q-pa-sm">
       <!-- No «قراءة/كتابة» to choose (owner 2026-10-30): one SELECT reads, anything else executes -->
-      <div class="text-weight-bold">SQL</div>
       <!-- Long lines scroll inside the box, never widen the page (owner 2026-10-30: «شاشة عريضة») -->
       <q-input v-model="text" type="textarea" outlined class="sql" input-class="ltr" :input-style="{ whiteSpace: 'pre', overflowX: 'auto' }"
         rows="8" wrap="off" placeholder="الصق SQL هنا" :disable="busy === 'sql'" />
@@ -82,6 +84,7 @@
         </div>
       </div>
     </div>
+    </q-expansion-item>
 
     <div v-if="result" ref="resultBox" class="card column gap-xs">
       <div v-if="result.ok" class="small text-positive">
@@ -125,6 +128,7 @@ import { Dialog, Notify, copyToClipboard } from 'quasar'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import BarChart from 'src/components/BarChart.vue'
 import FailuresCard from 'src/components/FailuresCard.vue'
+import { copyForClaude, registerForClaude } from 'src/composables/useClaudeCopy'
 import ReviewCard from 'src/components/ReviewCard.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
@@ -292,9 +296,20 @@ const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short
 const hourOf = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
 // The owner's limit (0085, «المفاتيح»): the dashed line, and red bars above it
 const callsLimit = ref(0)
-const hourBars = computed(() => (hours.value?.hours || []).map((h) => ({
-  value: h.calls, text: h.per_minute + '/دقيقة', label: hourOf(h.at), short: hourOf(h.at).slice(0, 2)
-})))
+const hourBars = computed(() => [
+  ...(hours.value?.hours || []).map((h) => ({
+    value: Number(h.per_minute), text: h.per_minute + '/دقيقة', label: (h.from ? hourOf(h.from) + ' ← ' : '') + hourOf(h.at), short: hourOf(h.at).slice(0, 2)
+  })),
+  ...(hours.value?.current ? [{
+    value: Number(hours.value.current.per_minute), partial: true, text: hours.value.current.per_minute + '/دقيقة',
+    label: 'الآن: ' + hours.value.current.minutes + ' دقيقة منذ ' + hourOf(hours.value.current.from), short: 'الآن'
+  }] : [])
+])
+const loadForClaude = () => ({ last_at: hours.value?.last_at, limit_per_hour: callsLimit.value,
+  hours: (hours.value?.hours || []).map((h) => `${h.from}→${h.at} ${h.per_minute}/min writes=${h.writes}`).join(' ; '),
+  current: hours.value?.current ? `${hours.value.current.per_minute}/min for ${hours.value.current.minutes} min` : null,
+  top: (hours.value?.last_hour || []).slice(0, 6).map((r) => `${r.what} ${r.per_minute}/min w=${r.writes}`).join(' ; ') })
+registerForClaude('ضغط القاعدة', loadForClaude)
 const tiles = computed(() => {
   const hs = hours.value?.hours || []
   const last = hs[hs.length - 1]

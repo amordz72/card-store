@@ -157,6 +157,7 @@
 </template>
 
 <script setup>
+import { claudePageText } from 'src/composables/useClaudeCopy'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { copyToClipboard, useQuasar } from 'quasar'
@@ -213,7 +214,7 @@ function widthCheck () {
   return [head, ...out.map((x) => '• ' + x)].join('\n')
 }
 async function copyScreen () {
-  const page = (document.querySelector('.q-page')?.innerText || '') + '\n\n' + widthCheck()
+  const page = (document.querySelector('.q-page')?.innerText || '') + '\n\n' + widthCheck() + claudePageText()
   const text = [
     title.value + ' · ' + new Date().toLocaleString('ar-DZ'),
     session.isAdmin && monitorBar.value ? '⚠ ' + monitorBar.value.text : '',
@@ -306,12 +307,13 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 // «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
 const needsYou = computed(() => {
   const items = [
     // Money may have left: before everything else
     reviewWaiting.value && { to: '/stats', text: reviewWaiting.value === 1 ? '⚖ عملية تحتاج حكمك (وصلت أم لا؟)' : `⚖ ${reviewWaiting.value} عمليات تحتاج حكمك (وصلت أم لا؟)` },
+    automixAlert.value && { to: '/stats', text: `⚠ الأوتوميكس فشل اليوم ${automixAlert.value.pct}% (${automixAlert.value.failed} من ${automixAlert.value.total}): راجعه` },
     failuresOpen.value && { to: '/stats', text: failuresOpen.value === 1 ? '🔴 فشل بلا حل ينتظرك' : `🔴 ${failuresOpen.value} فشل بلا حل تنتظرك` },
     sqlPending.value && { to: '/stats', text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
     approvalsWaiting.value && { to: '/flexy/devices', text: approvalsWaiting.value === 1 ? 'كمبيوتر جديد ينتظر الاعتماد' : `${approvalsWaiting.value} كمبيوترات تنتظر الاعتماد` },

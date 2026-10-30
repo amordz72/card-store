@@ -43,6 +43,8 @@ const handoverNeeds = ref(0)
 const reviewWaiting = ref(0)
 // 0093: money failures of 3 days that nothing solved
 const failuresOpen = ref(0)
+// 0094: the automix failing today above the owner's limit → «أوقف الأوتوميكس؟»
+const automixAlert = ref(null)
 const agentUpdateVersion = ref('')
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
@@ -95,6 +97,7 @@ async function refreshBell () {
       handoverNeeds.value = Number(res.body?.handover_needs) || 0
       reviewWaiting.value = Number(res.body?.review_waiting) || 0
       failuresOpen.value = Number(res.body?.failures_open) || 0
+      automixAlert.value = res.body?.automix_alert || null
     }
   } catch { /* keep the last value */ }
   try {
@@ -127,5 +130,5 @@ export function agentUpdatesOf (body, now = Date.now()) {
 }
 
 export function useBell () {
-  return { failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }

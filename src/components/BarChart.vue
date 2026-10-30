@@ -6,7 +6,7 @@
       <div v-if="limit" class="limit" :style="{ bottom: pct(limit) + '%' }"><span>{{ limitLabel }}</span></div>
       <button v-for="(it, i) in items" :key="i" type="button" class="col-bar" :aria-label="it.label + ': ' + it.text"
         @click="picked = picked === i ? null : i" @mouseenter="picked = i" @mouseleave="picked = null">
-        <span class="bar" :class="{ over: limit && it.value > limit, on: picked === i }" :style="{ height: pct(it.value) + '%' }" />
+        <span class="bar" :class="{ over: limit && it.value > limit, on: picked === i, partial: it.partial }" :style="{ height: pct(it.value) + '%' }" />
         <span v-if="picked === i" class="tip" :class="{ end: i > items.length / 2 }" dir="rtl">
           <b>{{ it.text }}</b> · {{ it.label }}<template v-if="limit && it.value > limit"> · فوق الحد</template>
         </span>
@@ -42,6 +42,7 @@ const every = computed(() => Math.max(1, Math.ceil(props.items.length / 6)))
   background: none; border: 0; padding: 0; cursor: pointer; position: relative; }
 .bar { width: 100%; max-width: 22px; border-radius: 4px 4px 0 0; background: var(--q-primary); opacity: 0.75; min-height: 2px; }
 .bar.on { opacity: 1; }
+.bar.partial { opacity: 0.35; outline: 1px dashed currentColor; }
 .bar.over { background: var(--q-negative); opacity: 0.9; }
 .limit { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(0, 0, 0, 0.35); pointer-events: none; }
 .limit span { position: absolute; right: 0; top: -16px; font-size: 10px; color: rgba(0, 0, 0, 0.55); }
