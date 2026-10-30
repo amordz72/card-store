@@ -12,6 +12,14 @@
 
     <BannerCarousel :banners="banners" />
 
+    <!-- The services as equal tiles, first on the page (owner 2026-10-30: «الأزرار غير واضحة، شكلها سيئ») -->
+    <div class="tiles">
+      <router-link v-for="t in tiles" :key="t.to" :to="t.to" class="tile" :class="{ main: t.main }">
+        <q-icon :name="t.icon" size="34px" />
+        <span>{{ t.label }}</span>
+      </router-link>
+    </div>
+
     <div v-if="announcement" class="card" style="background:#FFF1E8;border-color:#C7CAF5">
       <div class="small text-weight-bold" style="color:#9A3412">إعلان</div>
       <div class="text-subtitle1 text-weight-medium" style="white-space:pre-line">{{ announcement }}</div>
@@ -69,11 +77,6 @@
       </div>
     </template>
 
-    <div class="grid-2">
-      <q-btn color="primary" unelevated size="lg" label="شراء بطاقة" to="/store" />
-      <q-btn outline color="primary" size="lg" label="التحويلات" to="/transfers" />
-      <q-btn outline color="primary" size="lg" icon="sports_esports" label="شحن الألعاب بالمعرّف" to="/game" />
-    </div>
     <q-inner-loading :showing="session.isAdmin ? !row : !p" />
     <TopupDialog v-model="topupOpen" @done="reload" />
   </q-page>
@@ -94,9 +97,17 @@ import BannerCarousel from 'components/BannerCarousel.vue'
 import * as customerApi from 'src/api/customer'
 import { LocalStorage } from 'quasar'
 import { useLockStore } from 'stores/lock'
+import { useIdoomAccess } from 'src/composables/useIdoomAccess'
 
 const session = useSessionStore()
 const lock = useLockStore()
+const idoom = useIdoomAccess()
+const tiles = computed(() => [
+  { to: '/game', label: 'شحن الألعاب', icon: 'sports_esports', main: true },
+  { to: '/store', label: 'شراء بطاقة', icon: 'shopping_cart' },
+  { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
+  ...(session.isAdmin || idoom.enabled.value ? [{ to: '/idoom', label: 'إيدوم', icon: 'wifi' }] : [])
+])
 const HINT_KEY = 'cs_lock_hint_snooze'
 const snoozed = ref(Number(LocalStorage.getItem(HINT_KEY) || 0) > Date.now())
 const showLockHint = computed(() => !!lock.accountKey && !lock.enabled && !snoozed.value)
@@ -162,3 +173,12 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 92px;
+  border-radius: 16px; border: 1.5px solid var(--q-primary); color: var(--q-primary); background: #fff;
+  font-size: 16px; font-weight: 700; text-decoration: none; }
+.tile.main { background: var(--q-primary); color: #fff; }
+.tile:active { transform: scale(0.97); }
+</style>
