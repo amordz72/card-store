@@ -271,9 +271,13 @@
           <!-- Before 0.9.0 the computer cannot take them: the one line by hand, once (or through AnyDesk) -->
           <div v-if="actionsSt && !agentAtLeast(actionsSt, '0.9.0')" class="column q-gutter-xs warn-box">
             <div class="small text-weight-bold">هذا الكمبيوتر على نسخة قديمة ({{ actionsSt.agent_version || '؟' }}): لا يأخذ الأوامر من هنا بعد.</div>
-            <div class="small">مرة واحدة أمامه أو عبر AnyDesk: زر Windows ← اكتب cmd ← Enter، والصق هذا السطر ثم Enter، ثم اضغط «حدّث» هنا:</div>
-            <div class="row items-center no-wrap"><code class="col ltr fix-line">{{ FIX_LINE }}</code>
-              <q-btn flat dense icon="content_copy" aria-label="انسخ" @click="copyFix" /></div>
+            <div class="small">مرة واحدة أمامه أو عبر AnyDesk: اضغط زر النافذة التي تفتحها، والصق فيها (Enter معه)، ثم اضغط «حدّث» هنا.</div>
+            <code class="ltr fix-line">{{ FIX_LINE }}</code>
+            <!-- One button per window (owner 2026-10-30: «أريد أن ألصق من الموقع»): the line with its Enter, and DONE when it ran -->
+            <div class="row q-gutter-xs">
+              <q-btn v-for="sh in SHELLS" :key="sh.key" unelevated dense no-caps size="sm" color="primary" icon="content_copy" :label="sh.label" @click="copyFix(sh)" />
+            </div>
+            <div class="small muted">cmd: زر Windows ← اكتب cmd ← Enter · PowerShell: النافذة الزرقاء · Git Bash: عنوانها MINGW64. بعد اللصق يظهر DONE إن نجح.</div>
           </div>
           <div v-if="actionsSt?.gateway === 'old'" class="small text-deep-orange">هذا الكمبيوتر على البوابة القديمة: الأوامر تصل عبر بوابة النواة فقط (تعديل ← انقل إلى بوابة النواة).</div>
           <div v-for="a in STATION_ACTIONS" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
@@ -375,8 +379,14 @@ function askAction (a) {
       }
     })
 }
-async function copyFix () {
-  await copyToClipboard(FIX_LINE)
+// Each window's own way to say «then DONE», and a line end so the paste runs it (cmd and PowerShell run it at once)
+const SHELLS = [
+  { key: 'cmd', label: 'انسخ لـ cmd', text: FIX_LINE + ' && echo DONE\r\n' },
+  { key: 'ps', label: 'انسخ لـ PowerShell', text: FIX_LINE + '; if ($?) { echo DONE }\r\n' },
+  { key: 'bash', label: 'انسخ لـ Git Bash', text: FIX_LINE + ' && echo DONE\n' }
+]
+async function copyFix (sh) {
+  await copyToClipboard(sh.text)
   Notify.create({ type: 'positive', message: 'نُسخ السطر', position: 'top', timeout: 1200 })
 }
 const clock = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
