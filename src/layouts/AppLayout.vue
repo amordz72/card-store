@@ -200,7 +200,8 @@ function widthCheck () {
   const out = []
   for (const el of document.querySelectorAll('.q-page *, .q-header *')) {
     const r = el.getBoundingClientRect()
-    if (!r.width || (r.right <= vw + 1 && r.left >= -1)) continue
+    // Quasar's focus helpers are invisible boxes: never the cause
+    if (!r.width || (r.right <= vw + 1 && r.left >= -1) || el.classList.contains('q-focus-helper')) continue
     // only the innermost: a child that overflows too explains it better
     if ([...el.children].some((c) => { const k = c.getBoundingClientRect(); return k.width && (k.right > vw + 1 || k.left < -1) })) continue
     const name = el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.') : '')
@@ -208,7 +209,8 @@ function widthCheck () {
     if (out.length >= 5) break
   }
   if (extra <= 1 && !out.length) return `✓ العرض سليم (${vw}px)`
-  return [`⚠ الصفحة أعرض من الشاشة بـ${Math.max(extra, 0)}px (الشاشة ${vw}px). عناصر تتجاوز الحافة:`, ...out.map((x) => '• ' + x)].join('\n')
+  const head = extra > 1 ? `⚠ الصفحة أعرض من الشاشة بـ${extra}px (الشاشة ${vw}px). عناصر تتجاوز الحافة:` : `⚠ عناصر تخرج من حافة الشاشة (الشاشة ${vw}px):`
+  return [head, ...out.map((x) => '• ' + x)].join('\n')
 }
 async function copyScreen () {
   const page = (document.querySelector('.q-page')?.innerText || '') + '\n\n' + widthCheck()
