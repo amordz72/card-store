@@ -145,6 +145,14 @@
               <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
                 <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
                 <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
+                <!-- «سجلّ الشبكة» (Flexy Core 0115, Agent 0.9.6): what the computer itself saw of its internet, by the second -->
+                <div v-if="netOf(st).length" class="small q-mt-xs net-log">
+                  <button type="button" class="link" @click="netOpen = netOpen === st.station_uuid ? null : st.station_uuid">🌐 سجلّ الشبكة ({{ netOf(st).length }}) {{ netOpen === st.station_uuid ? '▴' : '▾' }}</button>
+                  <template v-if="netOpen === st.station_uuid">
+                    <div v-for="(e, n) in netOf(st)" :key="n" :class="e.kind === 'server' ? 'text-primary' : ''"><span class="muted ltr">{{ clock(e.at) }}</span> · {{ e.text }}</div>
+                  </template>
+                  <div v-else class="muted"><span class="ltr">{{ clock(netOf(st)[0].at) }}</span> · {{ netOf(st)[0].text }}</div>
+                </div>
                 <!-- A new computer not let in from «إضافة كمبيوتر» (owner 2026-10-27); the phone has its own approval above -->
                 <q-btn v-if="!st.approved && !isPhone(st) && (!st.status || st.status === 'pending')" unelevated dense no-caps color="primary" class="q-mt-xs" label="اعتماد الكمبيوتر"
                   :loading="busy" @click="approveComputer(st)" />
@@ -412,6 +420,9 @@ const agentAtLeast = (st, v) => {
   return true
 }
 const places = ref({})
+// «سجلّ الشبكة» (0115): newest first, from the devices answer
+const netOpen = ref(null)
+const netOf = (st) => tree.value?.net_events?.[st.station_uuid] || []
 async function loadActions () {
   const r = await flexy.stationActions().catch(() => null)
   if (r?.status === 200 && r.body?.ok) {
