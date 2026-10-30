@@ -5,7 +5,22 @@
   <q-page class="q-pa-md column q-gutter-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
     <q-btn-toggle v-model="tab" spread unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-      :options="[{ label: 'أفكاري', value: 'mine' }, { label: `ينتظرك${handover ? ' (' + handover.needs.length + ')' : ''}`, value: 'handover' }]" />
+      :options="[{ label: 'أفكاري', value: 'mine' }, { label: `ينتظرك${handover ? ' (' + handover.needs.length + ')' : ''}`, value: 'handover' }, { label: 'مفيد', value: 'useful' }]" />
+
+    <!-- «مفيد» (owner 2026-10-30): how we work with less consumption, and answers kept (Flexy Core src/data/useful.ts) -->
+    <template v-if="tab === 'useful'">
+      <div class="card column gap-xs">
+        <div class="text-weight-bold">كيف نعمل بأقل استهلاك</div>
+        <div v-for="(p, n) in useful.practices" :key="n" class="h-item"><span class="col">{{ p }}</span></div>
+      </div>
+      <div class="card column gap-xs">
+        <div class="text-weight-bold">أسئلة وأجوبة</div>
+        <q-input v-model="qaFilter" dense outlined clearable placeholder="ابحث في الأسئلة" />
+        <q-expansion-item v-for="(x, n) in shownQa" :key="n" dense :label="x.q" :caption="x.at" header-class="text-weight-medium">
+          <div v-for="(line, k) in x.a" :key="k" class="q-py-xs">{{ line }}</div>
+        </q-expansion-item>
+      </div>
+    </template>
 
     <!-- «ينتظرك» (owner 2026-10-30): what Claude recorded in developer, from the code (Flexy Core src/data/handover.ts) -->
     <template v-if="tab === 'handover'">
@@ -28,7 +43,7 @@
       </q-expansion-item>
     </template>
 
-    <template v-else>
+    <template v-else-if="tab === 'mine'">
     <div class="card column q-gutter-sm">
       <div class="row q-gutter-xs">
         <q-btn v-for="k in KINDS" :key="k.id" rounded dense no-caps :unelevated="kind === k.id" :outline="kind !== k.id"
@@ -125,9 +140,15 @@ const SECTIONS = [
   { key: 'done', label: '✅ تم مؤخرًا' }
 ]
 // The blue bar opens «ينتظرك» directly (/ideas?tab=handover)
-const tab = ref(useRoute().query.tab === 'handover' ? 'handover' : 'mine')
+const tab = ref(['handover', 'useful'].includes(useRoute().query.tab) ? useRoute().query.tab : 'mine')
 const handover = ref(null)
 const history = ref([])
+const useful = ref({ practices: [], qa: [] })
+const qaFilter = ref('')
+const shownQa = computed(() => {
+  const f = (qaFilter.value || '').trim()
+  return useful.value.qa.filter((x) => !f || x.q.includes(f) || x.a.some((l) => l.includes(f)))
+})
 const ideas = ref([])
 const kind = ref('idea')
 const text = ref('')
@@ -144,6 +165,7 @@ async function call (key, fn) {
     const res = await fn()
     // «ينتظرك» comes with every answer, even before 0089
     if (res.body?.handover) { handover.value = res.body.handover; history.value = res.body.history || [] }
+    if (res.body?.useful) useful.value = res.body.useful
     if (res.status !== 200 || !res.body?.ok) {
       const e = res.body?.error
       throw new Error(e === 'IDEAS_NOT_READY' ? 'طبّق 0089 و0090 أولًا من «الإحصائيات و SQL»'

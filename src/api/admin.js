@@ -272,3 +272,6 @@ export const usage = (days) => rpc('store_admin_usage', { p_days: days })
 // v1.45: each shop's spending, this period against the one before; the two numbers are the owner's
 export const indicators = (days) => rpc('store_admin_indicators', { p_days: days })
 export const setIndicators = (changePct, minAmount) => rpc('store_admin_set_indicators', { p_change_pct: changePct, p_min_amount: minAmount })
+
+// v1.46: one shop's visits page by page, with what it looked at (brands, buy sheets, searches)
+export const usageShop = (customerId, days) => rpc('store_admin_usage_shop', { p_customer: customerId, p_days: days })
