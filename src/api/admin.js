@@ -235,6 +235,9 @@ export const setPlayerTopup = (productId, enabled) => rpc('store_admin_set_playe
 export const playerTopupProducts = () => rpc('store_admin_player_topup_products')
 // v1.49: orders by player id accepted any time (null = read only)
 export const gameAlwaysOpen = (on = null) => rpc('store_admin_game_always_open', { p_on: on })
+// v1.50: the owner orders a top-up FOR a customer (WhatsApp); his short balance becomes debt
+export const gameOrderFor = (customerId, productId, playerId, requestId) =>
+  rpc('store_admin_game_order', { p_customer_id: customerId, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
 export const setGameUrl = (url) => rpc('store_admin_set_game_url', { p_url: url || null })
 
 // Site links (v1.32): the shared official link, and extra sites allowed to call store-flexy
