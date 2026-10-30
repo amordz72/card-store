@@ -102,17 +102,27 @@
     <!-- Computers: connected first, one row each, the Agent's update and gateway buttons in the row -->
     <div v-if="tree" class="card q-pa-none">
       <div class="section-title q-pa-sm">الكمبيوترات</div>
-      <div class="sub">
+      <!-- A newer Agent on main (owner 2026-10-30): one button for all, one computer after the other -->
+      <div v-if="updatable.length || updatingAll" class="sub row items-center q-gutter-sm bg-blue-1">
+        <q-icon name="system_update" color="primary" />
+        <span class="col">{{ updatingAll || (updatable[0].main_version + ' متاح لـ' + updatable.length + (updatable.length === 1 ? ' كمبيوتر' : ' كمبيوترات')) }}</span>
+        <q-btn v-if="!updatingAll" unelevated dense no-caps color="primary" label="حدّث الكل" :loading="busy" @click="askUpdateAll" />
+      </div>
+      <div class="sub row items-center">
         <q-btn-toggle v-model="stationActive" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
           :options="[{ label: `تعمل (${presentCount})`, value: true }, { label: `مطفأة (${current.length - presentCount})`, value: false }]" />
+        <q-space />
+        <!-- Owner 2026-10-30: the rare buttons (pause, end, gateway) only here, or by themselves on a computer gone a while -->
+        <q-btn flat dense no-caps :color="editStations ? 'primary' : 'grey-8'" :icon="editStations ? 'check' : 'edit'" :label="editStations ? 'تم' : 'تعديل'" @click="editStations = !editStations" />
       </div>
       <div class="table-wrap">
         <table class="sims">
-          <thead><tr><th>الجهاز</th><th>الحالة</th><th>الشرائح</th><th>البوابة</th><th>التحديث</th></tr></thead>
+          <thead><tr><th>الجهاز</th><th>الحالة</th><th>الشرائح</th><th>التحديث</th><th v-if="editStations">البوابة</th></tr></thead>
           <tbody>
             <tr v-for="st in stationRows" :key="st.station_uuid" class="static">
               <td><span class="text-weight-bold">{{ st.code || 'كمبيوتر' }}</span><span v-if="st.label" class="muted"> · {{ st.label }}</span>
-                <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div></td>
+                <div class="small muted">{{ isAbsent(st) ? 'آخر ظهور ' + clock(st.last_seen_at) : 'Agent ' + (st.agent_version || '—') }}</div>
+                <q-badge v-if="updates && !isAbsent(st) && !active(st) && newInMain(st)" outline color="primary" :label="'⬆ ' + newInMain(st).main_version" /></td>
               <td><q-badge :color="isAbsent(st) ? 'grey-6' : LEVEL[st.level].color" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
                 <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
                 <div v-for="r in isAbsent(st) ? [] : st.reasons" :key="r.code" class="small" :class="r.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ r.text }}</div>
@@ -122,14 +132,13 @@
                 <!-- Owner 2026-10-29: stop a computer for a while, or end it (stolen, sold); the phone has its own page -->
                 <div v-if="st.status === 'suspended'" class="small text-deep-orange-9 text-weight-bold">⏸ موقوفة: لا يُرسل منها شيء</div>
                 <div v-if="st.status === 'revoked'" class="small text-negative text-weight-bold">⛔ ملغاة: لإرجاعها احذف هويتها على الكمبيوتر واربطها من جديد</div>
-                <div v-if="!isPhone(st) && (st.status === 'approved' || st.status === 'suspended')" class="row q-gutter-xs q-mt-xs">
+                <div v-if="!isPhone(st) && (st.status === 'approved' || st.status === 'suspended') && (editStations || st.status === 'suspended' || longGone(st))" class="row q-gutter-xs q-mt-xs">
                   <q-btn v-if="st.status === 'approved'" outline dense no-caps size="sm" color="deep-orange" icon="pause" label="إيقاف مؤقت"
                     :loading="busy" @click="stationStatus(st, 'suspended')" />
                   <q-btn v-else outline dense no-caps size="sm" color="positive" icon="play_arrow" label="تشغيل" :loading="busy" @click="stationStatus(st, 'approved')" />
                   <q-btn flat dense no-caps size="sm" color="negative" icon="block" label="إلغاء المحطة" :loading="busy" @click="stationStatus(st, 'revoked')" />
                 </div></td>
               <td>{{ isAbsent(st) ? '—' : simSummary(st) }}</td>
-              <td>{{ st.gateway === 'core' ? 'النواة' : st.gateway === 'old' ? 'القديمة' : '—' }}</td>
               <td>
                 <template v-if="updates && active(st)">
                   <q-badge color="info" :label="UPDATE_STATUS[active(st).status]" />
@@ -144,7 +153,7 @@
                   <span v-else-if="mainOf(st)?.main_error && offline(mainOf(st).main_error)" class="small muted">لا يصل إلى GitHub الآن، يعيد المحاولة كل دقيقة</span>
                   <span v-else-if="mainOf(st)?.main_error" class="small text-deep-orange">لا يمكن التحديث: {{ MAIN_ERRORS[mainOf(st).main_error] || mainOf(st).main_error }}</span>
                   <span v-else-if="mainOf(st)" class="small muted">على آخر main</span>
-                  <div>
+                  <div v-if="editStations">
                     <q-btn v-if="st.gateway === 'old'" flat dense no-caps size="sm" color="primary" label="انقل إلى بوابة النواة" :loading="busy" @click="askGateway(st, 'flexy-gateway')" />
                     <q-btn v-if="st.gateway === 'core'" flat dense no-caps size="sm" color="grey-8" label="أرجع إلى القديمة" :loading="busy" @click="askGateway(st, 'station-gateway')" />
                   </div>
@@ -154,6 +163,7 @@
                   آخر تحديث: {{ UPDATE_STATUS[last(st).status] }}<span v-if="last(st).error"> ({{ keyRefused(last(st).error) ? 'GitHub رفض المفتاح' : offline(last(st).error) ? 'لم يصل الكمبيوتر إلى GitHub' : last(st).error }})</span>
                 </div>
               </td>
+              <td v-if="editStations">{{ st.gateway === 'core' ? 'النواة' : st.gateway === 'old' ? 'القديمة' : '—' }}</td>
             </tr>
             <tr v-if="!stationRows.length"><td colspan="5" class="text-center muted">لا كمبيوترات بهذا الفلتر</td></tr>
             <tr v-if="!stationActive && gone.length" class="static">
@@ -460,6 +470,31 @@ function askGateway (st, gateway) {
     () => flexy.requestUpdate(st.station_uuid, 'config', { SERVER_URL: FUNCTIONS + gateway }))
 }
 const cancel = (u) => send(() => flexy.cancelUpdate(u.deployment_id))
+
+// «تعديل» (owner 2026-10-30): pause, end and gateway shown on demand; alone on a computer gone longer than the alert
+const editStations = ref(false)
+const longGone = (st) => isAbsent(st) && st.last_seen_at && Date.now() - Date.parse(st.last_seen_at) >= (tree.value?.limits?.absentMinutes || 3) * 60_000
+// «حدّث الكل»: the connected computers with a newer main, updated one after the other while this page stays open
+const updatable = computed(() => current.value.filter((st) => !isPhone(st) && !isAbsent(st) && updates.value && !active(st) && newInMain(st)).map((st) => ({ st, ...newInMain(st) })))
+const updatingAll = ref('')
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+function askUpdateAll () {
+  const list = updatable.value
+  Dialog.create({
+    title: 'تحديث الكل',
+    message: `${list.map((x) => x.st.code).join('، ')} إلى ${list[0].main_version}، كمبيوتر بعد كمبيوتر. كل واحد ينتظر حتى لا يبقى عليه USSD، ويرجع وحده إلى السابق إن لم يتصل خلال 3 دقائق. أبقِ الصفحة مفتوحة حتى ينتهي.`,
+    cancel: 'لا', ok: 'حدّث'
+  }).onOk(async () => {
+    for (const [i, x] of list.entries()) {
+      updatingAll.value = `يحدّث ${x.st.code} (${i + 1} من ${list.length})…`
+      await send(() => flexy.requestUpdate(x.st.station_uuid, 'release', x.main_version))
+      // Wait for this computer's update to end (at most 6 minutes) before the next one
+      for (let t = 0; t < 72 && active(x.st); t++) { await pause(5000); await loadUpdates() }
+    }
+    updatingAll.value = ''
+    load()
+  })
+}
 
 // A phone app waiting to be linked as the admin phone (Flexy Core 0033)
 const pendingPhones = ref([])
