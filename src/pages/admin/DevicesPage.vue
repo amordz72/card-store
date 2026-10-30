@@ -286,7 +286,10 @@
             <div class="small muted">cmd: زر Windows ← اكتب cmd ← Enter · PowerShell: النافذة الزرقاء · Git Bash: عنوانها MINGW64. بعد اللصق يظهر DONE إن نجح.</div>
           </div>
           <div v-if="actionsSt?.gateway === 'old'" class="small text-deep-orange">هذا الكمبيوتر على البوابة القديمة: الأوامر تصل عبر بوابة النواة فقط (تعديل ← انقل إلى بوابة النواة).</div>
-          <div v-for="a in STATION_ACTIONS" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
+          <!-- Only what this computer needs now (owner 2026-10-30: «زر لا حاجة له يختفي»); the rest folded, for a problem
+               the page cannot see -->
+          <div v-if="actionsSt && !neededActions.length" class="small text-positive">✓ لا يحتاج هذا الكمبيوتر شيئًا الآن.</div>
+          <div v-for="a in neededActions" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
             <div class="col"><div class="text-weight-bold">{{ a.label }}</div><div class="small muted">{{ a.note }}</div>
               <div v-if="lastAction(a.key)" class="small" :class="lastAction(a.key).done_at ? (lastAction(a.key).ok ? 'text-positive' : 'text-negative') : 'text-primary'">
                 {{ lastAction(a.key).done_at ? (lastAction(a.key).ok ? '✓ ' : '✗ ') + (lastAction(a.key).message || '') : (lastAction(a.key).sent_at ? 'وصل الكمبيوتر، يُنفَّذ…' : 'ينتظر نبضة الكمبيوتر…') }}
@@ -294,6 +297,12 @@
             </div>
             <q-btn unelevated dense no-caps color="primary" label="نفّذ" :loading="busy" @click="askAction(a)" />
           </div>
+          <q-expansion-item v-if="otherActions.length" dense dense-toggle switch-toggle-side label="أوامر أخرى (عند مشكلة لا تظهر هنا)" header-class="small text-grey-8 q-px-none">
+            <div v-for="a in otherActions" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
+              <div class="col"><div>{{ a.label }}</div><div class="small muted">{{ a.note }}</div></div>
+              <q-btn outline dense no-caps size="sm" color="grey-8" label="نفّذ" :loading="busy" @click="askAction(a)" />
+            </div>
+          </q-expansion-item>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -366,6 +375,15 @@ async function loadActions () {
     places.value = r.body.places || {}
   }
 }
+// Needed now: the files when the update says they are not clean; a restart when its modems are not all connected
+const needs = (st, key) => {
+  if (!st) return false
+  if (key === 'fix_update') return mainOf(st)?.main_error === 'GIT_LOCAL_CHANGES'
+  if (key === 'restart_agent') return live(st).some((m) => !isConnected(m)) || (st.reasons || []).some((r) => r.level === 'down')
+  return false
+}
+const neededActions = computed(() => STATION_ACTIONS.filter((a) => needs(actionsSt.value, a.key)))
+const otherActions = computed(() => STATION_ACTIONS.filter((a) => !needs(actionsSt.value, a.key)))
 const lastAction = (key) => actionsList.value.find((x) => x.station_uuid === actionsSt.value?.station_uuid && x.key === key) || null
 function openActions (st) {
   actionsSt.value = st
