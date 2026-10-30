@@ -52,8 +52,20 @@
         <q-btn flat no-caps label="مسح" :disable="!text" @click="text = ''; result = null" />
       </div>
       <div class="row q-gutter-xs">
+        <q-btn outline dense rounded no-caps size="sm" color="primary" icon="table_chart" label="الجداول"
+          :loading="busy === 'tables'" @click="toggleTables" />
         <q-btn v-for="r in ready" :key="r.key" outline dense rounded no-caps size="sm" color="grey-8" :label="r.name"
           :loading="busy === r.key" @click="runReady(r)" />
+      </div>
+      <!-- «الجداول» (owner 2026-10-30: «أريد أن أتعمق في قواعد البيانات»): what may be read; a tap shows its first 20 rows -->
+      <div v-if="tables" class="column q-gutter-xs">
+        <q-input v-model="tableFilter" dense outlined clearable placeholder="ابحث عن جدول" input-class="ltr" />
+        <div class="tables-list">
+          <button v-for="t in shownTables" :key="t.schema + '.' + t.table" type="button" class="table-row" @click="openTable(t)">
+            <span class="ltr">{{ t.schema }}.<b>{{ t.table }}</b></span>
+            <span class="small muted">{{ t.rows }} سطر · {{ (t.columns || []).length }} عمود</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -62,6 +74,7 @@
         تم في {{ result.ms }} ms<span v-if="result.count !== null && result.count !== undefined"> · {{ result.count }} سطر</span><span v-if="result.more"> · يظهر أول 200</span>
       </div>
       <div v-else class="small text-negative ltr">{{ result.message || result.error }}</div>
+      <div v-if="result.ok && !result.write && !result.rows?.length" class="small text-deep-orange">لا يوجد سطر يطابق.</div>
       <div v-if="result.ok && result.columns?.length" class="table-wrap">
         <table class="grid">
           <thead><tr><th v-for="c in result.columns" :key="c">{{ c }}</th></tr></thead>
@@ -138,7 +151,7 @@ async function call (key, fn) {
 }
 async function loadLog () {
   const b = await call('', () => flexy.ownerSql())
-  if (b?.ok) { ready.value = b.ready.filter((r) => r.key !== 'db_hours' && r.key !== 'db_sizes'); log.value = b.log || [] }
+  if (b?.ok) { ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables'].includes(r.key)); log.value = b.log || [] }
 }
 async function loadDb () {
   flexy.ownerAuto().then((r) => {
@@ -171,6 +184,24 @@ function run () {
   }
   if (!wrote) return go()
   Dialog.create({ title: 'تنفيذ بصلاحيات كاملة', message: 'ينفّذ كل الأوامر معًا. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، نفّذ' }).onOk(go)
+}
+// «الجداول»: loaded once, filtered here; a table opens as «its readable columns, first 20 rows», read only
+const tables = ref(null)
+const tableFilter = ref('')
+const shownTables = computed(() => {
+  const f = (tableFilter.value || '').trim().toLowerCase()
+  return (tables.value || []).filter((t) => !f || (t.schema + '.' + t.table).toLowerCase().includes(f))
+})
+async function toggleTables () {
+  if (tables.value) { tables.value = null; return }
+  const b = await call('tables', () => flexy.runReady('tables'))
+  if (b?.ok) tables.value = b.rows?.[0]?.tables || []
+}
+function openTable (t) {
+  const cols = (t.columns || []).map((c) => '"' + c + '"').join(', ') || '*'
+  text.value = `select ${cols} from ${t.schema}."${t.table}" limit 20`
+  write.value = false
+  run()
 }
 async function runReady (r) {
   if (busy.value) return
@@ -215,6 +246,9 @@ body.body--dark .tile { background: rgba(255, 255, 255, 0.06); }
 .ltr { direction: ltr; text-align: left; }
 .sql { max-width: 100%; min-width: 0; }
 .sql :deep(textarea) { font-family: monospace; font-size: 13px; overflow-x: auto; white-space: pre; }
+.tables-list { max-height: 320px; overflow-y: auto; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 8px; }
+.table-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+  border: 0; border-bottom: 1px solid rgba(0, 0, 0, 0.06); background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .card { min-width: 0; max-width: 100%; overflow-x: hidden; }
 .grid { border-collapse: collapse; font-size: 12px; direction: ltr; }
 .grid th, .grid td { border: 1px solid rgba(0, 0, 0, 0.1); padding: 3px 6px; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
