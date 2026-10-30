@@ -23,13 +23,14 @@ const routes = [
       { path: 'flexy/send', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, title: 'إرسال فليكسي' } },
       // The admin phone's own screen (2026-10-27): the same page in phone mode, owner only
       { path: 'flexy/phone', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, phone: true, title: 'فليكسي الهاتف' } },
-      { path: 'flexy/monitor', component: () => import('pages/admin/MonitorPage.vue'), meta: { admin: true, title: 'المراقبة' } },
+      // «المراقبة» and «الإحصائيات» in one page with tabs (owner 2026-10-30): ?tab=now|judge|db
+      { path: 'flexy/monitor', component: () => import('pages/admin/MonitorHub.vue'), meta: { admin: true, title: 'المراقبة والإحصائيات' } },
       { path: 'flexy/devices', component: () => import('pages/admin/DevicesPage.vue'), meta: { admin: true, title: 'المحطات والشرائح' } },
       { path: 'flexy/shops', component: () => import('pages/admin/FlexyShopsPage.vue'), meta: { admin: true, title: 'فليكسي المحلات' } },
       { path: 'flexy/switches', component: () => import('pages/admin/SwitchesPage.vue'), meta: { admin: true, title: 'المفاتيح' } },
       { path: 'flexy/numbers', component: () => import('pages/admin/NumberMemoryPage.vue'), meta: { admin: true, title: 'ذاكرة الأرقام' } },
       { path: 'ideas', component: () => import('pages/admin/IdeasPage.vue'), meta: { admin: true, title: 'أفكار وأوامر' } },
-      { path: 'stats', component: () => import('pages/admin/StatsPage.vue'), meta: { admin: true, title: 'الإحصائيات و SQL' } },
+      { path: 'stats', redirect: '/flexy/monitor?tab=db' },
       { path: 'usage', component: () => import('pages/admin/UsagePage.vue'), meta: { admin: true, title: 'الاستعمال' } },
       { path: 'flexy/offers', component: () => import('pages/admin/OffersPage.vue'), meta: { admin: true, title: 'العروض' } },
       // the owner's page or the customer's page (customers the owner enabled)

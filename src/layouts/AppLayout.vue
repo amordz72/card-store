@@ -2,13 +2,19 @@
   <q-layout view="hHh LpR lFf">
     <q-header class="bg-white text-dark" bordered>
       <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it -->
-      <router-link v-if="session.isAdmin && needsYou" :to="needsYou.to" class="monitor-bar bg-indigo-8">
-        <q-icon name="build" size="18px" />
-        <span class="col">{{ needsYou.text }}</span>
-        <span class="text-underline">افتح</span>
-      </router-link>
+      <!-- One line each, naming its section (owner idea #6: «و شيء آخر» hid what and where) -->
+      <template v-if="session.isAdmin">
+        <router-link v-for="it in shownNeeds" :key="it.text" :to="it.to" class="monitor-bar bg-indigo-8">
+          <q-icon name="build" size="18px" />
+          <span class="col">{{ it.text }}<span class="where"> · في «{{ it.where }}»</span></span>
+          <span class="text-underline">افتح</span>
+        </router-link>
+        <button v-if="needsYou.length > shownNeeds.length" type="button" class="monitor-bar bg-indigo-8 more" @click="needsAll = true">
+          و{{ needsYou.length - shownNeeds.length }} أخرى: اعرضها
+        </button>
+      </template>
       <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
-      <router-link v-if="session.isAdmin && monitorBar" to="/flexy/monitor" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
+      <router-link v-if="session.isAdmin && monitorBar" to="/flexy/monitor?tab=now" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
         <q-icon name="warning" size="18px" />
         <span class="col">{{ monitorBar.text }}</span>
         <span class="text-underline">افتح</span>
@@ -216,8 +222,22 @@ function widthCheck () {
   return [head, ...out.map((x) => '• ' + x)].join('\n')
 }
 // The page as text (the same for «نسخ الشاشة» and the 💡 «أرفق هذه الشاشة»)
+// A page with tabs (.hub-panel): every tab, the hidden ones shown for the time of reading (owner 2026-10-30:
+// «نسخة واحدة للكل»)
+function pageText () {
+  const page = document.querySelector('.q-page')
+  if (!page) return ''
+  const panels = [...page.querySelectorAll('.hub-panel')]
+  if (!panels.length) return page.innerText || ''
+  const head = page.querySelector('.hub-head')?.innerText || ''
+  return [head, ...panels.map((el) => {
+    const hidden = el.style.display === 'none'
+    if (hidden) el.style.display = ''
+    try { return '### ' + (el.dataset.title || '') + '\n' + el.innerText } finally { if (hidden) el.style.display = 'none' }
+  })].join('\n\n')
+}
 function screenText () {
-  const page = (document.querySelector('.q-page')?.innerText || '') + '\n\n' + widthCheck() + claudePageText()
+  const page = pageText() + '\n\n' + widthCheck() + claudePageText()
   return [
     title.value + ' · ' + new Date().toLocaleString('ar-DZ'),
     session.isAdmin && monitorBar.value ? '⚠ ' + monitorBar.value.text : '',
@@ -273,9 +293,9 @@ const MENU = [
   },
   { label: 'الزبائن', admin: true, items: [{ to: '/customers', label: 'إدارة الحسابات', icon: 'group' }] },
   // Three entries (owner 2026-10-29): sending, watching, and the rare admin pages behind tabs
-  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/monitor', label: 'المراقبة', icon: 'monitor_heart' }, { to: '/flexy/shops', label: 'الإدارة', icon: 'admin_panel_settings' },
-    // Owner's idea #1 (2026-10-30): a direct way to the SQL page and the ideas, the bottom buttons unchanged
-    { to: '/stats', label: 'الإحصائيات و SQL', icon: 'storage' }, { to: '/ideas', label: 'أفكار وأوامر', icon: 'lightbulb' }] },
+  { label: 'Flexy', admin: true, items: [{ to: '/flexy/send', label: 'إرسال فليكسي', icon: 'send' }, { to: '/flexy/monitor', label: 'المراقبة والإحصائيات', icon: 'monitor_heart' }, { to: '/flexy/shops', label: 'الإدارة', icon: 'admin_panel_settings' },
+    // Owner's idea #1 (2026-10-30): a direct way to the ideas; the statistics are a tab of «المراقبة» now
+    { to: '/ideas', label: 'أفكار وأوامر', icon: 'lightbulb' }] },
   { label: 'الحساب', items: [{ to: '/account', label: 'حسابي', icon: 'person' }] }
 ]
 const { rows: profitRows } = useMyProfits()
@@ -315,21 +335,26 @@ watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = f
 // Bell count: refreshed on every page change and every minute (owner only)
 const { automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 // «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
+const JUDGE = '/flexy/monitor?tab=judge'
+const DB = '/flexy/monitor?tab=db'
+const WHERE_JUDGE = 'المراقبة ← حكمك والفشل'
+const WHERE_DB = 'المراقبة ← القاعدة وSQL'
 const needsYou = computed(() => {
-  const items = [
+  return [
     // The SQL first (owner 2026-10-30: «ما ينتظر تطبيقك يُقال مقدمًا على كل شيء»), then what may have moved money
-    sqlPending.value && { to: '/stats', text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
-    reviewWaiting.value && { to: '/stats', text: reviewWaiting.value === 1 ? '⚖ عملية تحتاج حكمك (وصلت أم لا؟)' : `⚖ ${reviewWaiting.value} عمليات تحتاج حكمك (وصلت أم لا؟)` },
-    automixAlert.value && { to: '/stats', text: `⚠ الأوتوميكس فشل اليوم ${automixAlert.value.pct}% (${automixAlert.value.failed} من ${automixAlert.value.total}): راجعه` },
-    failuresOpen.value && { to: '/stats', text: failuresOpen.value === 1 ? '🔴 فشل بلا حل ينتظرك' : `🔴 ${failuresOpen.value} فشل بلا حل تنتظرك` },
-    approvalsWaiting.value && { to: '/flexy/devices', text: approvalsWaiting.value === 1 ? 'كمبيوتر جديد ينتظر الاعتماد' : `${approvalsWaiting.value} كمبيوترات تنتظر الاعتماد` },
-    repoKeyLevel.value === 'dead' && { to: '/flexy/devices', text: 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' },
-    handoverNeeds.value && { to: '/ideas?tab=handover', text: `📋 ${handoverNeeds.value} ${handoverNeeds.value === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك'} في المتابعة` },
-    agentUpdates.value && { to: '/flexy/devices', text: `تحديث ${agentUpdateVersion.value} متاح لـ${agentUpdates.value} ${agentUpdates.value === 1 ? 'كمبيوتر' : 'كمبيوترات'}` }
+    sqlPending.value && { to: DB, where: WHERE_DB, text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
+    reviewWaiting.value && { to: JUDGE, where: WHERE_JUDGE, text: reviewWaiting.value === 1 ? '⚖ عملية تحتاج حكمك (وصلت أم لا؟)' : `⚖ ${reviewWaiting.value} عمليات تحتاج حكمك (وصلت أم لا؟)` },
+    automixAlert.value && { to: JUDGE, where: WHERE_JUDGE, text: `⚠ الأوتوميكس فشل اليوم ${automixAlert.value.pct}% (${automixAlert.value.failed} من ${automixAlert.value.total}): راجعه` },
+    failuresOpen.value && { to: JUDGE, where: WHERE_JUDGE, text: failuresOpen.value === 1 ? '🔴 فشل بلا حل ينتظرك' : `🔴 ${failuresOpen.value} فشل بلا حل تنتظرك` },
+    approvalsWaiting.value && { to: '/flexy/devices', where: 'الأجهزة', text: approvalsWaiting.value === 1 ? 'كمبيوتر جديد ينتظر الاعتماد' : `${approvalsWaiting.value} كمبيوترات تنتظر الاعتماد` },
+    repoKeyLevel.value === 'dead' && { to: '/flexy/devices', where: 'الأجهزة', text: 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' },
+    handoverNeeds.value && { to: '/ideas?tab=handover', where: 'أفكار وأوامر ← ينتظرك', text: `📋 ${handoverNeeds.value} ${handoverNeeds.value === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك'} في المتابعة` },
+    agentUpdates.value && { to: '/flexy/devices', where: 'الأجهزة', text: `تحديث ${agentUpdateVersion.value} متاح لـ${agentUpdates.value} ${agentUpdates.value === 1 ? 'كمبيوتر' : 'كمبيوترات'}` }
   ].filter(Boolean)
-  if (!items.length) return null
-  return items.length === 1 ? items[0] : { to: items[0].to, text: items[0].text + ` · و${items.length - 1} ${items.length === 2 ? 'شيء آخر' : 'أشياء أخرى'}` }
 })
+// Three lines at most, the rest behind «اعرضها»
+const needsAll = ref(false)
+const shownNeeds = computed(() => (needsAll.value ? needsYou.value : needsYou.value.slice(0, 3)))
 const refreshBellIfAdmin = () => { if (session.isAdmin) refreshBell() }
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })
 const bellTimer = setInterval(refreshBellIfAdmin, 60000)
@@ -372,5 +397,8 @@ async function logout () {
 <style scoped>
 .menu-active { background: #FFF1E8; color: #9A3412; font-weight: 600; }
 .monitor-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; }
+.monitor-bar + .monitor-bar { border-top: 1px solid rgba(255, 255, 255, 0.2); }
+.monitor-bar .where { font-weight: 400; font-size: 12px; opacity: 0.85; }
+.monitor-bar.more { width: 100%; border: 0; font: inherit; font-size: 13px; cursor: pointer; justify-content: center; }
 .monitor-bar .text-underline { text-decoration: underline; font-size: 13px; }
 </style>
