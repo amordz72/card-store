@@ -87,6 +87,9 @@ const MESSAGES = {
   PHONE_NOT_MOBILIS: 'الرقم ليس موبيليس. أدخل رقمًا يبدأ بـ 06.',
   FLEXY_NOT_CONFIGURED: 'الفليكسي غير جاهز بعد.',
   FLEXY_REFUSED: 'لم يُقبل الطلب. حاول مرة أخرى.',
+  // The server answered «too late» (504) or not at all while the internet works (2026-10-30: the login said
+  // «بيانات غير صحيحة» while the database was not answering)
+  SERVER_BUSY: 'الخادم لا يرد الآن (مشغول أو متوقف). بياناتك لم تُرفض: حاول بعد دقائق.',
   NETWORK: 'تعذّر الاتصال: الإنترنت ضعيف أو مقطوع. حاول بعد قليل.'
 }
 
@@ -104,6 +107,9 @@ export class StoreError extends Error {
 export function toStoreError (err, what = '') {
   const text = (err && (err.message || err.details)) || ''
   const code = Object.keys(MESSAGES).find((k) => text.includes(k))
+  if (!code && /timeout|upstream|gateway|50[234]/i.test(text + ' ' + (err?.status || err?.code || ''))) {
+    return new StoreError('SERVER_BUSY', err)
+  }
   if (!code && (!navigator.onLine || /Failed to fetch|NetworkError|network|Load failed|fetch|timeout|aborted/i.test(text))) {
     return new StoreError('NETWORK', err)
   }
