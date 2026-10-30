@@ -9,13 +9,26 @@
     </div>
     <!-- Always in sight (owner 2026-10-30: «أين زر تحميلها؟»): the page file to carry by cable -->
     <q-btn unelevated no-caps color="primary" icon="computer" class="self-start" label="ملف صفحة الكمبيوتر الجديد (للنقل بالكابل)" @click="shortcut" />
-    <q-expansion-item dense icon="verified_user" :label="`الأجهزة الموثوقة (${trusted.length}) · الأوامر والروابط`" header-class="small text-weight-bold">
+    <q-expansion-item v-model="expanded" dense icon="verified_user" :label="`الأجهزة الموثوقة (${trusted.length}) · الرسائل · الأوامر والروابط`" header-class="small text-weight-bold">
       <div class="column q-gutter-sm q-pa-sm">
         <div class="small muted">على أي كمبيوتر افتح <b class="ltr">{{ newUrl }}</b>
           <q-btn flat dense no-caps size="sm" color="primary" icon="content_copy" label="انسخ الرابط" @click="copy(newUrl)" /></div>
-        <div v-for="b in trusted" :key="b.id" class="row items-center q-gutter-sm line">
-          <div class="col small"><b>{{ b.label }}</b> · وُثق {{ when(b.approved_at) }}<span v-if="b.last_seen_at"> · آخر فتح {{ when(b.last_seen_at) }}</span></div>
-          <q-btn flat dense no-caps size="sm" color="negative" label="ألغِ" :loading="busy === 'r' + b.id" @click="set({ revoke: b.id }, 'r' + b.id)" />
+        <div v-for="b in trusted" :key="b.id" class="column q-gutter-xs line">
+          <div class="row items-center q-gutter-sm">
+            <div class="col small"><b>{{ b.label }}</b> · وُثق {{ when(b.approved_at) }}<span v-if="b.last_seen_at"> · آخر فتح {{ when(b.last_seen_at) }}</span></div>
+            <q-btn flat dense no-caps size="sm" color="negative" label="ألغِ" :loading="busy === 'r' + b.id" @click="set({ revoke: b.id }, 'r' + b.id)" />
+          </div>
+          <!-- «شات» with this computer (Flexy Core 0118) -->
+          <div v-for="m in chatOf(b.id)" :key="m.id" class="msg" :class="m.sender">
+            <div class="small muted">{{ m.sender === 'pc' ? 'من الكمبيوتر' : 'منك' }} · {{ when(m.at) }}</div>
+            <div class="ltr text-left msg-text">{{ m.text }}</div>
+            <q-btn v-if="m.sender === 'pc'" flat dense no-caps size="sm" color="primary" icon="content_copy" label="انسخ" @click="copy(m.text)" />
+          </div>
+          <div class="row q-gutter-xs no-wrap">
+            <q-input v-model="drafts[b.id]" dense outlined autogrow class="col" input-class="ltr text-left" placeholder="أرسل للكمبيوتر (يظهر بزر «انسخ»)" />
+            <q-btn unelevated dense no-caps color="primary" icon="send" :loading="busy === 's' + b.id" :disable="!(drafts[b.id] || '').trim()"
+              @click="set({ say: { id: b.id, text: drafts[b.id] } }, 's' + b.id).then(() => { drafts[b.id] = '' })" />
+          </div>
         </div>
         <div v-if="installs.length" class="column q-gutter-xs">
           <div class="text-weight-bold small">آخر التثبيتات</div>
@@ -41,7 +54,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 
-const data = ref({ browsers: [], commands: [], own_links: [], installs: [] })
+const data = ref({ browsers: [], commands: [], own_links: [], installs: [], messages: [] })
+const drafts = ref({})
+// Open by itself (owner 2026-10-30: «أين الزر؟»): the chat and the computers in sight
+const expanded = ref(true)
+const chatOf = (id) => (data.value.messages || []).filter((m) => m.browser_id === id).slice(-10)
 const busy = ref('')
 const error = ref('')
 const commandsText = ref('')
@@ -54,7 +71,7 @@ const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short
 const ERRORS = { MIGRATION: 'طبّق 0117 من «ينتظر تطبيقك» أولًا.', NOT_WAITING: 'انتهى الطلب (15 دقيقة): اطلبه من جديد على الكمبيوتر.', LINKS_INVALID: 'رابط غير صحيح: كل سطر «الاسم | https://…».', COMMANDS_INVALID: 'أمر غير صحيح.' }
 
 function take (b, edit) {
-  data.value = { browsers: b.browsers || [], commands: b.commands || [], own_links: b.own_links || [], installs: b.installs || [] }
+  data.value = { browsers: b.browsers || [], commands: b.commands || [], own_links: b.own_links || [], installs: b.installs || [], messages: b.messages || [] }
   if (edit) {
     commandsText.value = data.value.commands.map((c) => `${c.label} | ${c.text}`).join('\n')
     linksText.value = data.value.own_links.map((l) => `${l.label} | ${l.url}`).join('\n')
@@ -70,7 +87,7 @@ async function set (body, tag) {
     const r = await flexy.ownerTrusted(body)
     if (r.status !== 200 || !r.body?.ok) throw new Error(ERRORS[r.body?.error] || r.body?.error || 'FLEXY_CORE')
     take(r.body, body.links !== undefined || body.commands !== undefined)
-    Notify.create({ type: 'positive', message: body.approve ? 'وُثق: صفحته تفتح الآن على الكمبيوتر.' : body.revoke ? 'أُلغيت الثقة.' : 'حُفظ.' })
+    if (!body.say) Notify.create({ type: 'positive', message: body.approve ? 'وُثق: صفحته تفتح الآن على الكمبيوتر.' : body.revoke ? 'أُلغيت الثقة.' : 'حُفظ.' })
   } catch (e) {
     error.value = e.message
   } finally {
@@ -111,7 +128,7 @@ onMounted(() => {
   load(true)
   // Every 4 seconds while a computer asks, every 30 otherwise; never in the background
   let n = 0
-  timer = setInterval(() => { if (!document.hidden && (waiting.value.length || ++n % 8 === 0)) load() }, 4000)
+  timer = setInterval(() => { if (!document.hidden && (waiting.value.length || trusted.value.length || ++n % 8 === 0)) load() }, 4000)
 })
 onBeforeUnmount(() => clearInterval(timer))
 </script>
@@ -120,4 +137,8 @@ onBeforeUnmount(() => clearInterval(timer))
 .req { border: 2px solid #c2410c; border-radius: 10px; padding: 8px; }
 .digits { font-size: 22px; letter-spacing: 4px; color: #c2410c; }
 .line { border-top: 1px solid #EEF0F5; padding-top: 4px; }
+.msg { border-radius: 8px; padding: 6px 8px; }
+.msg.pc { background: #FFF7ED; }
+.msg.owner { background: #ECFDF5; }
+.msg-text { white-space: pre-wrap; word-break: break-all; font-size: 13px; }
 </style>
