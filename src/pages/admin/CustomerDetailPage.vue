@@ -53,11 +53,41 @@
         <q-btn type="submit" outline color="primary" label="حفظ البيانات" class="self-start" :loading="busy"
           :disable="!infoDraft.name.trim() || !infoDraft.phone.trim() || (infoDraft.name.trim() === c.name && infoDraft.phone.trim() === c.phone)" />
       </q-form>
+      <!-- «خدمات الحساب» (owner 2026-10-30: «في مكان واضح في كل حساب، فليكسي أو أي منتج»): every service of this account in one place -->
+      <div class="card column q-gutter-sm services">
+        <div class="text-subtitle1 text-weight-bold">خدمات الحساب</div>
+        <div class="svc">
+          <q-toggle :model-value="flexyRow?.enabled === true" color="positive" :disable="busy || !flexyRow" @update:model-value="setFlexyOn">
+            <b>فليكسي</b> <span class="small muted">(رصيد عادي وعروض من رصيده)</span>
+          </q-toggle>
+          <div v-if="flexyRow?.enabled" class="column q-gutter-xs q-pl-md">
+            <div class="rates">
+              <q-input v-for="sv in FLEXY_SERVICES" :key="sv.key" v-model.number="rates[sv.key]" dense outlined type="number" step="0.25" suffix="%"
+                :label="sv.name" :disable="busy" />
+            </div>
+            <div class="help small muted">نسبته من كل إرسال. فارغ = النسبة الافتراضية. المنع والدور في «المحلات».</div>
+            <q-btn outline dense no-caps color="primary" label="حفظ النسب" class="self-start" :disable="busy || !ratesChanged" @click="saveRates" />
+          </div>
+        </div>
+        <q-toggle :model-value="idoomOn" color="positive" :disable="busy" @update:model-value="setIdoom">
+          <b>تعبئة إيدوم</b> <span class="small muted">(يعبّئ خطوط إيدوم من رصيده)</span>
+        </q-toggle>
+        <div class="row items-center q-gutter-sm q-pl-sm">
+          <q-icon name="sports_esports" color="positive" size="22px" />
+          <span><b>شحن الألعاب</b> <span class="small muted">(بالمعرّف: مفتوح لكل الحسابات)</span></span>
+        </div>
+        <div class="row items-center q-gutter-sm q-pl-sm">
+          <q-icon name="shopping_cart" color="positive" size="22px" />
+          <span><b>البطاقات</b> <span class="small muted">(بأسعاره)</span></span>
+          <q-btn flat dense no-caps color="primary" label="أسعاره ونسبه" :to="{ path: '/prices', query: { who: id } }" />
+        </div>
+        <q-toggle :model-value="operatorOn" color="positive" :disable="busy" @update:model-value="setOperator">
+          <b>عامل شحن الألعاب</b> <span class="small muted">(يرى طلبات الشحن بالمعرّف ويضغط «متاح»)</span>
+        </q-toggle>
+      </div>
       <div class="card column q-gutter-sm">
         <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
           @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
-        <q-toggle :model-value="idoomOn" label="تعبئة إيدوم (يعبّئ خطوط إيدوم من رصيده)" color="positive" :disable="busy" @update:model-value="setIdoom" />
-        <q-toggle :model-value="operatorOn" label="عامل شحن الألعاب (يرى طلبات الشحن بالمعرّف ويضغط «متاح»)" color="positive" :disable="busy" @update:model-value="setOperator" />
         <div class="row q-gutter-sm items-start">
           <q-input v-model="newPw" class="col" dense outlined label="كلمة سر جديدة (8 أحرف على الأقل)" input-class="ltr text-right" />
           <q-btn outline color="primary" label="تعيين" :disable="newPw.length < 8" @click="setPw" />
@@ -88,6 +118,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRun } from 'src/composables/useRun'
+import { Notify } from 'quasar'
 import { useLoadMore } from 'src/composables/useLoadMore'
 import * as api from 'src/api/admin'
 import { newRequestId } from 'src/api/rpc'
@@ -141,7 +172,38 @@ async function setOperator (v) {
   if (ok) operatorOn.value = v
 }
 
+// «فليكسي» of this account (the same store functions as «المحلات»)
+const FLEXY_SERVICES = [
+  { key: 'mobilis', name: 'موبيليس', col: 'rate_630', arg: 'rate630' }, { key: 'offer', name: 'عروض', col: 'rate_offer', arg: 'rateOffer' },
+  { key: 'ooredoo', name: 'أوريدو', col: 'rate_630_ooredoo', arg: 'rateOoredoo' }, { key: 'djezzy', name: 'جازي', col: 'rate_630_djezzy', arg: 'rateDjezzy' }
+]
+const flexyRow = ref(null)
+const rates = ref({})
+const rateNum = (v) => (v === null || v === undefined || v === '' ? null : Number(v))
+const ratesChanged = computed(() => FLEXY_SERVICES.some((sv) => rateNum(rates.value[sv.key]) !== rateNum(flexyRow.value?.[sv.col])))
+async function loadFlexy () {
+  const rows = await api.flexyCustomers().catch(() => null)
+  flexyRow.value = (rows || []).find((x) => Number(x.customer_id) === cid.value) || null
+  rates.value = Object.fromEntries(FLEXY_SERVICES.map((sv) => [sv.key, rateNum(flexyRow.value?.[sv.col])]))
+}
+async function setFlexyOn (v) {
+  if (await run(() => api.flexyBulk([cid.value], { enabled: v }).then(() => true), { success: v ? 'فُعّل الفليكسي لهذا الزبون.' : 'أُوقف الفليكسي لهذا الزبون.' })) loadFlexy()
+}
+async function saveRates () {
+  const bad = FLEXY_SERVICES.find((sv) => { const r = rateNum(rates.value[sv.key]); return r !== null && (r < 0 || r >= 100) })
+  if (bad) { Notify.create({ type: 'negative', message: 'النسبة بين 0 وأقل من 100.' }); return }
+  const ok = await run(async () => {
+    for (const sv of FLEXY_SERVICES) {
+      const r = rateNum(rates.value[sv.key])
+      if (r !== rateNum(flexyRow.value?.[sv.col])) await api.flexyBulk([cid.value], { service: sv.key, rate: r })
+    }
+    return true
+  }, { success: 'حُفظت النسب.' })
+  if (ok) loadFlexy()
+}
+
 async function reloadAll () {
+  loadFlexy()
   loadIdoom()
   loadOperator()
   await loadCustomer()
@@ -235,3 +297,7 @@ function revoke () {
   run(() => api.revokeSessions(cid.value), { success: (n) => `أُلغيت ${n} جلسة.` })
 }
 </script>
+
+<style scoped>
+.services .rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+</style>
