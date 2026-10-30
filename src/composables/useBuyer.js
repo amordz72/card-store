@@ -23,6 +23,11 @@ export function useBuyer () {
     buy: (productId, qty, requestId) => (isShop.value
       ? adminApi.shopBuy(productId, qty, requestId)
       : customerApi.buy(customer.token, productId, qty, requestId)),
+    // v1.52: before v1.52 no offer (an empty map)
+    splitOffers: () => (isShop.value ? adminApi.shopSplitOffers() : customerApi.splitOffers(customer.token)).catch(() => ({})),
+    buySplit: (productId, qty, requestId) => (isShop.value
+      ? adminApi.shopBuySplit(productId, qty, requestId)
+      : customerApi.buySplit(customer.token, productId, qty, requestId)),
     orders: (f) => (isShop.value
       ? adminApi.orders({ ...f, scope: 'shop' })
       : customerApi.orders(customer.token, f)),
