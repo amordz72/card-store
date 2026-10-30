@@ -16,6 +16,21 @@
         <q-btn-toggle v-model="labRoute" dense no-caps unelevated toggle-color="primary"
           :options="[{ label: 'تلقائي', value: '' }, { label: 'أرسلي', value: 'arsselli' }, { label: 'سما', value: 'sama' }]" />
       </div>
+      <!-- «المختبر الكامل» (owner 2026-10-30): one SIM forced, its balance read before and after, the difference shown -->
+      <q-select v-model="labSim" dense outlined clearable emit-value map-options :options="simOptions" label="الشريحة (اختياري: تلقائي إن تُركت)"
+        @update:model-value="pickSim" />
+      <div v-if="labSim" class="column q-gutter-xs readings">
+        <div class="row items-center q-gutter-sm">
+          <q-btn outline dense no-caps size="sm" color="primary" icon="account_balance_wallet" label="اقرأ الرصيد الآن" :loading="readBusy" @click="readNow" />
+          <span class="small muted">{{ readNote }}</span>
+        </div>
+        <div v-for="(r, i) in readings" :key="i" class="small">
+          <b>{{ r.label }}</b>: {{ r.amount === null ? '—' : r.amount + ' دج' }} <span class="muted">({{ when(r.at) }})</span>
+        </div>
+        <div v-if="diff !== null" class="text-weight-bold" :class="diff < 0 ? 'text-positive' : 'text-deep-orange'">
+          الفرق: {{ diff > 0 ? '+' : '' }}{{ diff }} دج<span v-if="lastOffer"> · العرض {{ lastOffer }}</span>
+        </div>
+      </div>
       <q-btn unelevated no-caps color="deep-orange" icon="science" label="جرّب" :loading="labBusy"
         :disable="!/^0[67]\d{8}$/.test(labPhone.replace(/\s/g, '')) || !labOffer.trim()" @click="labTry" />
       <div v-if="lab" class="column q-gutter-xs">
@@ -70,9 +85,10 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
+import { when } from 'src/api/when'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Dialog } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import * as admin from 'src/api/admin'
@@ -99,13 +115,67 @@ const q = useRoute().query
 const labPhone = ref(String(q.lab_phone || ''))
 const labOffer = ref(String(q.lab_offer || 'Sama Mix 50'))
 const labRoute = ref(q.lab_route !== undefined ? String(q.lab_route) : 'arsselli')
+// The SIMs the lab may force (Mobilis Sama and Arsselli, approved), from the devices view
+const sims = ref([])
+const labSim = ref(null)
+const simOptions = computed(() => sims.value.map((s) => ({ value: s.sim_uuid, label: `${s.code}${s.label ? ' · ' + s.label : ''} · ${s.sim_type === 'mobilis-sama' ? 'سما' : 'أرسلي'} · ${s.balance == null ? 'غير مقروء' : s.balance + ' دج'}`, sim: s })))
+async function loadSims () {
+  const r = await flexy.ownerDevices().catch(() => null)
+  const all = (r?.body?.stations || []).flatMap((st) => (st.modems || []).filter((m) => m.sim).map((m) => ({ ...m.sim, code: m.sim.code || m.sim.display_code })))
+  sims.value = all.filter((s) => ['mobilis-sama', 'mobilis-arsselli'].includes(s.sim_type) && s.approved !== false)
+  return all
+}
+// Choosing a SIM chooses its source too (the server wants both)
+function pickSim (v) {
+  const s = sims.value.find((x) => x.sim_uuid === v)
+  if (s) labRoute.value = s.sim_type === 'mobilis-sama' ? 'sama' : 'arsselli'
+  readings.value = []
+}
+// Before / after: one *222# (no money) each, the reading shown with its time
+const readings = ref([])
+const readBusy = ref(false)
+const readNote = ref('')
+const lastOffer = ref('')
+const diff = computed(() => {
+  const r = readings.value.filter((x) => x.amount !== null)
+  return r.length >= 2 ? Number(r[r.length - 1].amount) - Number(r[0].amount) : null
+})
+async function readNow () {
+  const sim = labSim.value
+  if (!sim || readBusy.value) return
+  readBusy.value = true
+  readNote.value = 'أُرسل كود الرصيد، أنتظر الرد…'
+  const asked = Date.now()
+  try {
+    const res = await flexy.readSimBalance(sim)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+    // Waits for the new reading (90 s at most), then keeps it with its time
+    for (const end = Date.now() + 90_000; Date.now() < end;) {
+      await wait(5000)
+      await loadSims()
+      const s = sims.value.find((x) => x.sim_uuid === sim)
+      if (s?.balance_checked_at && Date.parse(s.balance_checked_at) >= asked - 5000) {
+        readings.value.push({ label: readings.value.length ? 'بعد' : 'قبل', amount: s.balance, at: s.balance_checked_at })
+        readNote.value = ''
+        return
+      }
+    }
+    readNote.value = 'لم يصل الرد بعد: أعد القراءة بعد قليل'
+  } catch (e) {
+    readNote.value = 'لم يُقرأ: ' + (e.message || '')
+  } finally {
+    readBusy.value = false
+  }
+}
+onMounted(loadSims)
 const labBusy = ref(false)
 const lab = ref(null)
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 function labTry () {
   const phone = labPhone.value.replace(/\s/g, '')
   const offer = labOffer.value.trim()
-  const src = labRoute.value === 'arsselli' ? 'أرسلي' : labRoute.value === 'sama' ? 'سما' : 'المصدر التلقائي'
+  const forcedCode = sims.value.find((x) => x.sim_uuid === labSim.value)?.code
+  const src = forcedCode ? 'الشريحة ' + forcedCode : labRoute.value === 'arsselli' ? 'أرسلي' : labRoute.value === 'sama' ? 'سما' : 'المصدر التلقائي'
   Dialog.create({ title: 'تجربة حقيقية', message: 'يُرسل «' + offer + '» إلى …' + phone.slice(-2) + ' من ' + src + '. مال حقيقي. متأكد؟', cancel: 'لا', ok: 'جرّب' })
     .onOk(() => labRun(phone, offer, labRoute.value))
 }
@@ -114,11 +184,12 @@ async function labRun (phone, offer, route) {
   const key = 'own665_' + crypto.randomUUID().replace(/-/g, '')
   lab.value = { status: 'queued', steps: [], kind: route === 'arsselli' ? 'أرسلي' : route === 'sama' ? 'سما' : 'تلقائي' }
   try {
-    let r = await flexy.ownerLabSend(phone, offer, key, route || null)
+    lastOffer.value = offer
+    let r = await flexy.ownerLabSend(phone, offer, key, route || null, labSim.value)
     // A busy source keeps the request's place: asked again with the same key (2 minutes at most)
     for (const end = Date.now() + 120_000; r.status === 409 && r.body?.error === 'SOURCE_BUSY' && Date.now() < end;) {
       await wait(1000 * (r.body.retry_after_seconds || 3))
-      r = await flexy.ownerLabSend(phone, offer, key, route || null)
+      r = await flexy.ownerLabSend(phone, offer, key, route || null, labSim.value)
     }
     if (r.status >= 400 && !r.body?.operation) throw new Error(LAB_ERRORS[r.body?.error] || r.body?.error || 'تعذّر الإرسال.')
     for (const end = Date.now() + 180_000; Date.now() < end;) {

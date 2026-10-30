@@ -317,11 +317,11 @@ const { automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, ap
 // «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
 const needsYou = computed(() => {
   const items = [
-    // Money may have left: before everything else
+    // The SQL first (owner 2026-10-30: «ما ينتظر تطبيقك يُقال مقدمًا على كل شيء»), then what may have moved money
+    sqlPending.value && { to: '/stats', text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
     reviewWaiting.value && { to: '/stats', text: reviewWaiting.value === 1 ? '⚖ عملية تحتاج حكمك (وصلت أم لا؟)' : `⚖ ${reviewWaiting.value} عمليات تحتاج حكمك (وصلت أم لا؟)` },
     automixAlert.value && { to: '/stats', text: `⚠ الأوتوميكس فشل اليوم ${automixAlert.value.pct}% (${automixAlert.value.failed} من ${automixAlert.value.total}): راجعه` },
     failuresOpen.value && { to: '/stats', text: failuresOpen.value === 1 ? '🔴 فشل بلا حل ينتظرك' : `🔴 ${failuresOpen.value} فشل بلا حل تنتظرك` },
-    sqlPending.value && { to: '/stats', text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
     approvalsWaiting.value && { to: '/flexy/devices', text: approvalsWaiting.value === 1 ? 'كمبيوتر جديد ينتظر الاعتماد' : `${approvalsWaiting.value} كمبيوترات تنتظر الاعتماد` },
     repoKeyLevel.value === 'dead' && { to: '/flexy/devices', text: 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' },
     handoverNeeds.value && { to: '/ideas?tab=handover', text: `📋 ${handoverNeeds.value} ${handoverNeeds.value === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك'} في المتابعة` },
