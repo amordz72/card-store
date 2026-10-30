@@ -20,6 +20,23 @@
     </div>
 
     <!-- Owner settings: which cards are topped up by player id, the site link -->
+    <!-- v1.50 (owner 2026-10-30): someone asks on WhatsApp → the owner orders FOR him; his short balance becomes debt -->
+    <q-expansion-item v-if="session.isAdmin" class="card q-pa-none" icon="person_add" label="اطلب شحنًا باسم زبون" header-class="text-primary text-weight-bold" @show="loadForm">
+      <div class="column q-gutter-sm q-pa-md">
+        <q-select v-model="form.customer" dense outlined use-input input-debounce="0" emit-value map-options :options="customerOpts"
+          label="الزبون" @filter="filterCustomers" />
+        <q-input v-model="form.player" dense outlined inputmode="numeric" label="ID اللاعب" input-class="ltr text-left" />
+        <div class="row q-gutter-xs">
+          <q-btn v-for="p in forCards" :key="p.product_id" dense no-caps :unelevated="form.product === p.product_id" :outline="form.product !== p.product_id"
+            color="primary" :label="p.name" @click="form.product = p.product_id" />
+        </div>
+        <div v-if="!forCards.length" class="muted small">لا بطاقة ألعاب متوفرة الآن.</div>
+        <div class="help small muted">يُخصم سعره من رصيده، وإن لم يكفِ يُضاف الناقص إلى دينه. ثم يظهر الطلب هنا في الانتظار.</div>
+        <q-btn unelevated no-caps color="primary" icon="send" label="أرسل الطلب" :loading="busy && ordering"
+          :disable="!form.customer || !form.product || !/^[0-9]{5,15}$/.test(form.player.replace(/\s/g, ''))" @click="orderFor" />
+      </div>
+    </q-expansion-item>
+
     <q-expansion-item v-if="session.isAdmin" class="card q-pa-none" icon="settings" label="إعدادات الشحن بالمعرّف" @show="loadSettings">
       <div class="column q-gutter-sm q-pa-md">
         <div class="text-weight-bold">البطاقات التي تُشحن بالمعرّف</div>
@@ -107,6 +124,7 @@ import { useBell } from 'src/composables/useBell'
 import { copyText } from 'src/composables/useCopy'
 import * as api from 'src/api/customer'
 import * as adminApi from 'src/api/admin'
+import { newRequestId } from 'src/api/rpc'
 import { money } from 'src/api/format'
 import LoadMoreBar from 'components/LoadMoreBar.vue'
 
@@ -221,6 +239,36 @@ function failed (g) {
 const gameProducts = ref([])
 const marked = ref([])
 const url = ref('')
+// «اطلب شحنًا باسم زبون» (v1.50)
+const form = ref({ customer: null, product: null, player: '' })
+const allCustomers = ref([])
+const customerOpts = ref([])
+const forCards = ref([])
+const ordering = ref(false)
+let orderRequest = newRequestId()
+async function loadForm () {
+  const [cs, stock, ids] = await Promise.all([run(() => adminApi.customers()), run(() => adminApi.stock()), run(() => adminApi.playerTopupProducts())])
+  if (cs) allCustomers.value = cs.filter((c) => c.active && !c.is_shop).map((c) => ({ label: `${c.name} · …${String(c.phone).slice(-4)}`, value: c.customer_id, name: c.name }))
+  customerOpts.value = allCustomers.value
+  const on = (ids || []).map(Number)
+  if (stock) forCards.value = stock.filter((p) => on.includes(Number(p.product_id)) && p.active && Number(p.available) > 0)
+}
+function filterCustomers (val, update) {
+  update(() => { customerOpts.value = val ? allCustomers.value.filter((c) => c.label.includes(val)) : allCustomers.value })
+}
+async function orderFor () {
+  const f = form.value
+  const who = allCustomers.value.find((c) => c.value === f.customer)?.name || ''
+  ordering.value = true
+  const r = await run(() => adminApi.gameOrderFor(f.customer, f.product, f.player.replace(/\s/g, ''), orderRequest),
+    { success: (x) => `أُرسل طلب ${who}` + (x.debt_added > 0 ? ` · أُضيف ${x.debt_added} دج إلى دينه` : '') })
+  ordering.value = false
+  if (r) {
+    orderRequest = newRequestId()
+    form.value = { customer: null, product: null, player: '' }
+    loadOpen()
+  }
+}
 const alwaysOpen = ref(null)
 const loadAlwaysOpen = () => adminApi.gameAlwaysOpen().then((v) => { alwaysOpen.value = v === true }, () => {})
 async function setAlwaysOpen (v) {
