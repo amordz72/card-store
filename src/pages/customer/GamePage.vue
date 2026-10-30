@@ -36,6 +36,28 @@
         </div>
         <div v-else class="muted">لا توجد بطاقات متوفرة للشحن الآن</div>
       </div>
+
+      <!-- v1.51 (owner 2026-10-30): any amount from several cards (300 = 200 + 100), its price the sum of the cards -->
+      <div v-if="idOk && brands.length" class="card column q-gutter-sm">
+        <div class="text-weight-bold">كمية أخرى</div>
+        <div v-if="brands.length > 1" class="row q-gutter-xs">
+          <q-btn v-for="b in brands" :key="b" dense no-caps :unelevated="brand === b" :outline="brand !== b" color="primary" :label="b"
+            @click="brand = b; plan = null" />
+        </div>
+        <div class="row q-gutter-sm no-wrap items-start">
+          <q-input v-model.number="units" class="col" dense outlined type="number" inputmode="numeric" label="الكمية (مثلًا 300)"
+            @update:model-value="plan = null" />
+          <q-btn unelevated color="primary" label="احسب" :disable="!(units > 0) || busy" @click="preview" />
+        </div>
+        <template v-if="plan">
+          <div v-if="plan.ok" class="column q-gutter-xs">
+            <div><b>{{ plan.units }}</b> = {{ plan.parts.map((x) => x.units).join(' + ') }}<span v-if="plan.split" class="small muted"> ({{ plan.parts.length }} بطاقات)</span></div>
+            <div>السعر: <b>{{ money(plan.total) }}</b></div>
+            <q-btn unelevated color="positive" icon="bolt" label="اشحن" :disable="busy" @click="confirmUnits" />
+          </div>
+          <div v-else class="text-negative small">{{ PLAN_WHY[plan.reason] || 'هذه الكمية غير متاحة الآن.' }}</div>
+        </template>
+      </div>
     </template>
 
     <div class="row items-center justify-between q-mt-md">
@@ -96,6 +118,31 @@ const catalog = ref([])
 const gameIds = ref([])
 const cards = computed(() => catalog.value.filter((p) => p.available && gameIds.value.includes(Number(p.product_id))))
 const recent = ref([])
+// «كمية أخرى» (v1.51)
+const brands = computed(() => [...new Set(catalog.value.filter((p) => gameIds.value.includes(Number(p.product_id))).map((p) => p.brand))])
+const brand = ref(null)
+const units = ref(null)
+const plan = ref(null)
+const PLAN_WHY = { NO_COMBINATION: 'لا يمكن تكوين هذه الكمية من البطاقات المتوفرة الآن.', SPLIT_OFF: 'هذه اللعبة لا تقبل التقسيم: اختر كمية من البطاقات.' }
+async function preview () {
+  if (!brand.value) brand.value = brands.value[0]
+  const p = await run(() => api.gameSplitPreview(customer.token, brand.value, Math.round(units.value)))
+  if (p) plan.value = p
+}
+function confirmUnits () {
+  const p = plan.value
+  Dialog.create({
+    title: 'تأكيد الشحن',
+    html: true,
+    message: `شحن <b>${p.units}</b> (${p.parts.map((x) => x.units).join(' + ')}) للمعرّف <b dir="ltr">${digits.value}</b><br>تأكد من المعرّف: الشحن لا يُسترجع بعد تنفيذه.<br>يُخصم من رصيدك <b>${money(p.total)}</b>.`,
+    cancel: 'إلغاء',
+    ok: 'نعم، اشحن'
+  }).onOk(async () => {
+    const r = await run(() => api.gameCreateUnits(customer.token, brand.value, p.units, digits.value, crypto.randomUUID()),
+      { success: 'أُرسل الطلب. تابع حالته في «طلبات الشحن».' })
+    if (r) { plan.value = null; units.value = null; buyer.refresh(); reset(); loadCards() }
+  })
+}
 
 const { rows, total, loadingMore, reset, refresh, more, size } =
   useLoadMore((limit, offset) => run(() => api.gameOrders(customer.token, limit, offset)), { key: 'game_id' })

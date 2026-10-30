@@ -133,6 +133,11 @@ export async function gameCreate (token, productId, playerId, requestId) {
   const rows = await rpc('store_game_create', { p_token: token, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
   return rows?.[0] || null
 }
+// v1.51: any amount, made of several cards (300 = 200 + 100); the price is the sum of the cards
+export const gameSplitPreview = (token, brand, units) => rpc('store_game_split_preview', { p_token: token, p_brand: brand, p_units: units })
+export const gameCreateUnits = (token, brand, units, playerId, requestId) =>
+  rpc('store_game_create_units', { p_token: token, p_brand: brand, p_units: units, p_player_id: playerId, p_request_id: requestId })
+export const gameGroups = (token) => rpc('store_game_groups', { p_token: token })
 export const gameOrders = (token, limit, offset) => rpc('store_game_orders', { p_token: token, p_limit: limit, p_offset: offset })
 export const gameRecentIds = (token) => rpc('store_game_recent_ids', { p_token: token })
 export const gameCancel = (token, gameId) => rpc('store_game_cancel', { p_token: token, p_game_id: gameId })
