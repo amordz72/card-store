@@ -34,11 +34,11 @@
 
 
     <!-- «ينتظر تطبيقك» (Flexy Core 0087): what Claude put, one button; its SQL only to look at -->
-    <div v-for="p in pendingOpen" :key="p.id" class="card column q-gutter-xs pending">
+    <div v-for="p in pendingOpen" :key="p.uid" class="card column q-gutter-xs pending">
       <div class="row items-center no-wrap q-gutter-sm">
         <q-icon name="build" color="indigo-8" size="22px" />
         <div class="col"><div class="text-weight-bold">ينتظر تطبيقك</div><div>{{ p.title }}</div></div>
-        <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" label="طبّق" :loading="busy === 'apply' + p.id" @click="apply(p)" />
+        <q-btn unelevated no-caps color="indigo-8" icon="play_arrow" label="طبّق" :loading="busy === 'apply' + p.uid" @click="apply(p)" />
       </div>
       <div v-if="p.last_error" class="small text-negative ltr">آخر محاولة فشلت: {{ p.last_error }}</div>
       <q-expansion-item dense dense-toggle switch-toggle-side label="عرض SQL" header-class="small text-grey-8 q-px-none">
@@ -172,14 +172,18 @@ function apply (p) {
   if (busy.value) return
   Dialog.create({ title: 'طبّق: ' + p.title, message: 'ينفّذ كل الأوامر معًا بصلاحيات كاملة. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، طبّق' })
     .onOk(async () => {
-      await show(await call('apply' + p.id, () => flexy.applyPending(p.id)), false)
+      await show(await call('apply' + p.uid, () => (p.mig ? flexy.applyMigration(p.mig) : flexy.applyPending(p.id))), false)
       await loadLog()
       refreshBell()
     })
 }
 async function loadLog () {
   const b = await call('', () => flexy.ownerSql())
-  if (b?.ok) { pendingOpen.value = b.pending?.open || []; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables'].includes(r.key)); log.value = b.log || [] }
+  if (b?.ok) { // The migrations this deploy carries, not applied yet, then the scripts put in the database (0087)
+    pendingOpen.value = [
+      ...(b.migrations || []).map((m) => ({ uid: 'm' + m.key, mig: m.key, title: m.title, sql: m.sql })),
+      ...(b.pending?.open || []).map((p) => ({ ...p, uid: 'p' + p.id }))
+    ]; ready.value = b.ready.filter((r) => !['db_hours', 'db_sizes', 'tables'].includes(r.key)); log.value = b.log || [] }
 }
 async function loadDb () {
   flexy.ownerAuto().then((r) => {
