@@ -121,12 +121,19 @@ async function refreshBell () {
   } catch { /* keep the last value */ }
 }
 
-// A computer seen in the last 10 minutes whose main is newer (or another commit), with no update asked yet
+// A computer seen in the last 10 minutes whose main holds a NEWER version (a commit that keeps the version is nothing
+// to press, owner 2026-10-30), with no update asked yet
+const newerVersion = (a, b) => {
+  const x = String(a || '0').split('.').map(Number)
+  const y = String(b || '0').split('.').map(Number)
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0)
+  return false
+}
 export function agentUpdatesOf (body, now = Date.now()) {
   const busy = new Set((body?.stations || []).filter((x) => x.status === 'pending' || x.status === 'claimed').map((x) => x.station_uuid))
   return (body?.main || []).filter((m) => m.main_version && !m.main_error && !busy.has(m.station_uuid) &&
     now - Date.parse(m.reported_at || 0) < 10 * 60_000 &&
-    (m.main_version !== m.agent_version || (m.main_commit && m.agent_commit && m.main_commit !== m.agent_commit)))
+    newerVersion(m.main_version, m.agent_version))
 }
 
 export function useBell () {
