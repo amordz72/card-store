@@ -23,7 +23,8 @@
         <div class="text-weight-bold text-negative col">شرائح متوقفة</div>
         <q-btn flat dense color="primary" label="تم" :loading="simAlertsBusy" @click="simAlertsSeen" />
       </div>
-      <div v-for="a in simAlerts" :key="a.sim_uuid + a.code" class="small">{{ a.text }}</div>
+      <!-- With its computer (owner 2026-10-30: «من أي كمبيوتر؟ لا نخمّن») -->
+      <div v-for="a in simAlerts" :key="a.sim_uuid + a.code" class="small">{{ a.text }}<b v-if="stationOfSim(a.sim_uuid)"> · على {{ stationOfSim(a.sim_uuid) }}</b></div>
     </div>
     <!-- A failed delete on a connected SIM stays in sight; the rest of «مخزن الرسائل» is folded at the end -->
     <div v-for="w in wipeErrors" :key="w.sim_uuid" class="card small text-negative">
@@ -73,7 +74,9 @@
               <td>{{ stName(r.st) || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
               <td><q-badge :color="r.old ? 'grey-6' : STATE[simState(r)]?.color || LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : STATE[simState(r)]?.label || LEVEL[r.m.level].label" />
-                <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim)" size="12px" class="q-mr-xs" />{{ statusText(r) }}</div></td>
+                <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim)" size="12px" class="q-mr-xs" />{{ statusText(r) }}
+                  <!-- A warning can always be sent to Claude (owner 2026-10-30: «لا زر نسخ، ولا أستطيع تحديد النص») -->
+                  <q-btn v-if="simState(r) !== 'ready' || onboardingOf(r.m.sim)?.stage === 'alert'" flat round dense size="sm" icon="smart_toy" aria-label="نسخ لـClaude" @click.stop="copySimForClaude(r)" /></div></td>
             </tr>
             <tr v-if="!shownSims.length">
               <td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر
@@ -288,6 +291,8 @@
           <div v-if="actionsSt?.gateway === 'old'" class="small text-deep-orange">هذا الكمبيوتر على البوابة القديمة: الأوامر تصل عبر بوابة النواة فقط (تعديل ← انقل إلى بوابة النواة).</div>
           <!-- Only what this computer needs now (owner 2026-10-30: «زر لا حاجة له يختفي»); the rest folded, for a problem
                the page cannot see -->
+          <!-- Agent 0.9.3 repairs a modem gone by itself (restart, then its USB port): no button to press for it -->
+          <div v-if="actionsSt && agentAtLeast(actionsSt, '0.9.3')" class="small text-primary">🔧 الإصلاح الذاتي يعمل: إذا اختفى مودم، يعيد البرنامج تشغيل نفسه بعد دقيقتين، ثم منفذ USB الخاص به، ثم ينبّهك إن لم يرجع.</div>
           <div v-if="actionsSt && !neededActions.length" class="small text-positive">✓ لا يحتاج هذا الكمبيوتر شيئًا الآن.</div>
           <div v-for="a in neededActions" :key="a.key" class="row items-center no-wrap q-gutter-sm act-row">
             <div class="col"><div class="text-weight-bold">{{ a.label }}</div><div class="small muted">{{ a.note }}</div>
@@ -316,6 +321,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { copyToClipboard, Dialog, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { makeZip } from 'src/api/zip'
+import { copyForClaude } from 'src/composables/useClaudeCopy'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 import ModemPanel from 'src/components/ModemPanel.vue'
@@ -379,6 +385,8 @@ async function loadActions () {
 const needs = (st, key) => {
   if (!st) return false
   if (key === 'fix_update') return mainOf(st)?.main_error === 'GIT_LOCAL_CHANGES'
+  // From 0.9.3 the program restarts itself for a modem gone: the button only when it is older
+  if (key === 'restart_agent' && agentAtLeast(st, '0.9.3')) return false
   if (key === 'restart_agent') return live(st).some((m) => !isConnected(m)) || (st.reasons || []).some((r) => r.level === 'down')
   return false
 }
@@ -849,6 +857,15 @@ const canRetryFirstBalance = (sim) => {
 // Why a read stopped after 30 minutes without its code leaving (Flexy Core 0101)
 const READ_WHY = { CODE_NOT_SENT: 'لم يُرسل الكود: المودم مشغول أو الطلب رُفض', MODEM_NOT_READY: 'المودم أو كمبيوتره لا يرد' }
 const since = (t) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 60000)); return m < 60 ? m + ' دقيقة' : Math.round(m / 60) + ' ساعة' }
+const stationOfSim = (uuid) => { const r = everySim.value.find((x) => x.m.sim.sim_uuid === uuid); return r ? stName(r.st) : '' }
+function copySimForClaude (r) {
+  const o = onboardingOf(r.m.sim) || {}
+  copyForClaude('شريحة ' + (r.m.sim.code || ''), {
+    sim: r.m.sim.code, type: r.m.sim.sim_type, station: stName(r.st), agent: r.st.agent_version, state: simState(r), level: r.m.level,
+    status: statusText(r), stage: o.stage, alert: o.alert_code, detail: o.alert_detail, since: o.updated_at,
+    balance: r.m.sim.balance, balance_at: r.m.sim.balance_checked_at, online: isConnected(r.m)
+  })
+}
 const noteOf = (sim) => onboardingOf(sim)?.note || ''
 function onboardingText (sim) {
   const o = onboardingOf(sim)
