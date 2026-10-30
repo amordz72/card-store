@@ -335,7 +335,8 @@ const STATION_ACTIONS = [
   { key: 'restart_agent', label: 'أعد تشغيل البرنامج', note: 'حين لا يعمل شيء على المودمات (ثوانٍ).' },
   { key: 'reconnect_wifi', label: 'أعد الاتصال بالواي فاي', note: 'يقطع الواي فاي ويعيده إلى الشبكة نفسها.' }
 ]
-const FIX_LINE = 'git -C C:\\MyTool\\station-connect checkout -- agent/src agent/package.json'
+// Forward slashes: the same line works in cmd and in Git Bash (which eats backslashes, owner 2026-10-30)
+const FIX_LINE = 'git -C C:/MyTool/station-connect checkout -- agent/src agent/package.json'
 const actionsOpen = ref(false)
 const actionsSt = ref(null)
 const actionsList = ref([])
