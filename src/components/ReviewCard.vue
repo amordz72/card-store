@@ -101,7 +101,10 @@ function guessLine (o) {
   switch (g.verdict) {
     case 'arrived': return { cls: 'text-positive text-weight-bold', text: `🤖 ${nums}: الباقي ${g.rest} = مبلغها: وصلت.` }
     case 'not_arrived': return { cls: 'text-negative text-weight-bold', text: `🤖 ${nums}: لا باقي: لم تصل.` }
-    case 'no_reading': return { cls: 'text-primary', text: '🤖 البرنامج يحاول: ينتظر قراءة رصيد الشريحة ' + (g.before_at ? 'بعد العملية' : 'قبل العملية وبعدها') + '…' }
+    // No read before it can never come later: said plainly, not «waiting»
+    case 'no_reading': return g.before_at
+      ? { cls: 'text-primary', text: '🤖 البرنامج يحاول: ينتظر قراءة رصيد الشريحة بعد العملية…' }
+      : { cls: 'muted', text: '🤖 لا قراءة لرصيد الشريحة قبل هذه العملية: الرصيد لا يحسمها، احكم بالأدلة الأخرى.' }
     case 'others_open': return { cls: 'text-deep-orange', text: `🤖 ${nums}: على الشريحة ${g.others_open} عمليات أخرى غير محسومة: لا يُحسم الآن.` }
     case 'amount_unknown': return { cls: 'text-deep-orange', text: '🤖 بين القراءتين عملية بلا مبلغ معروف: لا يُحسم بالرصيد.' }
     case 'unclear': return { cls: 'text-deep-orange', text: `🤖 ${nums}: الباقي ${g.rest} لا يساوي مبلغها ولا صفرًا (شحن أو عملية أخرى): لا يُحسم.` }
@@ -152,7 +155,7 @@ function evidenceOf (o) {
   const mineOk = msgs.find((m) => isSuccess(m.text) && mineOf(o, m) === 'mine' && Date.parse(m.at) >= sent - SLACK)
   const failBefore = msgs.find((m) => isFailure(m.text) && Date.parse(m.at) < sent - SLACK)
   const failAfter = msgs.find((m) => isFailure(m.text) && Date.parse(m.at) >= sent - SLACK)
-  if (mineOk) out.push({ cls: 'text-positive text-weight-bold', text: '✅ رسالة نجاح لرقمها بعد الإرسال: وصلت. البرنامج يغلقها وحده خلال 10 دقائق، أو اضغط «موافق».' })
+  if (mineOk) out.push({ cls: 'text-positive text-weight-bold', text: '✅ رسالة نجاح لرقمها بعد الإرسال برقم معاملة: وصلت. اضغط «موافق: وصلت».' })
   if (failBefore) out.push({ cls: 'muted', text: `• رسالة «فشلت» ${when(failBefore.at)} جاءت قبل الإرسال: تخص عملية سابقة، لا هذه.` })
   if (failAfter && !mineOk) out.push({ cls: 'text-negative', text: `• رسالة «فشلت» بعد الإرسال (${when(failAfter.at)}): قد تكون لهذه أو لعملية أخرى على نفس الشريحة.` })
   // Our SIM's balance around the send (0095): did the money leave our SIM?
@@ -170,7 +173,7 @@ function evidenceOf (o) {
   if (o.shop) {
     const said = { arrived: 'وصلت', not_arrived: 'لم تصل', unknown: 'لا يعرف' }[o.shop_answer]
     out.push(said ? { cls: 'text-weight-bold', text: `• المحل ${o.shop} قال: ${said} (${when(o.shop_answer_at)}).` }
-      : { cls: 'muted', text: `• سُئل المحل ${o.shop} في تطبيقه «هل وصل للزبون؟»: لم يجب بعد.` })
+      : { cls: 'muted', text: `• المحل ${o.shop} لم يجب بعد (يُسأل في تطبيقه «هل وصل للزبون؟» بعد تطبيق s147).` })
   }
   // A later success proves the number accepts it, never that this one arrived
   if (o.unknown_at) out.push(guessLine(o))
