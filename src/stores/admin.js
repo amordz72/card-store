@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { supabase } from 'boot/supabase'
 import { LocalStorage } from 'quasar'
 import * as api from 'src/api/admin'
+import { StoreError, toStoreError } from 'src/api/errors'
 
 // The last email confirmed admin on this device (owner 2026-10-30: «ينقطع الإنترنت فأخرج من الجلسة»): with no internet
 // on opening, the session stays the admin's instead of the login page. Only the screens trust it; every action
@@ -12,7 +13,8 @@ export const useAdminStore = defineStore('admin', {
   state: () => ({
     checked: false,
     isAdmin: false,
-    email: null
+    email: null,
+    lastError: null
   }),
 
   actions: {
@@ -28,6 +30,7 @@ export const useAdminStore = defineStore('admin', {
           if (this.isAdmin) LocalStorage.set(OK_KEY, this.email)
           else LocalStorage.remove(OK_KEY)
         } catch (e) {
+          this.lastError = e
           // No answer (no internet, a slow network): the last confirmed answer on this device
           this.isAdmin = (e?.code === 'NETWORK' || !navigator.onLine) && LocalStorage.getItem(OK_KEY) === this.email
         }
@@ -38,9 +41,16 @@ export const useAdminStore = defineStore('admin', {
 
     async login (email, password) {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) return false
+      // Refused (400) is «wrong password»; no answer or 5xx is the server, said as such
+      if (error) {
+        if (!error.status || error.status >= 500) throw new StoreError('SERVER_BUSY', error)
+        return false
+      }
       this.checked = false
-      return this.check()
+      this.lastError = null
+      const ok = await this.check()
+      if (!ok && this.lastError) throw this.lastError instanceof StoreError ? this.lastError : toStoreError(this.lastError)
+      return ok
     },
 
     async logout () {
