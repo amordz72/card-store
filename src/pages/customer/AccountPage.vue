@@ -29,6 +29,10 @@
     <LockSettings />
 
     <q-btn flat color="negative" icon="logout" label="خروج" @click="logout" />
+    <!-- On this device (weakHome.js): weak internet → the home page first -->
+    <div class="card">
+      <q-toggle v-model="weakHome" label="عند ضعف الإنترنت ابدأ من الرئيسية (على هذا الجهاز)" @update:model-value="setWeakHome" />
+    </div>
   </q-page>
 </template>
 
@@ -42,7 +46,9 @@ import { money, debtView } from 'src/api/format'
 import { useSessionStore } from 'stores/session'
 import { useAdminStore } from 'stores/admin'
 import LockSettings from 'components/LockSettings.vue'
+import { weakHomeOn, setWeakHome } from 'src/api/weakHome'
 import { useLockStore } from 'stores/lock'
+const weakHome = ref(weakHomeOn())
 
 const router = useRouter()
 const customer = useCustomerStore()

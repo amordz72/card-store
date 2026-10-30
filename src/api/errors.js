@@ -87,22 +87,25 @@ const MESSAGES = {
   PHONE_NOT_MOBILIS: 'الرقم ليس موبيليس. أدخل رقمًا يبدأ بـ 06.',
   FLEXY_NOT_CONFIGURED: 'الفليكسي غير جاهز بعد.',
   FLEXY_REFUSED: 'لم يُقبل الطلب. حاول مرة أخرى.',
-  NETWORK: 'تعذّر الاتصال. تحقق من الإنترنت ثم حاول.'
+  NETWORK: 'تعذّر الاتصال: الإنترنت ضعيف أو مقطوع. حاول بعد قليل.'
 }
 
+// An unknown error says what failed and how (owner 2026-10-30: «حدث خطأ، ماذا يقصد؟»): the call's name and the
+// server's words, short, so the owner can copy it to Claude; no customer data is in either.
 export class StoreError extends Error {
-  constructor (code, raw) {
-    super(MESSAGES[code] || 'حدث خطأ. حاول مرة أخرى.')
+  constructor (code, raw, what = '') {
+    const text = String((raw && (raw.message || raw.details)) || '').slice(0, 100)
+    super(MESSAGES[code] || `حدث خطأ غير معروف${what || text ? ` (${[what, text].filter(Boolean).join(': ')})` : ''}. حاول مرة أخرى.`)
     this.code = code
     this.raw = raw
   }
 }
 
-export function toStoreError (err) {
+export function toStoreError (err, what = '') {
   const text = (err && (err.message || err.details)) || ''
   const code = Object.keys(MESSAGES).find((k) => text.includes(k))
-  if (!code && /Failed to fetch|NetworkError|network/i.test(text)) {
+  if (!code && (!navigator.onLine || /Failed to fetch|NetworkError|network|Load failed|fetch|timeout|aborted/i.test(text))) {
     return new StoreError('NETWORK', err)
   }
-  return new StoreError(code || 'UNKNOWN', err)
+  return new StoreError(code || 'UNKNOWN', err, what)
 }

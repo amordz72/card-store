@@ -3,6 +3,24 @@
        first), and a place to paste the SQL Claude gives him instead of Supabase's SQL Editor. Read only by default
        (no secrets); «كتابة» runs the whole script with full rights, all or nothing, after «نعم». All kept in the log. -->
   <div class="column gap-sm">
+    <!-- «سجل البطء» (owner 2026-10-30): this device's calls in the last 24 hours, slowest first, and the cause:
+         the internet (the trip) or the server (its own time, x-flexy-ms). All devices: the ready query «البطء». -->
+    <div class="card column gap-xs">
+      <div class="row items-center">
+        <div class="col text-weight-bold">البطء على هذا الجهاز (24 ساعة)</div>
+        <q-btn flat round dense icon="smart_toy" aria-label="نسخ لـClaude" @click="copyForClaude('البطء على هذا الجهاز', perf)" />
+        <q-btn flat round dense icon="refresh" aria-label="تحديث" @click="perf = perfSummary()" />
+      </div>
+      <div v-if="!perf.length" class="small muted">لا شيء مسجّل بعد.</div>
+      <div v-for="g in perf.slice(0, perfAll ? 40 : 6)" :key="g.what" class="line row items-center no-wrap gap-sm small">
+        <div class="col ltr ellipsis">{{ g.what }}</div>
+        <div style="min-width:52px" :class="g.avg > 3000 ? 'text-negative text-weight-bold' : ''">{{ (g.avg / 1000).toFixed(1) }} ث</div>
+        <div style="min-width:70px" class="muted">{{ g.serverAvg !== null ? 'الخادم ' + (g.serverAvg / 1000).toFixed(1) : '' }}</div>
+        <div style="min-width:64px" :class="g.cause === 'الخادم' ? 'text-deep-orange' : 'text-primary'">{{ g.cause }}</div>
+        <div class="muted" style="min-width:28px">×{{ g.n }}</div>
+      </div>
+      <a v-if="perf.length > 6 && !perfAll" href="#" class="small" @click.prevent="perfAll = true">كل الطلبات ({{ perf.length }})</a>
+    </div>
 
     <!-- The database load, measured by the program every hour (Flexy Core 0085): nothing to press.
          Indicators first (owner 2026-10-30: «الناس لا يقرؤون الكتابات»): tiles, then standing bars, the words folded. -->
@@ -124,6 +142,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { Dialog, Notify, copyToClipboard } from 'quasar'
 import BarChart from 'src/components/BarChart.vue'
 import { copyForClaude, registerForClaude } from 'src/composables/useClaudeCopy'
+import { perfSummary } from 'src/api/perfLog'
 import * as flexy from 'src/api/flexy'
 import { useBell } from 'src/composables/useBell'
 
@@ -142,6 +161,9 @@ const NAMES = {
 }
 const nameOf = (w) => NAMES[w] || (w.startsWith('insert into cron') || w.startsWith('update cron') ? 'سجل الدورة الآلية' : w)
 
+const perf = ref(perfSummary())
+const perfAll = ref(false)
+registerForClaude('البطء على هذا الجهاز', () => perf.value.slice(0, 15).map(({ what, n, avg, serverAvg, cause, fails, offline }) => ({ what, n, avg, serverAvg, cause, fails, offline })))
 const text = ref('')
 // One SELECT/WITH (a trailing «;» allowed) reads; anything else is a script to execute
 const write = computed(() => {

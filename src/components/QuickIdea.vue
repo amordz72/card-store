@@ -2,11 +2,13 @@
   <!-- 💡 (owner 2026-10-30: «زر عائم: أجمع أفكاري بسرعة بدل مقاطعتك كل مرة»): on every owner page, an idea in two
        taps, saved in «أفكار وأوامر» (Flexy Core 0089/0090). «أرفق هذه الشاشة» keeps the page as a text file with it,
        with each card's technical data, so Claude reads it at «اقرأ الأفكار» without asking. -->
-  <q-page-sticky position="bottom-right" :offset="[16, 96]">
-    <q-btn fab-mini color="amber-8" text-color="dark" icon="lightbulb" aria-label="فكرة سريعة" @click="open = true">
+  <!-- Moved with a finger, kept where it was put, on this device (owner 2026-10-30: «زر أنقله ويُحفظ مكانه»);
+       a tap opens it, a drag moves it -->
+  <div class="qi-fab" :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @pointerdown="dragStart">
+    <q-btn :fab-mini="!pos.big" :fab="pos.big" color="amber-8" text-color="dark" icon="lightbulb" aria-label="فكرة سريعة" @click="tapOpen">
       <q-badge v-if="waiting" floating color="negative" :label="waiting" />
     </q-btn>
-  </q-page-sticky>
+  </div>
   <!-- At the top (owner ideas #3, #4): the phone keyboard opens under it, never over it -->
   <q-dialog v-model="open" position="top">
     <q-card style="width:100%;max-width:560px;border-radius:0 0 20px 20px">
@@ -17,6 +19,12 @@
             :color="kind === k.id ? 'primary' : 'grey-8'" :label="k.label" @click="kind = k.id" />
         </div>
         <q-input v-model="text" type="textarea" outlined autogrow autofocus placeholder="اكتب أو أملِ بالصوت…" />
+        <div class="row items-center q-gutter-xs small muted">
+          <span>الزر:</span>
+          <q-btn flat dense no-caps size="sm" :label="pos.big ? 'صغّره' : 'كبّره'" @click="pos.big = !pos.big; keepPos()" />
+          <q-btn flat dense no-caps size="sm" label="أعِده لمكانه" @click="resetPos" />
+          <span>(اسحبه بإصبعك لتنقله)</span>
+        </div>
         <q-toggle v-model="withScreen" dense :label="`أرفق نسخة من الصفحة التي أنت فيها الآن: ${pageTitle}`" />
         <div v-if="error" class="small text-negative">{{ error }}</div>
 
@@ -71,6 +79,46 @@ const props = defineProps({
   screenText: { type: Function, required: true },
   pageTitle: { type: String, default: '' }
 })
+// Where the button is: {x, y, big}, from the top-left, kept per device; at the top by default
+const POS_KEY = 'cs_quick_pos'
+const defaultPos = () => ({ x: 12, y: 120, big: false })
+function readPos () {
+  try { return { ...defaultPos(), ...(JSON.parse(localStorage.getItem(POS_KEY) || 'null') || {}) } } catch { return defaultPos() }
+}
+const pos = ref(readPos())
+const keepPos = () => { try { localStorage.setItem(POS_KEY, JSON.stringify(pos.value)) } catch { /* private mode */ } }
+const clamp = () => {
+  const size = pos.value.big ? 56 : 40
+  pos.value.x = Math.min(Math.max(pos.value.x, 0), window.innerWidth - size)
+  pos.value.y = Math.min(Math.max(pos.value.y, 0), window.innerHeight - size)
+}
+clamp()
+function resetPos () { pos.value = defaultPos(); keepPos() }
+let drag = null
+let moved = false
+function dragStart (e) {
+  drag = { sx: e.clientX, sy: e.clientY, x: pos.value.x, y: pos.value.y }
+  moved = false
+  window.addEventListener('pointermove', dragMove)
+  window.addEventListener('pointerup', dragEnd, { once: true })
+}
+function dragMove (e) {
+  if (!drag) return
+  const dx = e.clientX - drag.sx
+  const dy = e.clientY - drag.sy
+  if (!moved && Math.abs(dx) + Math.abs(dy) < 8) return
+  moved = true
+  pos.value.x = drag.x + dx
+  pos.value.y = drag.y + dy
+  clamp()
+}
+function dragEnd () {
+  window.removeEventListener('pointermove', dragMove)
+  drag = null
+  if (moved) keepPos()
+}
+// A drag that ends on the button is not a tap
+function tapOpen () { if (!moved) open.value = true; moved = false }
 const KINDS = [{ id: 'idea', label: 'فكرة' }, { id: 'order', label: 'أمر' }, { id: 'problem', label: 'مشكلة' }, { id: 'brainstorm', label: 'عصف ذهني' }]
 const open = ref(false)
 const text = ref('')
@@ -181,6 +229,7 @@ async function save () {
 </script>
 
 <style scoped>
+.qi-fab { position: fixed; z-index: 2000; touch-action: none; }
 .notes { border-top: 1px solid rgba(0, 0, 0, 0.08); padding-top: 6px; max-height: 300px; overflow-y: auto; }
 .note { overflow-wrap: anywhere; }
 </style>
