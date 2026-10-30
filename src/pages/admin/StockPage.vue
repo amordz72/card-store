@@ -16,6 +16,7 @@
         </div>
         <div class="small muted">تُباع {{ x.per_day }} في اليوم<template v-if="x.days_left !== null && x.left > 0"> · تكفي نحو {{ x.days_left }} يوم</template></div>
         <div v-if="x.made_up" class="small text-positive">تُباع الآن من بطاقات أخرى (تقسيم)، لكن أضف منها.</div>
+        <q-btn unelevated dense no-caps color="primary" icon="add_shopping_cart" label="اشترِ الآن: أضف أكوادها" class="self-start" @click="addCodesFor(x)" />
       </div>
       <div v-if="!low.items.length" class="text-center muted q-pa-lg">لا بطاقة تكاد تنفد ✓</div>
     </div>
@@ -30,6 +31,7 @@
           <span class="col">{{ x.brand }} · {{ x.name }}
             <span class="small muted"><template v-if="x.per_day > 0"> · {{ x.per_day }}/يوم</template> · بقي {{ x.left }}</span></span>
           <b v-if="g.id !== 'idle'">× {{ x.qty }}</b>
+          <q-btn v-if="g.id !== 'idle'" flat round dense color="primary" icon="add_shopping_cart" aria-label="اشترِ الآن" @click="addCodesFor(x)" />
           <span v-else class="small text-deep-orange">مجمّد {{ money(x.idle_value) }}</span>
         </div>
       </div>
@@ -400,7 +402,7 @@ function choose (brandName, productId) {
     apply()
   })
 }
-// «+ أكواد» in the cards table: same form, card already chosen
+// «+ أكواد» in the cards table, «اشترِ الآن» in «تكاد تنفد» / «قائمة الشراء»: same form, card already chosen
 const codesFormEl = ref(null)
 function addCodesFor (p) {
   tab.value = 'codes'
