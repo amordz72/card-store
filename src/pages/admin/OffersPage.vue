@@ -6,7 +6,7 @@
        owner's order (drag ⠿), with their display text, details, section and a temporary hide; filter الكل / زبون. -->
   <q-page class="q-pa-md column q-gutter-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
-    <div class="row items-center q-gutter-xs">
+    <div class="row items-center" style="gap:4px;flex-wrap:wrap">
       <q-btn v-for="o in OPERATORS" :key="o.key" dense no-caps rounded :unelevated="operator === o.key" :outline="operator !== o.key"
         :color="operator === o.key ? 'primary' : 'grey-7'" :label="o.label" @click="operator = o.key" />
       <q-space />
