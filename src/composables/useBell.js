@@ -34,6 +34,8 @@ const monitorIncidents = ref(0)
 const agentUpdates = ref(0)
 // v1.45: shops whose spending dropped or stopped this week, until the owner opens «المؤشرات» this week
 const shopsDown = ref(0)
+// v1.53: cards about to run out
+const lowStock = ref(0)
 // «مطلوب منك» (Flexy Core 0087, owner 2026-10-30): what does not move without the owner's press, in the blue bar
 const sqlPending = ref(0)
 const approvalsWaiting = ref(0)
@@ -49,7 +51,7 @@ const agentUpdateVersion = ref('')
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
 const repoKeyAlert = computed(() => (repoKeyLevel.value === 'dead' || repoKeyLevel.value === 'expiring' ? 1 : 0))
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value + agentUpdates.value + shopsDown.value)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value + agentUpdates.value + shopsDown.value + lowStock.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
@@ -107,6 +109,7 @@ async function refreshBell () {
       shopsDown.value = (d?.shops || []).filter((s) => s.grp === 'down' || s.grp === 'stopped').length
     }
   } catch { /* before v1.45, or keep the last value */ }
+  try { lowStock.value = ((await adminApi.lowStock())?.items || []).length } catch { /* before v1.53, or keep the last value */ }
   try {
     const res = await flexyApi.ownerUpdates()
     if (res.status === 200 && res.body?.ok) {
@@ -137,5 +140,5 @@ export function agentUpdatesOf (body, now = Date.now()) {
 }
 
 export function useBell () {
-  return { automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { lowStock, automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }
