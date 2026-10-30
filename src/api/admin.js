@@ -99,6 +99,8 @@ export const lowStock = () => rpc('store_admin_low_stock')
 export const buyList = () => rpc('store_admin_buy_list')
 export const setBuyList = (cover, trial, idle) => rpc('store_admin_set_buy_list', { p_cover: cover, p_trial: trial, p_idle: idle })
 export const setLowStock = (days, count) => rpc('store_admin_set_low_stock', { p_days: days, p_count: count })
+// v1.59: a card's own minimum (null clears it)
+export const setLowMin = (productId, min) => rpc('store_admin_set_low_min', { p_product_id: productId, p_min: min })
 
 // Batches: freeze stops a code from being sold (reversible); void removes it
 // from stock for good, keeping it in history. Sold codes are never touched.
