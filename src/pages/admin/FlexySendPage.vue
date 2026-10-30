@@ -374,7 +374,9 @@ const ops = computed(() => rows.value.map((o) => ({
   stopped: o.status === 'not_sent', lineChanged: o.outcome_code === '665_LINE_GROUP_CHANGED',
   doneAt: o.updated_at, sims: o.sims || [],
   // Open = may have moved money and not settled: the owner can settle it here (Flexy Core 0057)
-  open: ['accepted', 'review'].includes(o.status), operationId: o.operation_id
+  open: ['accepted', 'review'].includes(o.status), operationId: o.operation_id,
+  // «غيّر الحكم» (Flexy Core 0108): closed «لم تُرسل» / «فشلت» in the last 24 hours; the server checks it reached the network
+  rejudge: ['not_sent', 'failed'].includes(o.status) && Date.now() - Date.parse(o.created_at) < 24 * 3600_000, status: o.status
 })))
 const OPERATORS = { mobilis: 'موبيليس', djezzy: 'جيزي', ooredoo: 'أوريدو' }
 const STEPS = { before_confirm: 'رد جديد قبل التأكيد', new_offer: 'عرض جديد في قائمة', background_paused: 'توقف الاستكشاف الخلفي' }
@@ -396,6 +398,23 @@ async function presenceAt (at) {
 }
 async function settleRow (j, to) {
   const words = { success: 'نجحت', failed: 'فشلت', not_sent: 'لم تُرسل' }
+  // A closed one: «غيّر الحكم» (Flexy Core 0108), the first verdict kept
+  if (!j.open) {
+    $q.dialog({
+      title: 'غيّر الحكم: ' + (to === 'success' ? 'وصلت' : 'لم تصل'),
+      message: 'حكم البرنامج: ' + (j.status === 'failed' ? 'فشلت' : 'لم تُرسل') + '. اكتب لماذا (مثلًا: أكملتها بيدي، أو أكّد الزبون). يُحفظ مع الحكم الأول.',
+      prompt: { model: '', type: 'text', isValid: (v) => !!String(v).trim() }, cancel: 'رجوع', ok: 'غيّر'
+    }).onOk(async (note) => {
+      const res = await flexy.ownerRejudge(j.operationId, to, note)
+      if (res.status === 200 && res.body?.ok) {
+        $q.notify({ type: 'positive', message: 'تغيّر الحكم: ' + (to === 'success' ? 'وصلت' : 'لم تصل') + (res.body.shop && to === 'success' ? '. عملية محل: أُرجع له المبلغ من قبل، اخصمه من حسابه إن أردت.' : '') })
+        await refreshNow()
+      } else {
+        $q.notify({ type: 'negative', message: res.body?.error === 'REJUDGE_NOT_ALLOWED' ? 'لا يمكن: لم تصل إلى الشبكة، أو مرّ أكثر من 24 ساعة.' : 'لم يتغيّر: ' + (res.body?.error || res.status) })
+      }
+    })
+    return
+  }
   $q.dialog({
     title: 'حسم العملية: ' + words[to],
     message: 'اكتب دليلك (مثلًا: سطر *762# أو كلام الزبون). يُحفظ مع العملية.',

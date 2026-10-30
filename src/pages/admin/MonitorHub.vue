@@ -15,6 +15,7 @@
     <div v-if="seen.now" v-show="tab === 'now'" class="hub-panel" data-title="الآن"><MonitorSection :active="tab === 'now'" /></div>
     <div v-if="seen.judge" v-show="tab === 'judge'" class="hub-panel column gap-sm" data-title="حكمك والفشل">
       <ReviewCard />
+      <RejudgeCard />
       <FailuresCard />
     </div>
     <div v-if="seen.db" v-show="tab === 'db'" class="hub-panel" data-title="القاعدة وSQL"><StatsSection /></div>
@@ -27,6 +28,7 @@ import { useRoute, useRouter } from 'vue-router'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import ReviewCard from 'src/components/ReviewCard.vue'
 import FailuresCard from 'src/components/FailuresCard.vue'
+import RejudgeCard from 'src/components/RejudgeCard.vue'
 import MonitorSection from './MonitorSection.vue'
 import StatsSection from './StatsSection.vue'
 import { MONITOR_TABS } from 'src/api/sections'
