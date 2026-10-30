@@ -4,7 +4,7 @@
     <slot />
 
     <div class="card column q-gutter-sm">
-      <q-input :model-value="phone" dense outlined label="رقم الزبون" inputmode="tel" maxlength="16"
+      <q-input :model-value="phone" dense outlined label="رقم الزبون" inputmode="tel" maxlength="16" clearable @focus="(e) => e.target.select()"
         placeholder="0X XX XX XX XX" input-class="ltr text-center phone" @update:model-value="typed">
         <template v-if="carrier" #append><span class="carrier" :class="carrier.cls">{{ carrier.name }}</span></template>
       </q-input>

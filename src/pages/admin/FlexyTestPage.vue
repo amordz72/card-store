@@ -6,7 +6,7 @@
     <div class="card column q-gutter-sm lab">
       <div class="text-weight-bold">المختبر · إرسال تجريبي حقيقي</div>
       <div class="small text-deep-orange-9">مال حقيقي: كل تجربة ترسل العرض فعلًا إلى الرقم.</div>
-      <q-input v-model="labPhone" dense outlined label="رقم موبيليس" inputmode="tel" autocomplete="off" />
+      <q-input v-model="labPhone" clearable @focus="(e) => e.target.select()" @clear="labPhone = ''" dense outlined label="رقم موبيليس" inputmode="tel" autocomplete="off" />
       <!-- «اكتشف عروض الرقم» (owner 2026-10-30: …3188 was a Revolution line, and nothing here could tell): no money -->
       <div class="row items-center q-gutter-xs">
         <q-btn outline dense no-caps size="sm" color="primary" icon="travel_explore" label="اكتشف عروض الرقم" :loading="discover.busy"
@@ -59,7 +59,7 @@
       <q-btn unelevated rounded no-caps color="primary" icon="bolt" label="القدرات" :loading="busy === 'cap'" @click="runCapabilities" />
     </div>
     <div class="card grid-2">
-      <q-input v-model="phone" dense outlined label="رقم موبيليس" inputmode="tel" autocomplete="off" />
+      <q-input v-model="phone" clearable @focus="(e) => e.target.select()" @clear="phone = ''" dense outlined label="رقم موبيليس" inputmode="tel" autocomplete="off" />
       <q-input v-model.number="amount" dense outlined type="number" label="المبلغ (دج)" />
       <q-select v-model="account" :options="accounts" emit-value map-options dense outlined label="حساب الموزع" />
       <q-btn unelevated rounded no-caps color="primary" icon="fact_check" label="تحقق" :loading="busy === 'val'" @click="runValidate" />

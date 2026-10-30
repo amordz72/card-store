@@ -13,7 +13,7 @@
     <template v-else>
       <div class="card column q-gutter-sm">
         <div class="player-id text-center" dir="ltr">{{ digits || '— — —' }}</div>
-        <q-input v-model="playerId" dense outlined label="معرّف اللاعب (Player ID)" inputmode="numeric" maxlength="20"
+        <q-input v-model="playerId" clearable @focus="(e) => e.target.select()" @clear="playerId = ''" dense outlined label="معرّف اللاعب (Player ID)" inputmode="numeric" maxlength="20"
           input-class="ltr text-right" :error="!!playerId && !idOk" error-message="أرقام فقط، من 5 إلى 15 رقمًا" />
         <!-- One line, slid sideways (owner 2026-10-30: «تحت بعض شكل سيئ») -->
         <div v-if="recent.length" class="recent-row">

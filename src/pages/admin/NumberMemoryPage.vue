@@ -9,7 +9,7 @@
     <div class="card column q-gutter-sm">
       <div class="text-subtitle1 text-weight-bold">رقم واحد</div>
       <div class="row q-gutter-sm items-center no-wrap">
-        <q-input v-model="phone" dense outlined class="col" inputmode="tel" placeholder="06XXXXXXXX" maxlength="16"
+        <q-input v-model="phone" clearable @focus="(e) => e.target.select()" @clear="phone = ''" dense outlined class="col" inputmode="tel" placeholder="06XXXXXXXX" maxlength="16"
           @keyup.enter="look" />
         <q-btn unelevated no-caps color="primary" label="ابحث" :loading="busy === 'look'" @click="look" />
       </div>
