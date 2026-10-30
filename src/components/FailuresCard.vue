@@ -4,6 +4,7 @@
   <div class="card column gap-sm">
     <div class="row items-center">
       <div class="col text-weight-bold">العمليات الفاشلة</div>
+      <q-btn flat round dense icon="smart_toy" aria-label="نسخ لـClaude" @click="copyForClaude('العمليات الفاشلة (بلا حل)', open.map(forClaude))" />
       <q-btn flat round dense icon="refresh" aria-label="تحديث" :loading="state === 'busy'" @click="load" />
     </div>
     <div v-if="state === 'failed'" class="small text-negative">لم تصل · <a href="#" @click.prevent="load">أعد المحاولة</a> (طبّق 0091 إن لم تفعل)</div>
@@ -24,6 +25,14 @@
     <q-toggle v-model="withDiscovery" dense size="sm" label="أظهر الاستكشاف أيضًا (بلا مال، ينتهي «لم تُرسل» عمدًا)" class="small" />
     <q-input v-model="search" dense outlined clearable inputmode="tel" placeholder="ابحث برقم" />
 
+    <!-- Each way's failure rate (0094): a way failing often is a way to stop (the automix above all) -->
+    <div v-if="ways.length" class="ways">
+      <div v-for="w in ways" :key="w.way" class="way" :class="{ bad: w.total >= 5 && w.failed * 100 / w.total > 30 }">
+        <div class="small text-weight-bold">{{ WAYS[w.way] || w.way }}</div>
+        <div class="small">{{ w.failed }} فشل من {{ w.total }}<span v-if="w.total"> · <b>{{ Math.round(w.failed * 100 / w.total) }}%</b></span></div>
+      </div>
+      <div class="tiny muted ways-note">نسبة الفشل {{ period === 'today' ? 'اليوم' : 'آخر 7 أيام' }} لكل طريقة</div>
+    </div>
     <div class="tiles">
       <div class="tile"><div class="n">{{ shown.length }}</div><div class="small">فشلت ({{ periodLabel }})</div></div>
       <div class="tile"><div class="n">{{ countDay(0) }} · {{ countDay(1) }}</div><div class="small">اليوم · أمس</div></div>
@@ -38,12 +47,18 @@
         <span class="small muted">{{ when(x.at) }}</span>
         <span class="col text-weight-bold ltr phone">{{ x.phone || '—' }}</span>
         <q-btn v-if="x.phone" flat round dense size="sm" icon="content_copy" aria-label="نسخ الرقم" @click="copy(x.phone)" />
+        <q-btn flat round dense size="sm" icon="smart_toy" aria-label="نسخ لـClaude" @click="copyForClaude('عملية فاشلة', forClaude(x))" />
       </div>
       <div class="small">
         {{ OPERATORS[x.operator] || x.operator }} · {{ x.offer || (x.amount ? x.amount + ' دج' : '') }}
         <span v-if="x.sim"> · {{ x.sim }}</span>
       </div>
       <div class="small text-negative">{{ STATUS[x.status] || x.status }} · {{ familyOf(x.code).label }}</div>
+      <!-- Its tracking line (0094): by which way, who sent it, how busy it was -->
+      <div class="tiny track">
+        {{ WAYS[x.way] || x.way || '' }} · {{ x.shop ? 'المحل: ' + x.shop : (x.app === 'owner-console' ? 'صفحتك أو المختبر' : x.app) }}
+        <span v-if="x.hour_load"> · تلك الساعة {{ x.hour_load }} عملية</span><span v-if="x.sim_before > 1"> · {{ x.sim_before - 1 }} قبلها على الشريحة في 10 دقائق</span><span v-if="x.took_s"> · أخذت {{ x.took_s < 120 ? x.took_s + ' ث' : Math.round(x.took_s / 60) + ' د' }}</span>
+      </div>
       <div v-if="x.code" class="tiny muted ltr">{{ x.code }}</div>
       <div class="small next">➜ {{ nextOf(x).text }}</div>
       <div class="row gap-sm">
@@ -76,6 +91,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { copyToClipboard, Notify } from 'quasar'
 import { useRouter } from 'vue-router'
 import * as flexy from 'src/api/flexy'
+import { when } from 'src/api/when'
+import { WAYS } from 'src/api/ways'
+import { copyForClaude, registerForClaude } from 'src/composables/useClaudeCopy'
 
 const PERIODS = [{ id: 'today', label: 'اليوم' }, { id: 'yesterday', label: 'أمس' }, { id: 7, label: '7 أيام' }, { id: 30, label: '30 يومًا' }]
 const OPERATORS = { mobilis: 'موبيليس', djezzy: 'جيزي', ooredoo: 'أوريدو' }
@@ -97,6 +115,11 @@ const familyOf = (code) => (code ? FAMILIES.find((f) => f.test.test(code)) || OT
 const isDiscovery = (x) => /\.(discover|probe)\./.test(x.op || '') || /DISCOVERED|PROBED|LINE_GROUP_CHANGED/.test(x.code || '')
 
 const ops = ref([])
+const waysToday = ref([])
+const waysWeek = ref([])
+const ways = computed(() => (period.value === 'today' ? waysToday.value : waysWeek.value).filter((w) => w.total > 0))
+const forClaude = (x) => ({ id: x.id, at: x.at, op: x.op, way: x.way, status: x.status, code: x.code, family: familyOf(x.code).id, solved: x.solved,
+  phone: x.phone, offer: x.offer, amount: x.amount, app: x.app, shop: x.shop, sim: x.sim, hour_load: x.hour_load, sim_before: x.sim_before, took_s: x.took_s })
 const reads = ref([])
 const state = ref('')
 const period = ref('today')
@@ -167,17 +190,21 @@ function top (list, key) {
   for (const x of list) { const k = key(x); if (k) n[k] = (n[k] || 0) + 1 }
   return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
 }
-const when = (t) => { const d = new Date(t); const i = dayIndex(t); const hm = d.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }); return i === 0 ? hm : i === 1 ? 'أمس ' + hm : d.toLocaleDateString('ar-DZ', { day: '2-digit', month: '2-digit' }) + ' ' + hm }
 async function copy (p) { await copyToClipboard(p); Notify.create({ message: 'نُسخ الرقم', color: 'positive', position: 'top', timeout: 1000 }) }
 
 const withLimit = (p, ms = 15000) => Promise.race([p, new Promise((resolve) => setTimeout(() => resolve(null), ms))])
 async function load () {
   if (state.value === 'busy') return
   state.value = 'busy'
-  const [a, b] = await Promise.all([withLimit(flexy.runReady('failed_ops')).catch(() => null), withLimit(flexy.runReady('failed_reads')).catch(() => null)])
+  const [a, b, w] = await Promise.all([withLimit(flexy.runReady('failed_ops')).catch(() => null), withLimit(flexy.runReady('failed_reads')).catch(() => null),
+    withLimit(flexy.runReady('way_stats')).catch(() => null)])
+  if (w?.status === 200 && w.body?.ok) { waysToday.value = w.body.rows?.[0]?.today || []; waysWeek.value = w.body.rows?.[0]?.week || [] }
   if (a?.status === 200 && a.body?.ok) { ops.value = a.body.rows?.[0]?.rows || []; state.value = '' } else state.value = 'failed'
   if (b?.status === 200 && b.body?.ok) reads.value = b.body.rows?.[0]?.rows || []
 }
+registerForClaude('العمليات الفاشلة', () => ({ period: period.value, open: open.value.length, solved: solved.value.length,
+  ways: ways.value.map((w) => `${w.way} ${w.failed}/${w.total}`).join(', ') }))
+registerForClaude('فشل بلا حل', () => open.value.slice(0, 20).map(forClaude))
 watch(period, () => { operator.value = null; sim.value = null; reason.value = null; limit.value = 30 })
 onMounted(load)
 </script>
@@ -190,6 +217,11 @@ onMounted(load)
 .tile .n { font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
 .tile .small-n { font-size: 14px; }
 .op { border-top: 1px solid rgba(0, 0, 0, 0.06); padding: 6px 0; min-width: 0; }
+.ways { display: flex; flex-wrap: wrap; gap: 6px; }
+.way { background: rgba(0, 0, 0, 0.04); border-radius: 10px; padding: 4px 8px; min-width: 0; }
+.way.bad { background: rgba(193, 0, 21, 0.1); color: var(--q-negative); }
+.ways-note { width: 100%; }
+.track { color: #6b6f7a; }
 .next { color: #1565c0; }
 .tiny { font-size: 10px; }
 .ltr { direction: ltr; text-align: right; }
