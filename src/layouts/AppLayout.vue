@@ -94,6 +94,11 @@
                 <q-item-section>شرائح متوقفة</q-item-section>
                 <q-item-section side><q-badge :color="simAlerts ? 'negative' : 'grey-5'" :label="simAlerts" /></q-item-section>
               </q-item>
+              <q-item v-if="lowStock" v-close-popup clickable to="/stock?tab=low">
+                <q-item-section avatar><q-icon name="inventory_2" color="deep-orange" /></q-item-section>
+                <q-item-section>{{ lowStock }} {{ lowStock === 1 ? 'بطاقة تكاد تنفد' : 'بطاقات تكاد تنفد' }}</q-item-section>
+                <q-item-section side><q-badge color="deep-orange" :label="lowStock" /></q-item-section>
+              </q-item>
               <q-item v-if="shopsDown" v-close-popup clickable to="/usage">
                 <q-item-section avatar><q-icon name="trending_down" color="negative" /></q-item-section>
                 <q-item-section>{{ shopsDown }} {{ shopsDown === 1 ? 'محل انخفض' : 'محلات انخفض' }} استهلاكها هذا الأسبوع</q-item-section>
@@ -360,7 +365,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { lowStock, automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 // «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
 const JUDGE = '/flexy/monitor?tab=judge'
 const DB = '/flexy/monitor?tab=db'

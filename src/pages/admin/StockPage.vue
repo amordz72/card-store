@@ -6,7 +6,29 @@
         :color="tab === t.id ? 'primary' : 'grey-8'" :label="t.label" :aria-pressed="tab === t.id" @click="tab = t.id" />
     </div>
 
+    <!-- v1.53 (owner 2026-10-30): cards about to run out, nearest first -->
+    <div v-show="tab === 'low'" class="tab-pane">
+      <div class="help small muted">بطاقة بيعت في آخر 14 يومًا وبقي منها {{ low.count }} أو أقل، أو يكفي ما بقي {{ low.days }} يوم أو أقل بسرعة بيعها في آخر 7 أيام.</div>
+      <div v-for="x in low.items" :key="x.product_id" class="card column q-gutter-xs">
+        <div class="row items-center justify-between no-wrap">
+          <span class="text-weight-bold">{{ x.brand }} · {{ x.name }}</span>
+          <q-badge :color="x.left === 0 ? 'negative' : 'deep-orange'" :label="x.left === 0 ? 'نفدت' : 'بقي ' + x.left" />
+        </div>
+        <div class="small muted">تُباع {{ x.per_day }} في اليوم<template v-if="x.days_left !== null && x.left > 0"> · تكفي نحو {{ x.days_left }} يوم</template></div>
+        <div v-if="x.made_up" class="small text-positive">تُباع الآن من بطاقات أخرى (تقسيم)، لكن أضف منها.</div>
+      </div>
+      <div v-if="!low.items.length" class="text-center muted q-pa-lg">لا بطاقة تكاد تنفد ✓</div>
+    </div>
+
     <div v-show="tab === 'settings'" class="tab-pane">
+    <div class="card column q-gutter-sm">
+      <div class="text-weight-bold">تنبيه «تكاد تنفد»</div>
+      <div class="row q-gutter-sm no-wrap">
+        <q-input v-model.number="lowDraft.count" class="col" dense outlined type="number" label="بقي (بطاقات) أو أقل" />
+        <q-input v-model.number="lowDraft.days" class="col" dense outlined type="number" label="يكفي (أيام) أو أقل" />
+      </div>
+      <q-btn outline color="primary" label="حفظ" class="self-start" @click="saveLow" />
+    </div>
     <div class="card column q-gutter-sm">
       <q-input v-model="announcement" type="textarea" autogrow dense outlined label="إعلان نصي في الصفحة الرئيسية (اتركه فارغًا لإخفائه)" />
       <q-btn outline color="primary" label="حفظ الإعلان" class="self-start" @click="saveAnnouncement" />
@@ -220,6 +242,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Dialog, LocalStorage, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { copyText } from 'src/composables/useCopy'
@@ -234,10 +257,11 @@ import CodesDialog from 'components/CodesDialog.vue'
 const { busy, run } = useRun()
 
 // --- tabs (remembered on this device)
-const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'batches', label: 'الدفعات' }, { id: 'settings', label: 'إعدادات' }]
+const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'low', label: 'تكاد تنفد' }, { id: 'batches', label: 'الدفعات' }, { id: 'settings', label: 'إعدادات' }]
 const TAB_KEY = 'cs_stock_tab'
 const readTab = () => { try { const t = LocalStorage.getItem(TAB_KEY); return TABS.some((x) => x.id === t) ? t : 'codes' } catch { return 'codes' } }
-const tab = ref(readTab())
+// the bell opens «تكاد تنفد» (?tab=low)
+const tab = ref(TABS.some((x) => x.id === useRoute().query.tab) ? useRoute().query.tab : readTab())
 watch(tab, (t) => {
   try { LocalStorage.set(TAB_KEY, t) } catch { /* storage blocked: first tab next time */ }
   window.scrollTo({ top: 0 })
@@ -478,7 +502,17 @@ async function loadBatches () {
   })
   if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided), suspect: Number(b.suspect) }))
 }
-async function reloadAll () { await Promise.all([load(), loadBatches()]) }
+async function reloadAll () { await Promise.all([load(), loadBatches(), loadLow()]) }
+// v1.53: «تكاد تنفد»
+const low = ref({ items: [], days: 2, count: 3 })
+const lowDraft = ref({ days: 2, count: 3 })
+async function loadLow () {
+  const r = await api.lowStock().catch(() => null)
+  if (r) { low.value = { ...r, items: r.items || [] }; lowDraft.value = { days: r.days, count: r.count } }
+}
+async function saveLow () {
+  if (await run(() => api.setLowStock(lowDraft.value.days, lowDraft.value.count).then(() => true), { success: 'حُفظ.' })) loadLow()
+}
 // v1.48 (owner 2026-10-30): a batch entered with a wrong purchase price is corrected in place; before v1.48: none shown
 const costChanges = ref({})
 const loadCostChanges = () => api.batchCostChanges().then((m) => { costChanges.value = m || {} }, () => {})
@@ -619,7 +653,7 @@ function suspectToNormal (b) {
   })
 }
 
-onMounted(() => { load(); loadBatches(); loadCostChanges(); loadAnnouncement() })
+onMounted(() => { load(); loadBatches(); loadCostChanges(); loadLow(); loadAnnouncement() })
 </script>
 
 <style scoped>
