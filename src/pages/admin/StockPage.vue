@@ -853,8 +853,9 @@ onMounted(() => { load(); loadBatches(); loadCostChanges(); loadBatchChanges(); 
 .brand-pick { width: 64px; height: 48px; padding: 3px; border-radius: 8px; border: 2px solid #E5E7EB; background: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font: inherit; font-size: 11px; line-height: 1.1; }
 .brand-pick img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.card-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-rows: min-content; gap: 6px; align-items: start; }
-.card-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 10px; cursor: pointer;
+/* Three a row, by flex-wrap, not a grid (owner 2026-10-30: a grid a screen too tall on his phone's browser) */
+.card-tiles { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.card-tile { flex: 0 0 calc((100% - 12px) / 3); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 10px; cursor: pointer;
   border: 2px solid var(--tile); background: #fff; color: var(--tile); font: inherit; line-height: 1.2; }
 /* fixed box: some phone browsers size an image in a column flex by its natural height (owner 2026-10-30: tiles 3 screens tall) */
 .tile-img { flex: 0 0 28px; height: 28px; width: 100%; background: center / contain no-repeat; }

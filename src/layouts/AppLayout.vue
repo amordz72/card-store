@@ -248,9 +248,36 @@ function widthCheck () {
     out.push(`${name} · ${Math.round(r.width)}px · من ${Math.round(r.left)} إلى ${Math.round(r.right)} · «${(el.innerText || el.value || '').trim().slice(0, 40)}»`)
     if (out.length >= 5) break
   }
-  if (extra <= 1 && !out.length) return `✓ العرض سليم (${vw}px)`
+  // And the height (owner 2026-10-30: «لماذا لم يكتشف عيب الطول»): an empty space of 150px or more between two shown
+  // elements, said with its size and what comes before it
+  const gaps = []
+  for (const el of document.querySelectorAll('.q-page, .q-page *')) {
+    const kids = [...el.children].map((c) => ({ c, r: c.getBoundingClientRect() })).filter((k) => k.r.height > 0 && k.r.width > 0)
+      .sort((a, b) => a.r.top - b.r.top)
+    // Empty at its own end, after its last shown child (a box taller than what it holds); a page-tall box by design is not
+    const cs = getComputedStyle(el)
+    if (kids.length && !el.classList.contains('q-page') && (cs.minHeight === '0px' || cs.minHeight === 'auto')) {
+      const tail = Math.round(el.getBoundingClientRect().bottom - Math.max(...kids.map((k) => k.r.bottom)) - parseFloat(cs.paddingBottom || '0'))
+      if (tail >= 150) {
+        const last = kids[kids.length - 1].c
+        gaps.push(`فراغ ${tail}px في آخر ${el.tagName.toLowerCase()}${typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''} بعد «${(last.innerText || '').trim().replace(/\s+/g, ' ').slice(-40)}»`)
+      }
+    }
+    for (let i = 1; i < kids.length; i++) {
+      const prevBottom = Math.max(...kids.slice(0, i).map((k) => k.r.bottom))
+      const gap = Math.round(kids[i].r.top - prevBottom)
+      if (gap < 150) continue
+      const before = kids[i - 1].c
+      const name = before.tagName.toLowerCase() + (typeof before.className === 'string' && before.className.trim() ? '.' + before.className.trim().split(/\s+/).slice(0, 2).join('.') : '')
+      gaps.push(`فراغ ${gap}px بعد ${name} «${(before.innerText || '').trim().replace(/\s+/g, ' ').slice(-40)}» (داخل ${el.tagName.toLowerCase()}${typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/)[0] : ''})`)
+      if (gaps.length >= 5) break
+    }
+    if (gaps.length >= 5) break
+  }
+  const gapText = gaps.length ? ['⚠ فراغات في الطول:', ...gaps.map((x) => '• ' + x)].join('\n') : ''
+  if (extra <= 1 && !out.length) return gapText ? `✓ العرض سليم (${vw}px)\n${gapText}` : `✓ العرض سليم (${vw}px) · ✓ لا فراغات`
   const head = extra > 1 ? `⚠ الصفحة أعرض من الشاشة بـ${extra}px (الشاشة ${vw}px). عناصر تتجاوز الحافة:` : `⚠ عناصر تخرج من حافة الشاشة (الشاشة ${vw}px):`
-  return [head, ...out.map((x) => '• ' + x)].join('\n')
+  return [head, ...out.map((x) => '• ' + x), gapText].filter(Boolean).join('\n')
 }
 // The page as text (the same for «نسخ الشاشة» and the 💡 «أرفق هذه الشاشة»)
 // A page with tabs (.hub-panel): every tab, the hidden ones shown for the time of reading (owner 2026-10-30:
