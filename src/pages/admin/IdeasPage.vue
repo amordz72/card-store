@@ -5,7 +5,7 @@
   <q-page class="q-pa-md column q-gutter-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
     <q-btn-toggle v-model="tab" spread unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-      :options="[{ label: 'أفكاري', value: 'mine' }, { label: `ينتظرك${handover ? ' (' + handover.needs.length + ')' : ''}`, value: 'handover' }, { label: 'مفيد', value: 'useful' }]" />
+      :options="[{ label: 'أفكاري', value: 'mine' }, { label: `ينتظرك${handover ? ' (' + openNeeds + ')' : ''}`, value: 'handover' }, { label: 'مفيد', value: 'useful' }]" />
 
     <!-- «مفيد» (owner 2026-10-30): how we work with less consumption, and answers kept (Flexy Core src/data/useful.ts) -->
     <template v-if="tab === 'useful'">
@@ -27,8 +27,10 @@
       <div v-if="handover" class="small muted">آخر نقطة توقف: {{ when(handover.at) }} · {{ handover.title }}</div>
       <div v-for="sec in SECTIONS" :key="sec.key" class="card column gap-xs">
         <div class="text-weight-bold">{{ sec.label }} ({{ (handover?.[sec.key] || []).length }})</div>
-        <component :is="item.to ? 'router-link' : 'div'" v-for="(item, n) in handover?.[sec.key] || []" :key="n" :to="item.to" class="h-item">
-          <span class="col">{{ item.text }}</span>
+        <!-- An item the program can check (owner 2026-10-30: «لماذا يسألني وقد طبّقت؟»): its count now, or ✓ when done -->
+        <component :is="item.to ? 'router-link' : 'div'" v-for="(item, n) in handover?.[sec.key] || []" :key="n" :to="item.to" class="h-item"
+          :class="{ 'h-done': isDone(item) }">
+          <span class="col">{{ item.text }}<b v-if="item.check && !isDone(item)" class="text-deep-orange"> (الآن: {{ liveOf(item) }})</b><b v-if="isDone(item)" class="text-positive"> ✓ تم (تحقق البرنامج)</b></span>
           <q-icon v-if="item.to" name="chevron_left" color="primary" />
           <span v-if="item.doc" class="small muted ltr">{{ item.doc.split('/').pop() }}</span>
         </component>
@@ -108,6 +110,7 @@ import { copyForClaude } from 'src/composables/useClaudeCopy'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
+import { useBell } from 'src/composables/useBell'
 
 const KINDS = [
   { id: 'idea', label: 'فكرة', icon: 'lightbulb' },
@@ -136,6 +139,12 @@ const inFilter = (i, f) => f === 'all' ||
   (f === 'proposed' && ['proposed', 'review'].includes(statusOf(i))) ||
   (f === 'done' && ['done', 'impossible'].includes(statusOf(i)))
 
+// What the program knows now, for the items it can check
+const { sqlPending, reviewWaiting, agentUpdates, failuresOpen } = useBell()
+const LIVE = { sql: sqlPending, review: reviewWaiting, updates: agentUpdates, failures: failuresOpen }
+const liveOf = (item) => Number(LIVE[item.check]?.value || 0)
+const isDone = (item) => !!item.check && !!LIVE[item.check] && liveOf(item) === 0
+const openNeeds = computed(() => (handover.value?.needs || []).filter((x) => !isDone(x)).length)
 const SECTIONS = [
   { key: 'needs', label: '🔴 تحتاج يدك' },
   { key: 'decide', label: '💬 ينتظر قرارك' },
@@ -214,4 +223,5 @@ onMounted(() => call('load', () => flexy.ownerIdeas()))
 .gap-xs { gap: 4px; }
 .ltr { direction: ltr; }
 .reply { background: rgba(40, 53, 147, 0.06); border-radius: 8px; padding: 8px 10px; }
+.h-done { opacity: 0.6; text-decoration: line-through; }
 </style>
