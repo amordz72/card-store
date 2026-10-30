@@ -7,11 +7,12 @@
         <div class="small">على شاشته الأرقام: <b class="ltr digits">{{ b.number }}</b></div></div>
       <q-btn unelevated no-caps color="primary" label="اعطه الصلاحية" :loading="busy === 'a' + b.id" @click="set({ approve: b.id }, 'a' + b.id)" />
     </div>
+    <!-- Always in sight (owner 2026-10-30: «أين زر تحميلها؟»): the page file to carry by cable -->
+    <q-btn unelevated no-caps color="primary" icon="computer" class="self-start" label="ملف صفحة الكمبيوتر الجديد (للنقل بالكابل)" @click="shortcut" />
     <q-expansion-item dense icon="verified_user" :label="`الأجهزة الموثوقة (${trusted.length}) · الأوامر والروابط`" header-class="small text-weight-bold">
       <div class="column q-gutter-sm q-pa-sm">
         <div class="small muted">على أي كمبيوتر افتح <b class="ltr">{{ newUrl }}</b>
-          <q-btn flat dense no-caps size="sm" color="primary" icon="content_copy" label="انسخ الرابط" @click="copy(newUrl)" />
-          <q-btn unelevated dense no-caps size="sm" color="primary" icon="download" label="نزّل ملف الصفحة (للنقل بالكابل)" @click="shortcut" /></div>
+          <q-btn flat dense no-caps size="sm" color="primary" icon="content_copy" label="انسخ الرابط" @click="copy(newUrl)" /></div>
         <div v-for="b in trusted" :key="b.id" class="row items-center q-gutter-sm line">
           <div class="col small"><b>{{ b.label }}</b> · وُثق {{ when(b.approved_at) }}<span v-if="b.last_seen_at"> · آخر فتح {{ when(b.last_seen_at) }}</span></div>
           <q-btn flat dense no-caps size="sm" color="negative" label="ألغِ" :loading="busy === 'r' + b.id" @click="set({ revoke: b.id }, 'r' + b.id)" />
