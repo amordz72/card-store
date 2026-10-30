@@ -885,7 +885,7 @@ function onboardingText (sim) {
   if (o.stage === 'balance') return 'يُسأل أول رصيد'
   // The last known balance stays in sight while the new one is read (owner 2026-10-28)
   // How long it has been reading (owner 2026-10-30: «يدور ساعات»): it stops by itself after 30 minutes (Flexy Core 0101)
-  if (o.stage === 'read') return 'يُقرأ الرصيد…' + (READ_WHY[o.alert_detail] ? ' (ينتظر: ' + READ_WHY[o.alert_detail] + '، يُرسل حين يزول)' : '') + (o.updated_at ? ' منذ ' + since(o.updated_at) : '') + (sim.balance != null ? ' · السابق ' + money(sim.balance) : '')
+  if (o.stage === 'read') return 'يُقرأ الرصيد…' + (o.alert_detail ? ' (رفض الكمبيوتر: ' + (READ_WHY[o.alert_detail] || o.alert_detail) + '؛ يُعاد حتى 30 دقيقة ثم يُغلق «ليس الآن»، لا يُحسب على الشريحة)' : '') + (o.updated_at ? ' منذ ' + since(o.updated_at) : '') + (sim.balance != null ? ' · السابق ' + money(sim.balance) : '')
   if (o.stage === 'approved') return 'اعتُمدت آليًا بعد أول رصيد'
   if (o.stage === 'balance_only') return 'الرصيد ' + (o.probe_amount != null ? money(o.probe_amount) : 'مقروء') + ' (بلا اعتماد)'
   if (o.stage === 'alert') return '⚠️ ' + (ALERTS[o.alert_code] || o.alert_code) + (o.alert_detail ? ' (' + (READ_WHY[o.alert_detail] || o.alert_detail) + ')' : '') + (o.alert_code === 'BALANCE_READ_FAILED' ? ' — يُعاد وحده بعد ' + ((o.read_fails || 1) <= 3 ? '3' : '15') + ' دقائق (فشل ' + (o.read_fails || 1) + ' مرة)' : '')
