@@ -149,6 +149,7 @@
         <q-btn fab-mini unelevated color="primary" icon="keyboard_arrow_up" aria-label="للأعلى" />
       </q-page-scroller>
     </q-page-container>
+    <QuickIdea v-if="session.isAdmin" :screen-text="screenText" :page-title="title" />
 
     <q-footer class="bg-white">
       <QuickBar :items="nav" />
@@ -158,6 +159,7 @@
 
 <script setup>
 import { claudePageText } from 'src/composables/useClaudeCopy'
+import QuickIdea from 'src/components/QuickIdea.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { copyToClipboard, useQuasar } from 'quasar'
@@ -213,9 +215,10 @@ function widthCheck () {
   const head = extra > 1 ? `⚠ الصفحة أعرض من الشاشة بـ${extra}px (الشاشة ${vw}px). عناصر تتجاوز الحافة:` : `⚠ عناصر تخرج من حافة الشاشة (الشاشة ${vw}px):`
   return [head, ...out.map((x) => '• ' + x)].join('\n')
 }
-async function copyScreen () {
+// The page as text (the same for «نسخ الشاشة» and the 💡 «أرفق هذه الشاشة»)
+function screenText () {
   const page = (document.querySelector('.q-page')?.innerText || '') + '\n\n' + widthCheck() + claudePageText()
-  const text = [
+  return [
     title.value + ' · ' + new Date().toLocaleString('ar-DZ'),
     session.isAdmin && monitorBar.value ? '⚠ ' + monitorBar.value.text : '',
     page
@@ -224,6 +227,9 @@ async function copyScreen () {
     // Icon names (storefront, local_offer…) are not the screen's words
     .split('\n').filter((l) => !/^[a-z_]+$/.test(l.trim())).join('\n')
     .replace(/\n{3,}/g, '\n\n').trim()
+}
+async function copyScreen () {
+  const text = screenText()
   try {
     await copyToClipboard(text)
     $q.notify({ message: 'نُسخت الشاشة: الصقها في المحادثة', color: 'positive', position: 'top', timeout: 1500 })

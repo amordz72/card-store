@@ -65,6 +65,7 @@
         :color="filter === f.id ? 'primary' : 'grey-8'" :label="`${f.label} (${countOf(f.id)})`" @click="filter = f.id" />
     </div>
 
+    <q-btn v-if="shown.length" flat dense no-caps icon="smart_toy" class="self-start" :label="`نسخ هذه الأفكار لـClaude (${shown.length})`" @click="copyAll" />
     <div v-for="i in shown" :key="i.id" class="card column q-gutter-xs">
       <div class="row items-center no-wrap q-gutter-sm">
         <q-icon :name="KINDS.find((k) => k.id === i.kind)?.icon || 'lightbulb'" color="grey-7" />
@@ -103,6 +104,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Dialog } from 'quasar'
 import { useRoute } from 'vue-router'
+import { copyForClaude } from 'src/composables/useClaudeCopy'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
@@ -194,6 +196,8 @@ async function add () {
   }
   if (await call('add', () => flexy.addIdea(text.value.trim(), kind.value, file))) { text.value = ''; picked.value = null }
 }
+// All the ideas shown, at once (owner 2026-10-30: «أنسخها مرة واحدة»)
+const copyAll = () => copyForClaude('أفكار وأوامر', shown.value.map((i) => ({ id: i.id, at: i.at, kind: i.kind, status: statusOf(i), text: i.text, file: i.file_name })))
 // His own edit, before Claude starts on it (after, a new idea)
 function editOne (i) {
   Dialog.create({ title: 'عدّل #' + i.id, prompt: { model: i.text, type: 'textarea', isValid: (v) => !!String(v).trim() }, cancel: 'إلغاء', ok: 'احفظ' })
