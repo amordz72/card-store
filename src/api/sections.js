@@ -11,6 +11,7 @@ export const ADMIN_TABS = [
   { to: '/usage', label: 'الاستعمال', icon: 'insights' },
   { to: '/flexy/monitor?tab=db', label: 'القاعدة و SQL', icon: 'storage' },
   { to: '/ideas', label: 'أفكار وأوامر', icon: 'lightbulb' },
+  { to: '/flexy/notebook', label: 'دفتر البرنامج', icon: 'menu_book' },
   { to: '/flexy', label: 'اختبار', icon: 'bolt' }
 ]
 export const ADMIN_LINKS = [{ href: 'https://claude.ai/artifact/7LMGEfJRBcyV9d2LbijxnD', label: 'دليل فهم Flexy' }]

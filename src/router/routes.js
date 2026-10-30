@@ -29,6 +29,7 @@ const routes = [
       { path: 'flexy/devices', component: () => import('pages/admin/DevicesPage.vue'), meta: { heavy: true, admin: true, title: 'المحطات والشرائح' } },
       { path: 'flexy/shops', component: () => import('pages/admin/FlexyShopsPage.vue'), meta: { heavy: true, admin: true, title: 'فليكسي المحلات' } },
       { path: 'flexy/switches', component: () => import('pages/admin/SwitchesPage.vue'), meta: { admin: true, title: 'المفاتيح' } },
+      { path: 'flexy/notebook', component: () => import('pages/admin/NotebookPage.vue'), meta: { admin: true, title: 'دفتر البرنامج' } },
       { path: 'flexy/numbers', component: () => import('pages/admin/NumberMemoryPage.vue'), meta: { admin: true, title: 'ذاكرة الأرقام' } },
       { path: 'ideas', component: () => import('pages/admin/IdeasPage.vue'), meta: { heavy: true, admin: true, title: 'أفكار وأوامر' } },
       { path: 'stats', redirect: '/flexy/monitor?tab=db' },
