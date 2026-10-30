@@ -152,6 +152,11 @@
           </q-item>
         </template>
         <q-separator class="q-my-sm" />
+        <!-- In reach from every page (owner N12: it was at the bottom of the IDOOM page) -->
+        <q-item v-if="session.isAdmin" clickable @click="shareSite">
+          <q-item-section avatar><q-icon name="share" /></q-item-section>
+          <q-item-section>مشاركة رابط الموقع</q-item-section>
+        </q-item>
         <q-item v-if="lock.enabled" clickable @click="lock.lock()">
           <q-item-section avatar><q-icon name="lock" /></q-item-section>
           <q-item-section>قفل الآن</q-item-section>
@@ -384,6 +389,17 @@ function foldNeeds () { foldedSig.value = needsSig.value; try { sessionStorage.s
 function unfoldNeeds () { foldedSig.value = ''; try { sessionStorage.removeItem(NEEDS_FOLD_KEY) } catch { /* private mode */ } }
 const shownNeeds = computed(() => (needsAll.value ? needsYou.value : needsYou.value.slice(0, 3)))
 // Not while the page is hidden (2026-10-30, the database's load): a phone in a pocket asks nothing
+// The one official link (owner setting «الرابط الرسمي», else the built-in one), by the phone's share sheet or copied
+async function shareSite () {
+  let url = adminApi.DEFAULT_OFFICIAL_SITE
+  try { const l = await adminApi.siteLinks(); if (l?.officialUrl) url = l.officialUrl } catch { /* the built-in link */ }
+  if (navigator.share) {
+    try { await navigator.share({ title: 'متجر البطاقات', text: url }) } catch { /* closed */ }
+    return
+  }
+  await copyToClipboard(url)
+  $q.notify({ message: 'نُسخ رابط الموقع', color: 'positive', position: 'top', timeout: 1500 })
+}
 const refreshBellIfAdmin = () => { if (session.isAdmin && document.visibilityState === 'visible') refreshBell() }
 document.addEventListener('visibilitychange', refreshBellIfAdmin)
 watch(() => [route.fullPath, session.isAdmin], refreshBellIfAdmin, { immediate: true })

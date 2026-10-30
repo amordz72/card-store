@@ -25,7 +25,8 @@
           <q-btn v-for="k in KINDS" :key="k.id" rounded dense no-caps size="sm" :unelevated="kind === k.id" :outline="kind !== k.id"
             :color="kind === k.id ? 'primary' : 'grey-8'" :label="k.label" @click="kind = k.id" />
         </div>
-        <q-input v-model="text" type="textarea" outlined autogrow autofocus placeholder="اكتب أو أملِ بالصوت…" />
+        <!-- Never longer than a third of the screen (owner N14: a long paste ran off the phone); the draft kept (N20) -->
+        <q-input v-model="text" type="textarea" outlined autogrow autofocus placeholder="اكتب أو أملِ بالصوت…" input-class="qi-text" />
         <div class="row items-center q-gutter-xs small muted">
           <span>الزر:</span>
           <q-btn flat dense no-caps size="sm" :label="pos.big ? 'صغّره' : 'كبّره'" @click="pos.big = !pos.big; keepPos()" />
@@ -73,14 +74,15 @@
       </q-card-section>
       <q-card-actions align="right">
         <q-btn flat no-caps label="إلغاء" v-close-popup />
-        <q-btn unelevated no-caps color="primary" icon="send" label="احفظ" :loading="busy" :disable="!text.trim()" @click="save" />
+        <q-btn outline no-caps color="primary" label="احفظ" :loading="busy" :disable="!text.trim()" @click="save" />
+        <q-btn unelevated no-caps color="primary" icon="send" label="احفظ وأغلق" :loading="busy" :disable="!text.trim()" @click="saveAndClose" />
       </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { copyToClipboard, Dialog, LocalStorage, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 
@@ -131,7 +133,10 @@ function dragEnd () {
 function tapOpen () { if (!moved) open.value = true; moved = false }
 const KINDS = [{ id: 'idea', label: 'فكرة' }, { id: 'order', label: 'أمر' }, { id: 'problem', label: 'مشكلة' }, { id: 'brainstorm', label: 'عصف ذهني' }]
 const open = ref(false)
-const text = ref('')
+// The draft stays on this phone until saved (owner N20: «إن أغلقت، أجده المرة القادمة»)
+const DRAFT_KEY = 'cs_quick_draft'
+const text = ref((() => { try { return localStorage.getItem(DRAFT_KEY) || '' } catch { return '' } })())
+watch(text, (t) => { try { if (t) localStorage.setItem(DRAFT_KEY, t); else localStorage.removeItem(DRAFT_KEY) } catch { /* private mode */ } })
 const kind = ref('idea')
 const withScreen = ref(true)
 const busy = ref(false)
@@ -224,6 +229,11 @@ async function copyScreen () {
   }
 }
 
+async function saveAndClose () {
+  await save()
+  if (!error.value) open.value = false
+}
+
 async function save () {
   // Claude's FLEXY line typed or pasted here is a reply, not a note (owner N7)
   if (/^\s*FLEXY\b/i.test(text.value) || /\bFLEXY\s+N\d+\s*=/.test(text.value)) {
@@ -257,4 +267,5 @@ async function save () {
 .notes { border-top: 1px solid rgba(0, 0, 0, 0.08); padding-top: 6px; }
 .notes-list { max-height: 34vh; overflow-y: auto; }
 .note { overflow-wrap: anywhere; }
+:deep(.qi-text) { max-height: 33vh; overflow-y: auto !important; }
 </style>
