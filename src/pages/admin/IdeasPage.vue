@@ -94,6 +94,7 @@
           :loading="busy === 'a' + i.id" @click="mark(i, 'approve')" />
         <q-btn v-if="!['building', 'done', 'impossible'].includes(statusOf(i))" flat dense no-caps color="primary" icon="edit" label="عدّل"
           :loading="busy === 'e' + i.id" @click="editOne(i)" />
+        <q-btn flat dense no-caps color="indigo-7" icon="playlist_add" label="انقل إلى الخطة" :loading="busy === 'p' + i.id" @click="toPlan(i)" />
         <q-btn flat dense no-caps color="grey-7" icon="visibility_off" label="أخفِ" :loading="busy === 'h' + i.id" @click="mark(i, 'hide')" />
       </div>
     </div>
@@ -104,7 +105,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Dialog } from 'quasar'
+import { Dialog, Notify } from 'quasar'
 import { useRoute } from 'vue-router'
 import { copyForClaude } from 'src/composables/useClaudeCopy'
 import SectionTabs from 'src/components/SectionTabs.vue'
@@ -211,6 +212,19 @@ const copyAll = () => copyForClaude('أفكار وأوامر', shown.value.map((
 function editOne (i) {
   Dialog.create({ title: 'عدّل #' + i.id, prompt: { model: i.text, type: 'textarea', isValid: (v) => !!String(v).trim() }, cancel: 'إلغاء', ok: 'احفظ' })
     .onOk((v) => call('e' + i.id, () => flexy.editIdea(i.id, String(v).trim())))
+}
+// «انقل إلى الخطة» (owner 2026-10-30): the idea becomes a plan line of «دفتر البرنامج» (kept here too)
+async function toPlan (i) {
+  busy.value = 'p' + i.id
+  try {
+    const r = await flexy.notebookSave({ section: 'plan', kind: 'service', text: i.text.slice(0, 2000), status: 'idea', note: 'من فكرة #' + i.id })
+    if (r.status !== 200 || !r.body?.ok) throw new Error(r.body?.error || 'FLEXY_CORE')
+    Notify.create({ type: 'positive', message: 'نُقلت إلى الخطة في «دفتر البرنامج»' })
+  } catch (e) {
+    error.value = e.message || 'FLEXY_CORE'
+  } finally {
+    busy.value = ''
+  }
 }
 const mark = (i, action) => call((action === 'approve' ? 'a' : 'h') + i.id, () => flexy.markIdea(i.id, action))
 const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '')
