@@ -29,10 +29,13 @@ const monitorBar = ref(null)
 const monitorAlerts = ref(0)
 // «حدث أثناء غيابك» (Flexy Core 0079): unseen events that solved themselves
 const monitorIncidents = ref(0)
+// The station computers that can take a newer Agent from main (owner 2026-10-30): count and the version
+const agentUpdates = ref(0)
+const agentUpdateVersion = ref('')
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
 const repoKeyAlert = computed(() => (repoKeyLevel.value === 'dead' || repoKeyLevel.value === 'expiring' ? 1 : 0))
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value + agentUpdates.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
@@ -75,11 +78,27 @@ async function refreshBell () {
     }
   } catch { /* keep the last value */ }
   try {
+    const res = await flexyApi.ownerUpdates()
+    if (res.status === 200 && res.body?.ok) {
+      const u = agentUpdatesOf(res.body)
+      agentUpdates.value = u.length
+      agentUpdateVersion.value = u[0]?.main_version || ''
+    }
+  } catch { /* keep the last value */ }
+  try {
     const res = await flexyApi.ownerRepoKey()
     if (res.status === 200) repoKeyLevel.value = res.body?.repo_key?.level || ''
   } catch { /* keep the last value */ }
 }
 
+// A computer seen in the last 10 minutes whose main is newer (or another commit), with no update asked yet
+export function agentUpdatesOf (body, now = Date.now()) {
+  const busy = new Set((body?.stations || []).filter((x) => x.status === 'pending' || x.status === 'claimed').map((x) => x.station_uuid))
+  return (body?.main || []).filter((m) => m.main_version && !m.main_error && !busy.has(m.station_uuid) &&
+    now - Date.parse(m.reported_at || 0) < 10 * 60_000 &&
+    (m.main_version !== m.agent_version || (m.main_commit && m.agent_commit && m.main_commit !== m.agent_commit)))
+}
+
 export function useBell () {
-  return { openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }
