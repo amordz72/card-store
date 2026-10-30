@@ -145,6 +145,8 @@ export const setOwnerSwitch = (on) => owner('settings', { method: 'POST', body: 
 export const setAppsSwitch = (on) => owner('settings', { method: 'POST', body: { apps_send_enabled: on } })
 // The shops' Djezzy / Ooredoo ordinary credit in Flexy Core (apps.760 / apps.590, owner 2026-10-29), read with ownerSwitch().
 export const setAppsDjezzySwitch = (on) => owner('settings', { method: 'POST', body: { apps_djezzy_send_enabled: on } })
+// v1.55: the shops' Ooredoo / Djezzy OFFERS, apart from their credit (owner 2026-10-30)
+export const setAppsOoredooOffersSwitch = (on) => owner('settings', { method: 'POST', body: { apps_ooredoo_offers_enabled: on } })
 export const setAppsOoredooSwitch = (on) => owner('settings', { method: 'POST', body: { apps_ooredoo_send_enabled: on } })
 // «عروض سما» (offers.sama_enabled, owner 2026-10-27): off = no offer goes from Sama, for him and the shops; kept.
 export const setSamaOffersSwitch = (on) => owner('settings', { method: 'POST', body: { sama_offers_enabled: on } })

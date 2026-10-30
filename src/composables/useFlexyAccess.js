@@ -9,6 +9,8 @@ const maxAmount = ref(0)
 const offers = ref(false)
 // Prefixes whose ordinary credit this shop may send: Mobilis always, Djezzy/Ooredoo when the owner gave it a rate
 const creditPrefixes = ref(['06'])
+// Prefixes whose offers it may buy: Mobilis when it has the offers' rate, Ooredoo when it has its offers (v1.55)
+const offerPrefixes = ref(['06'])
 
 export function useFlexyAccess () {
   const customer = useCustomerStore()
@@ -21,7 +23,8 @@ export function useFlexyAccess () {
       maxAmount.value = s.max_amount || 0
       offers.value = !!s.offers
       creditPrefixes.value = [...(s.mobilis ? ['06'] : []), ...(s.djezzy ? ['07'] : []), ...(s.ooredoo ? ['05'] : [])]
+      offerPrefixes.value = [...(s.offers ? ['06'] : []), ...(s.offers_ooredoo ? ['05'] : [])]
     } catch { /* keep the last value; the page shows its own errors */ }
   }
-  return { enabled, open, maxAmount, offers, creditPrefixes, refresh }
+  return { enabled, open, maxAmount, offers, creditPrefixes, offerPrefixes, refresh }
 }

@@ -91,6 +91,41 @@ const OP_OFFER = "mobilis.sama.offer.665";
 // Ordinary credit on the other operators (owner 2026-10-29, v1.39): the key follows the number's prefix.
 const OP_760 = "djezzy.flexy.ordinary.760";
 const OP_590 = "ooredoo.flexy.ordinary.590";
+// The shops' Ooredoo offers (owner 2026-10-30, v1.55): bought by the catalog name, at the price Flexy Core names
+const OP_OFFER_585 = "ooredoo.flexy.offer.585";
+const offerKey = (phone: string) => (phone.startsWith("05") ? OP_OFFER_585 : OP_OFFER);
+
+// The shop's switches: v4 (v1.55) names its Ooredoo offers; before it, v1 (Mobilis offers only)
+async function flexyStatusOf(token: string): Promise<Record<string, unknown> | null> {
+  for (const fn of ["store_flexy_status_v4", "store_flexy_status"]) {
+    const st = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ p_token: token }),
+    });
+    const row = (await st.json().catch(() => null))?.[0];
+    if (st.ok && row) return row;
+    if (st.status !== 404) return null;
+  }
+  return null;
+}
+
+// An Ooredoo offer's price is not in its name: the one Flexy Core shows for this number now (its kept menu, no session)
+async function ooredooPrice(phone: string, label: string): Promise<number | null> {
+  try {
+    const res = await fetch(`${FLEXY_API}/offers/lookup`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${FLEXY_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({ phone }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const b = await res.json().catch(() => ({}));
+    const o = (Array.isArray(b?.offers) ? b.offers : []).find((x: { label?: string }) => x.label === label);
+    return o && Number.isFinite(Number(o.amount)) ? Number(o.amount) : null;
+  } catch {
+    return null;
+  }
+}
 function creditKey(phone: string): string {
   if (phone.startsWith("07")) return OP_760;
   if (phone.startsWith("05")) return OP_590;
@@ -151,7 +186,7 @@ async function sendToCore(job: Job): Promise<string | null> {
       body: JSON.stringify({
         // Sent again as what it is: an offer is never re-sent as ordinary credit.
         ...(job.kind === "offer"
-          ? { operation_key: OP_OFFER, offer: job.offer_label }
+          ? { operation_key: offerKey(job.phone), offer: job.offer_label, amount: job.amount }
           : { operation_key: creditKey(job.phone), amount: job.amount }),
         idempotency_key: job.core_key,
         phone: job.phone,
@@ -213,9 +248,13 @@ async function handleShop(req: Request, route: string): Promise<Response> {
     // An offer's price is the number its name ends with (the database checks it again).
     const kind = body.kind === "offer" ? "offer" : "630";
     const label = kind === "offer" ? String(body.offer ?? "").trim() : null;
-    const amount = kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
     const phone = String(body.phone ?? "");
-    if (!(await coreAvailable(kind === "offer" ? OP_OFFER : creditKey(phone), amount, label))) {
+    const ooredooOffer = kind === "offer" && phone.replace(/\D/g, "").startsWith("05");
+    // Mobilis: the number its name ends with; Ooredoo: the price Flexy Core shows for it (Flexy Core checks it again)
+    const amount = ooredooOffer ? (await ooredooPrice(phone.replace(/\D/g, ""), label ?? "")) ?? NaN
+      : kind === "offer" ? Number(/([0-9]+)$/.exec(label ?? "")?.[1] ?? NaN) : Number(body.amount);
+    if (ooredooOffer && !Number.isFinite(amount)) return json(req, 422, { ok: false, error: "FLEXY_OFFER_INVALID" });
+    if (!ooredooOffer && !(await coreAvailable(kind === "offer" ? OP_OFFER : creditKey(phone), amount, label))) {
       return json(req, 422, { ok: false, error: "FLEXY_UNAVAILABLE" });
     }
     const created = await serviceRpc("store_flexy_create_v3", {
@@ -243,13 +282,8 @@ async function handleShop(req: Request, route: string): Promise<Response> {
   // «أوتوميكس» (owner 2026-10-29): which quick offers a SIM can take now, before the line is known.
   // {offers: up to 4 names} → {available: {name: bool}}. Unavailable = the owner is told by the core.
   if (route === "/shop/available") {
-    const st = await fetch(`${SUPABASE_URL}/rest/v1/rpc/store_flexy_status`, {
-      method: "POST",
-      headers: { apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
-      body: JSON.stringify({ p_token: token }),
-    });
-    const s = (await st.json().catch(() => null))?.[0];
-    if (!st.ok || !s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
+    const s = await flexyStatusOf(token);
+    if (!s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
     if (!s.enabled || !s.open || !s.offers) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
     const names = (Array.isArray(body.offers) ? body.offers : []).filter((x: unknown) => typeof x === "string").slice(0, 4) as string[];
     const answers = await Promise.all(names.map((n) => coreAvailable(OP_OFFER, NaN, n)));
@@ -260,15 +294,12 @@ async function handleShop(req: Request, route: string): Promise<Response> {
   // returns the group's offers a connected SIM can run. The shop polls while it is discovering.
   if (route === "/shop/offers") {
     // store_flexy_status is the shop's own read (anon), not a service function.
-    const st = await fetch(`${SUPABASE_URL}/rest/v1/rpc/store_flexy_status`, {
-      method: "POST",
-      headers: { apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
-      body: JSON.stringify({ p_token: token }),
-    });
-    const s = (await st.json().catch(() => null))?.[0];
-    if (!st.ok || !s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
+    const s = await flexyStatusOf(token);
+    if (!s) return json(req, 401, { ok: false, error: "INVALID_SESSION" });
     if (!s.enabled) return json(req, 403, { ok: false, error: "FLEXY_NOT_ENABLED" });
-    if (!s.open || !s.offers) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
+    // An Ooredoo number: its offers have their own switch for this shop (v1.55)
+    const isOoredoo = /^0?5/.test(String(body.phone ?? "").replace(/\D/g, "").replace(/^213/, "0"));
+    if (!s.open || !(isOoredoo ? s.offers_ooredoo : s.offers)) return json(req, 403, { ok: false, error: "FLEXY_CLOSED" });
     try {
       const res = await fetch(`${FLEXY_API}/offers/lookup`, {
         method: "POST",
