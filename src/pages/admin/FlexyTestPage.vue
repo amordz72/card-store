@@ -69,6 +69,7 @@
 </template>
 
 <script setup>
+import { useRoute } from 'vue-router'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import { computed, ref } from 'vue'
@@ -93,9 +94,11 @@ const LAB_STATUS = { queued: 'في الطابور', running: 'جارية…', ac
 const LAB_CLASS = { success: 'text-positive', failed: 'text-negative', not_sent: 'text-deep-orange-9', review: 'text-deep-orange-9' }
 const STEP = { ussd_start: 'بدء الجلسة', ussd_reply: 'رد', ussd_release: 'إنهاء الجلسة' }
 const LAB_ERRORS = { ROUTE_NOT_POSSIBLE: 'هذا العرض لا يمر من هذا المصدر.', OFFER_UNKNOWN: 'عرض غير معروف: اكتب اسمه كما في الكتالوج.', APP_SEND_DISABLED: 'الإرسال الحقيقي مقفل (المفاتيح).' }
-const labPhone = ref('')
-const labOffer = ref('Sama Mix 50')
-const labRoute = ref('arsselli')
+// «جرّب في المختبر» from a failure (owner 2026-10-30): the number, the offer and the source come filled
+const q = useRoute().query
+const labPhone = ref(String(q.lab_phone || ''))
+const labOffer = ref(String(q.lab_offer || 'Sama Mix 50'))
+const labRoute = ref(q.lab_route !== undefined ? String(q.lab_route) : 'arsselli')
 const labBusy = ref(false)
 const lab = ref(null)
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))

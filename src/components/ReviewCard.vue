@@ -19,7 +19,8 @@
       <div v-if="o.sim_balance !== null && o.sim_balance !== undefined" class="small">رصيد {{ o.sim }} الآن: <b>{{ o.sim_balance }}</b> دج (قُرئ {{ when(o.sim_balance_at) }})</div>
       <q-expansion-item dense dense-toggle switch-toggle-side :label="`رسائل الشريحة بعدها (${(o.messages || []).length})`" header-class="small text-grey-8 q-px-none">
         <div v-if="!(o.messages || []).length" class="small muted">لا رسالة على الشريحة في الساعتين بعد العملية.</div>
-        <div v-for="(m, i) in o.messages || []" :key="i" class="small msg"><span class="muted">{{ when(m.at) }} · {{ m.from }}</span><div>{{ m.text }}</div></div>
+        <div v-for="(m, i) in o.messages || []" :key="i" class="small msg"><span class="muted">{{ when(m.at) }} · {{ m.from }}</span><div>{{ m.text }}</div>
+          <div v-if="mobilisArabic(m.text)" class="text-weight-bold arabic">↲ {{ mobilisArabic(m.text) }}</div></div>
       </q-expansion-item>
       <div class="row gap-sm">
         <q-btn unelevated dense no-caps color="positive" icon="check" label="وصلت" :loading="busy === o.id + 's'" @click="settle(o, 'success')" />
@@ -33,6 +34,7 @@
 import { onMounted, ref } from 'vue'
 import { copyToClipboard, Dialog, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
+import { mobilisArabic } from 'src/api/mobilisText'
 import { useBell } from 'src/composables/useBell'
 
 const { refreshBell } = useBell()
@@ -80,5 +82,6 @@ onMounted(load)
 .op { border-top: 1px solid rgba(0, 0, 0, 0.08); padding: 8px 0; min-width: 0; }
 .ltr { direction: ltr; text-align: right; }
 .phone { font-size: 16px; }
+.arabic { color: #2e7d32; }
 .msg { border-right: 3px solid rgba(0, 0, 0, 0.1); padding: 2px 8px; margin: 4px 0; overflow-wrap: anywhere; }
 </style>

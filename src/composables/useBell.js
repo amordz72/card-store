@@ -41,6 +41,8 @@ const approvalsWaiting = ref(0)
 const handoverNeeds = ref(0)
 // «تحتاج حكمك» (Flexy Core 0092): operations in review longer than an hour
 const reviewWaiting = ref(0)
+// 0093: money failures of 3 days that nothing solved
+const failuresOpen = ref(0)
 const agentUpdateVersion = ref('')
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
@@ -92,6 +94,7 @@ async function refreshBell () {
       sqlPending.value = Number(res.body?.sql_pending) || 0
       handoverNeeds.value = Number(res.body?.handover_needs) || 0
       reviewWaiting.value = Number(res.body?.review_waiting) || 0
+      failuresOpen.value = Number(res.body?.failures_open) || 0
     }
   } catch { /* keep the last value */ }
   try {
@@ -124,5 +127,5 @@ export function agentUpdatesOf (body, now = Date.now()) {
 }
 
 export function useBell () {
-  return { reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }
