@@ -306,12 +306,13 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 // «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
 const needsYou = computed(() => {
   const items = [
     // Money may have left: before everything else
     reviewWaiting.value && { to: '/stats', text: reviewWaiting.value === 1 ? '⚖ عملية تحتاج حكمك (وصلت أم لا؟)' : `⚖ ${reviewWaiting.value} عمليات تحتاج حكمك (وصلت أم لا؟)` },
+    failuresOpen.value && { to: '/stats', text: failuresOpen.value === 1 ? '🔴 فشل بلا حل ينتظرك' : `🔴 ${failuresOpen.value} فشل بلا حل تنتظرك` },
     sqlPending.value && { to: '/stats', text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
     approvalsWaiting.value && { to: '/flexy/devices', text: approvalsWaiting.value === 1 ? 'كمبيوتر جديد ينتظر الاعتماد' : `${approvalsWaiting.value} كمبيوترات تنتظر الاعتماد` },
     repoKeyLevel.value === 'dead' && { to: '/flexy/devices', text: 'مفتاح GitHub ميت: الكمبيوترات لا تتحدّث' },

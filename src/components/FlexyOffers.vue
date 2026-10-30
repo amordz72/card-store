@@ -2,6 +2,11 @@
   <div class="column q-gutter-sm">
     <!-- The line's group (kept, or discovered without money), then its offers: name and price -->
     <div v-if="!phoneOk" class="card text-center muted q-pa-lg">اكتب رقم الزبون لتظهر عروضه.</div>
+    <!-- Learned (Flexy Core 0093): what this number refused before, said before sending it again -->
+    <div v-if="phoneOk && refusals.length" class="card warn small">
+      ⚠ هذا الرقم رفض من قبل: <b>{{ refusals.map((r) => (r.offer || (r.amount + ' دج')) + ' (' + new Date(r.at).toLocaleDateString('ar-DZ', { day: '2-digit', month: '2-digit' }) + ')').join('، ') }}</b>
+      — الأرجح أن خطه لا يقبله: جرّب عرضًا آخر.
+    </div>
     <!-- No spinner while the automix shows (owner 2026-10-29): the discovery goes on behind it -->
     <div v-else-if="loading && !showAutomix" class="card column items-center q-gutter-sm q-pa-lg">
       <q-spinner color="primary" size="32px" />
@@ -141,6 +146,8 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { Dialog } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
+import * as flexyApi from 'src/api/flexy'
+import { useSessionStore } from 'stores/session'
 
 const props = defineProps({
   phone: { type: String, required: true },
@@ -175,6 +182,17 @@ const AUTO = {
   net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `إنترنت ${a} دج`, 'internet'))
 }
 const fits = (o) => o.amount <= props.maxAmount
+// The owner's page only for now (the shops' page reads through the store)
+const session = useSessionStore()
+const refusals = ref([])
+watch(() => [props.phone, props.phoneOk], async ([p, ok]) => {
+  refusals.value = []
+  if (!ok || !session.isAdmin) return
+  try {
+    const r = await flexyApi.numberMemory(p)
+    if (r.status === 200 && p === props.phone) refusals.value = r.body?.refusals || []
+  } catch { /* the warning is a help, never a block */ }
+}, { immediate: true })
 const automix = ref({ for: '', small: null, big: null })
 let automixRun = 0
 async function checkAutomix (p) {
@@ -461,6 +479,7 @@ function confirm (o, auto = false) {
 </script>
 
 <style scoped>
+.warn { background: #fff3e0; color: #8a4b00; border: 1px solid #ffb74d; }
 .offer-row { border-top: 1px solid #ECEEF3; padding: 10px 14px; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
 :deep(.family) { font-weight: 700; }
