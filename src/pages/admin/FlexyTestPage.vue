@@ -7,6 +7,15 @@
       <div class="text-weight-bold">المختبر · إرسال تجريبي حقيقي</div>
       <div class="small text-deep-orange-9">مال حقيقي: كل تجربة ترسل العرض فعلًا إلى الرقم.</div>
       <q-input v-model="labPhone" dense outlined label="رقم موبيليس" inputmode="tel" autocomplete="off" />
+      <!-- «اكتشف عروض الرقم» (owner 2026-10-30: …3188 was a Revolution line, and nothing here could tell): no money -->
+      <div class="row items-center q-gutter-xs">
+        <q-btn outline dense no-caps size="sm" color="primary" icon="travel_explore" label="اكتشف عروض الرقم" :loading="discover.busy"
+          :disable="!/^06\d{8}$/.test(labPhone.replace(/\s/g, ''))" @click="discoverLine" />
+        <span v-if="discover.text" class="small" :class="discover.error ? 'text-negative' : 'text-primary'">{{ discover.text }}</span>
+      </div>
+      <div v-if="discover.offers.length" class="row q-gutter-xs">
+        <q-chip v-for="o in discover.offers" :key="o" dense clickable @click="labOffer = o">{{ o }}</q-chip>
+      </div>
       <q-input v-model="labOffer" dense outlined label="العرض (كما في الكتالوج)" />
       <div class="row q-gutter-xs">
         <q-btn v-for="o in LAB_OFFERS" :key="o" dense no-caps rounded size="sm" outline color="primary" :label="o" @click="labOffer = o" />
@@ -113,6 +122,31 @@ const LAB_ERRORS = { ROUTE_NOT_POSSIBLE: 'هذا العرض لا يمر من ه�
 // «جرّب في المختبر» from a failure (owner 2026-10-30): the number, the offer and the source come filled
 const q = useRoute().query
 const labPhone = ref(String(q.lab_phone || ''))
+// The number's group and offers, read by a Sama SIM (*665*, no money); asked again while it is being discovered (90 s at most)
+const discover = ref({ busy: false, text: '', error: false, offers: [] })
+const offerName = (o) => (typeof o === 'string' ? o : o?.label || o?.name || o?.offer || '')
+async function discoverLine () {
+  const phone = labPhone.value.replace(/\s/g, '')
+  discover.value = { busy: true, text: 'يُكتشف…', error: false, offers: [] }
+  const end = Date.now() + 90000
+  try {
+    for (let first = true; ; first = false) {
+      const r = await flexy.ownerOffers(phone, first)
+      const b = r.body || {}
+      if (r.status === 200 && b.status !== 'discovering' && (b.offers || b.line_group || b.group)) {
+        const group = b.line_group || b.group || ''
+        const offers = (b.offers || []).map(offerName).filter(Boolean)
+        discover.value = { busy: false, error: false, offers, text: (group ? 'الخط ' + group : 'الخط') + (offers.length ? ' · اضغط عرضًا لاختياره' : ' · لا عروض') }
+        return
+      }
+      if (r.status !== 200 && !(r.status === 409 && b.error === 'DISCOVERY_DEFERRED')) throw new Error(b.error || 'FLEXY_CORE')
+      if (Date.now() > end) throw new Error('لم يكتمل الاكتشاف خلال 90 ثانية')
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+    }
+  } catch (e) {
+    discover.value = { busy: false, error: true, offers: [], text: 'لم يُكتشف: ' + (e.message || '') }
+  }
+}
 const labOffer = ref(String(q.lab_offer || 'Sama Mix 50'))
 const labRoute = ref(q.lab_route !== undefined ? String(q.lab_route) : 'arsselli')
 // The SIMs the lab may force (Mobilis Sama and Arsselli, approved), from the devices view
