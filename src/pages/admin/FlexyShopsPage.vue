@@ -162,7 +162,7 @@ const when = (t) => new Date(t).toLocaleString('ar-DZ')
 
 const settings = reactive({ open: false })
 // Shops send only when both are on: the store's switch and Flexy Core's apps switch.
-const core = reactive({ apps: null, djezzy: null, ooredoo: null, ooredooOffers: null, forcedOff: false })
+const core = reactive({ apps: null, djezzy: null, ooredoo: null, ooredooOffers: null, djezzyOffers: null, forcedOff: false })
 const isOpen = computed(() => settings.open && core.apps === true && !core.forcedOff)
 function showCore (res) {
   if (res.status !== 200) throw new Error('تعذّر الوصول إلى مفتاح Flexy Core (' + (res.body?.error || 'FLEXY_CORE') + ').')
@@ -170,13 +170,15 @@ function showCore (res) {
   core.djezzy = res.body.apps_djezzy_send_enabled === true
   core.ooredoo = res.body.apps_ooredoo_send_enabled === true
   core.ooredooOffers = res.body.apps_ooredoo_offers_enabled === true
+  core.djezzyOffers = res.body.apps_djezzy_offers_enabled === true
   core.forcedOff = res.body.forced_off === true
 }
 const OPERATORS = [
   { key: 'ooredoo', name: 'أوريدو', set: flexy.setAppsOoredooSwitch },
   { key: 'djezzy', name: 'جازي', set: flexy.setAppsDjezzySwitch },
   // v1.55 (owner 2026-10-30): the shops' Ooredoo offers, off until he opens them; only offers set «الكل» in «العروض»
-  { key: 'ooredooOffers', name: 'عروض أوريدو', set: flexy.setAppsOoredooOffersSwitch }
+  { key: 'ooredooOffers', name: 'عروض أوريدو', set: flexy.setAppsOoredooOffersSwitch },
+  { key: 'djezzyOffers', name: 'عروض جازي', set: flexy.setAppsDjezzyOffersSwitch }
 ]
 // The owner's order (2026-10-29): Mobilis, offers, Ooredoo, Djezzy; the key is the store's service name
 const SERVICES = [
@@ -185,7 +187,8 @@ const SERVICES = [
   { key: 'ooredoo', name: 'أوريدو', rate: 'rate_630_ooredoo', block: 'block_ooredoo' },
   { key: 'djezzy', name: 'جازي', rate: 'rate_630_djezzy', block: 'block_djezzy' },
   // v1.55: its own rate (empty = the offers' rate)
-  { key: 'offer_ooredoo', name: 'عروض أوريدو', rate: 'rate_offer_ooredoo', block: 'block_offer_ooredoo' }
+  { key: 'offer_ooredoo', name: 'عروض أوريدو', rate: 'rate_offer_ooredoo', block: 'block_offer_ooredoo' },
+  { key: 'offer_djezzy', name: 'عروض جازي', rate: 'rate_offer_djezzy', block: 'block_offer_djezzy' }
 ]
 const ALLOW = [{ label: 'سماح', value: 'allow' }, { label: 'منع', value: 'block' }]
 const SIZES = [{ label: '10', value: 10 }, { label: '20', value: 20 }, { label: '50', value: 50 }]

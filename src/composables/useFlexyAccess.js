@@ -23,7 +23,7 @@ export function useFlexyAccess () {
       maxAmount.value = s.max_amount || 0
       offers.value = !!s.offers
       creditPrefixes.value = [...(s.mobilis ? ['06'] : []), ...(s.djezzy ? ['07'] : []), ...(s.ooredoo ? ['05'] : [])]
-      offerPrefixes.value = [...(s.offers ? ['06'] : []), ...(s.offers_ooredoo ? ['05'] : [])]
+      offerPrefixes.value = [...(s.offers ? ['06'] : []), ...(s.offers_ooredoo ? ['05'] : []), ...(s.offers_djezzy ? ['07'] : [])]
     } catch { /* keep the last value; the page shows its own errors */ }
   }
   return { enabled, open, maxAmount, offers, creditPrefixes, offerPrefixes, refresh }
