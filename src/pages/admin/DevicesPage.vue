@@ -50,9 +50,14 @@
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
+    <!-- One part at a time (owner 2026-10-30: «اجعل الكمبيوترات في تبويب آخر، التنقل للأسفل مزعج»); the last one kept -->
+    <q-btn-toggle v-if="tree" v-model="pageTab" spread unelevated no-caps toggle-color="primary" color="white" text-color="dark" class="page-tabs"
+      :options="[{ label: 'الشرائح', value: 'sims' }, { label: `الكمبيوترات (${presentCount} متصل)`, value: 'computers' },
+        ...(phones.length ? [{ label: 'هاتف الإدارة', value: 'phone' }] : [])]" />
+
     <!-- SIMs (owner 2026-10-25, agreed on a picture): the computer first, then active or not inside it.
          Active = its computer present and its modem connected. Gone 7+ days = «قديمة» at the end. -->
-    <div v-if="tree" class="card q-pa-none">
+    <div v-if="tree" v-show="pageTab === 'sims'" class="card q-pa-none">
       <div class="section-title q-pa-sm">الشرائح</div>
       <div class="row q-gutter-xs q-px-sm">
         <q-btn v-for="c in stationChips" :key="c.value" dense unelevated rounded no-caps size="md" :label="c.label"
@@ -108,9 +113,9 @@
       </div>
     </div>
 
-    <AddComputer @approved="load" />
+    <AddComputer v-show="pageTab === 'computers'" @approved="load" />
     <!-- Computers: connected first, one row each, the Agent's update and gateway buttons in the row -->
-    <div v-if="tree" class="card q-pa-none">
+    <div v-if="tree" v-show="pageTab === 'computers'" class="card q-pa-none">
       <div class="section-title q-pa-sm">الكمبيوترات</div>
       <!-- A newer Agent on main (owner 2026-10-30): one button for all, one computer after the other -->
       <div v-if="updatable.length || updatingAll" class="sub row items-center q-gutter-sm bg-blue-1">
@@ -203,7 +208,7 @@
     </div>
 
     <!-- The owner's phone (agent «phone-*»): never counted as a computer, its SIM never in the SIM counts (owner 2026-10-28) -->
-    <div v-if="tree && phones.length" class="card q-pa-none">
+    <div v-if="tree && phones.length" v-show="pageTab === 'phone'" class="card q-pa-none">
       <div class="section-title q-pa-sm">هاتف الإدارة</div>
       <div v-for="st in phones" :key="st.station_uuid" class="phone-row">
         <div class="row items-center q-gutter-sm">
@@ -220,7 +225,7 @@
 
     <!-- Never a full message store (Flexy Core 0040): «تصفير» empties every modem's store once the server saved each
          message. Rarely used (owner 2026-10-30): folded at the end; SIMs not connected are not listed, their request waits. -->
-    <q-expansion-item class="card q-pa-none" dense icon="sms" label="مخزن الرسائل" header-class="text-weight-bold">
+    <q-expansion-item v-show="pageTab === 'sims'" class="card q-pa-none" dense icon="sms" label="مخزن الرسائل" header-class="text-weight-bold">
       <div class="column q-gutter-xs q-pa-sm">
         <div class="help small muted">كل رسالة تُحفظ في السيرفر أولًا ثم تُحذف من الشريحة. لا شيء يُحذف قرب عملية مالية.</div>
         <q-btn outline no-caps color="negative" class="self-start" :label="`تصفير كل الشرائح (${wipeCount})`" :loading="wipeBusy" @click="askWipe(null)" />
@@ -361,7 +366,7 @@
 <script setup>
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { MONITOR_TABS } from 'src/api/sections'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { copyToClipboard, Dialog, Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
@@ -585,6 +590,9 @@ const typeName = (type) => SUMMARY_TYPES.find(([t]) => t === type)?.[1] || type
 const typeFilter = ref(null)
 const simStation = ref('all')
 const simTab = ref('ready')
+const readTab = () => { try { return localStorage.getItem('devices.tab') || 'sims' } catch { return 'sims' } }
+const pageTab = ref(readTab())
+watch(pageTab, (v) => { try { localStorage.setItem('devices.tab', v) } catch { /* private window */ } })
 const route = useRoute()
 const showOldSims = ref(false)
 const pickType = (type) => { typeFilter.value = typeFilter.value === type ? null : type }
@@ -640,6 +648,7 @@ async function retire (x, on) {
 const focusSim = ref(null)
 function focusFromRoute () {
   const q = route.query
+  if (q.sim || q.station) pageTab.value = 'sims'
   if (q.station) {
     const st = current.value.find((x) => x.code === q.station)
     if (st) { simStation.value = st.station_uuid; simTab.value = isAbsent(st) ? 'station_off' : 'ready' }
@@ -1045,6 +1054,7 @@ onMounted(async () => { await load(); loadActions(); focusFromRoute() })
 </script>
 
 <style scoped>
+.page-tabs { margin: 0 0 12px; border: 1px solid #E4E6EC; border-radius: 10px; overflow: hidden; }
 .missing-row { padding: 8px; border-top: 1px solid #EEF0F5; }
 .missing-row.focus { background: #FFF7ED; }
 .missing-row.retired { opacity: .6; }
