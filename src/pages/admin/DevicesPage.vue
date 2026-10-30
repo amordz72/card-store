@@ -45,11 +45,8 @@
           <div class="n">{{ t.n }}</div><div class="small">{{ t.label }}</div>
         </component>
       </div>
-      <!-- The state only (owner 2026-10-30: the program's rules beside «متصل» read as «مطفأ»); the rules folded apart -->
+      <!-- The state only (owner 2026-10-30: the program's rules beside «متصل» read as «مطفأ»); the rules are numbers on «المفاتيح» -->
       <div v-if="tree" class="small muted">آخر تحديث {{ clock(tree.checked_at) }}<template v-if="typeFilter"> · <button type="button" class="link" @click="typeFilter = null">مفلتر: {{ typeName(typeFilter) }} ✕</button></template></div>
-      <q-expansion-item v-if="tree" dense dense-toggle switch-toggle-side label="قواعد البرنامج" header-class="small text-grey-6 q-px-none">
-        <div class="small muted">يُعدّ الكمبيوتر مطفأً بعد {{ tree.limits.offMinutes || 1 }} دقيقة بلا اتصال، وينبّهك بعد {{ tree.limits.absentMinutes }} دقائق. وتُعدّ الشريحة معطّلة بعد {{ tree.limits.ussdTimeouts }} مهل USSD متتالية.</div>
-      </q-expansion-item>
       <div v-if="error" class="small text-negative">{{ error }}</div>
     </div>
 
