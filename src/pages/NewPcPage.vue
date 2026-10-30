@@ -19,6 +19,21 @@
     </div>
 
     <template v-else-if="state === 'trusted'">
+      <!-- «شات» (owner 2026-10-30, Flexy Core 0118): paste here, it shows on the owner's phone; his answer shows here -->
+      <div class="box chat">
+        <h2>رسائل مع هاتفك</h2>
+        <div class="msgs">
+          <div v-if="!page.messages?.length" class="muted">الصق هنا أي شيء (رمز، خطأ، سطر) فيظهر على هاتفك. وما ترسله من هاتفك يظهر هنا بزر «انسخ».</div>
+          <div v-for="m in page.messages" :key="m.id" class="msg" :class="m.sender">
+            <div class="who muted">{{ m.sender === 'pc' ? 'من هذا الكمبيوتر' : 'من هاتفك' }} · {{ when(m.at) }}</div>
+            <pre class="ltr">{{ m.text }}</pre>
+            <button v-if="m.sender === 'owner'" @click="copy(m.text, 'm' + m.id)">{{ copied === 'm' + m.id ? 'نُسخ ✓' : 'انسخ' }}</button>
+          </div>
+        </div>
+        <textarea v-model="draft" rows="3" class="ltr" placeholder="الصق هنا (Ctrl+V أو زر أيمن ← Paste)"></textarea>
+        <button class="big" :disabled="busy || !draft.trim()" @click="say">أرسل إلى هاتفي</button>
+      </div>
+
       <div class="box">
         <h2>1. ملف التثبيت</h2>
         <p class="muted">جاهز ومعتمد مسبقًا: شغّله فيثبّت كل شيء ويربط الكمبيوتر وحده، بلا موافقة ثانية.</p>
@@ -74,6 +89,7 @@ const busy = ref(false)
 const error = ref('')
 const saved = ref('')
 const copied = ref(null)
+const draft = ref('')
 let timer = null
 
 function token () {
@@ -140,6 +156,18 @@ async function installer () {
     busy.value = false
   }
 }
+async function say () {
+  busy.value = true
+  try {
+    await call('say', { text: draft.value })
+    draft.value = ''
+    await load()
+  } catch (e) {
+    error.value = 'لم تُرسل: ' + e.message
+  } finally {
+    busy.value = false
+  }
+}
 async function copy (text, n) {
   try {
     await navigator.clipboard.writeText(text)
@@ -184,4 +212,11 @@ h2 { font-size: 17px; margin: 0 0 8px; }
 .link { display: block; padding: 10px; border-top: 1px solid #eef0f4; color: #1565c0; text-decoration: none; font-weight: 700; }
 .link span { display: block; color: #6b7280; font-weight: 400; font-size: 12px; text-align: left; }
 .center { text-align: center; }
+.chat textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; margin: 8px 0; text-align: left; }
+.msgs { max-height: 320px; overflow-y: auto; }
+.msg { padding: 8px; border-radius: 10px; margin: 6px 0; }
+.msg.pc { background: #fff7ed; }
+.msg.owner { background: #ecfdf5; }
+.msg pre { white-space: pre-wrap; word-break: break-all; margin: 4px 0; font-size: 14px; text-align: left; }
+.msg button { font: inherit; padding: 6px 12px; border: 1px solid #15803d; color: #15803d; background: #fff; border-radius: 8px; cursor: pointer; }
 </style>
