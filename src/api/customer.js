@@ -147,3 +147,6 @@ export const gameClaim = (token, gameId, claim) => rpc('store_game_claim', { p_t
 export const gameFinish = (token, gameId, result, f = {}) => rpc('store_game_finish', {
   p_token: token, p_game_id: gameId, p_result: result, p_txn_ref: f.txnRef || null, p_reason: f.reason || null, p_card_back: f.cardBack ?? null
 })
+
+// v1.44: the page the shop opened (its path only)
+export const pageSeen = (token, page) => rpc('store_page_seen', { p_token: token, p_page: page })

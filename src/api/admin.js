@@ -264,3 +264,7 @@ export const flexyReviewCount = () => rpc('store_admin_flexy_review_count')
 export const flexyUnrefunded = async () => (await rpc('store_admin_flexy_unrefunded'))?.[0] || { count: 0, amount: 0 }
 // A shop's job in review: sent (the charge stays) or not sent (full refund to the shop)
 export const flexyResolve = (jobId, done) => rpc('store_admin_flexy_resolve', { p_job_id: jobId, p_done: done })
+
+// v1.44: the pages the owner and the shops open (light: one per page per person every 10 minutes)
+export const pageSeen = (page) => rpc('store_admin_page_seen', { p_page: page })
+export const usage = (days) => rpc('store_admin_usage', { p_days: days })

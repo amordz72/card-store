@@ -28,6 +28,7 @@ const routes = [
       { path: 'flexy/shops', component: () => import('pages/admin/FlexyShopsPage.vue'), meta: { admin: true, title: 'فليكسي المحلات' } },
       { path: 'flexy/switches', component: () => import('pages/admin/SwitchesPage.vue'), meta: { admin: true, title: 'المفاتيح' } },
       { path: 'flexy/numbers', component: () => import('pages/admin/NumberMemoryPage.vue'), meta: { admin: true, title: 'ذاكرة الأرقام' } },
+      { path: 'usage', component: () => import('pages/admin/UsagePage.vue'), meta: { admin: true, title: 'الاستعمال' } },
       { path: 'flexy/offers', component: () => import('pages/admin/OffersPage.vue'), meta: { admin: true, title: 'العروض' } },
       // the owner's page or the customer's page (customers the owner enabled)
       { path: 'idoom', component: () => import('pages/IdoomSwitch.vue'), meta: { title: 'تعبئة إيدوم' } },
