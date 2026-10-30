@@ -12,7 +12,9 @@
         <q-btn-toggle v-model="write" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
           :options="[{ label: 'قراءة', value: false }, { label: 'كتابة', value: true }]" />
       </div>
-      <q-input v-model="text" type="textarea" outlined autogrow class="sql" input-class="ltr" placeholder="الصق SQL هنا" />
+      <!-- Long lines scroll inside the box, never widen the page (owner 2026-10-30: «شاشة عريضة») -->
+      <q-input v-model="text" type="textarea" outlined class="sql" input-class="ltr" :input-style="{ whiteSpace: 'pre', overflowX: 'auto' }"
+        rows="8" wrap="off" placeholder="الصق SQL هنا" :disable="busy === 'sql'" />
       <div class="small" :class="write ? 'text-deep-orange' : 'muted'">
         {{ write ? 'كتابة: كل الأوامر معًا بصلاحيات كاملة، إما تنجح كلها أو لا يتغيّر شيء. يُسجَّل.' : 'قراءة: SELECT واحد فقط، بلا أسرار، 200 سطر على الأكثر.' }}
       </div>
@@ -27,7 +29,7 @@
       </div>
     </div>
 
-    <div v-if="result" class="card column q-gutter-xs">
+    <div v-if="result" ref="resultBox" class="card column q-gutter-xs">
       <div v-if="result.ok" class="small text-positive">
         تم في {{ result.ms }} ms<span v-if="result.count !== null && result.count !== undefined"> · {{ result.count }} سطر</span><span v-if="result.more"> · يظهر أول 200</span>
       </div>
@@ -83,8 +85,8 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { Dialog, copyToClipboard } from 'quasar'
+import { nextTick, onMounted, ref } from 'vue'
+import { Dialog, Notify, copyToClipboard } from 'quasar'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import * as flexy from 'src/api/flexy'
@@ -110,6 +112,7 @@ const hours = ref(null)
 const sizes = ref([])
 const log = ref([])
 const busy = ref('')
+const resultBox = ref(null)
 const error = ref('')
 
 async function call (key, fn) {
@@ -121,6 +124,8 @@ async function call (key, fn) {
     return res.body
   } catch (e) {
     error.value = 'لم يُقبل (' + (e.message || 'FLEXY_CORE') + ').'
+    // Never silent: what failed shows where the owner looks
+    if (key === 'sql' || ready.value.some((r) => r.key === key)) Notify.create({ type: 'negative', message: error.value, position: 'top' })
     return null
   } finally {
     busy.value = ''
@@ -136,16 +141,31 @@ async function loadDb () {
   const b = await call('load', () => flexy.runReady('db_sizes'))
   if (b?.ok) sizes.value = b.rows?.[0]?.sizes || []
 }
+// One run at a time; the answer always shows (a toast, then the page goes to it); a written script is cleared
+async function show (r, wrote) {
+  result.value = r
+  if (!r) return
+  const secs = r.ms !== undefined ? (r.ms / 1000).toFixed(1) + ' ث' : ''
+  Notify.create(r.ok
+    ? { type: 'positive', message: '✓ تم في ' + secs + (r.count !== null && r.count !== undefined ? ' · ' + r.count + ' سطر' : ''), position: 'top' }
+    : { type: 'negative', message: '✗ خطأ: ' + (r.message || r.error || ''), position: 'top', timeout: 8000 })
+  if (r.ok && wrote) text.value = ''
+  await nextTick()
+  resultBox.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 function run () {
+  if (busy.value) return
+  const wrote = write.value
   const go = async () => {
-    result.value = await call('sql', () => flexy.runSql(text.value, write.value))
+    await show(await call('sql', () => flexy.runSql(text.value, wrote)), wrote)
     loadLog()
   }
-  if (!write.value) return go()
+  if (!wrote) return go()
   Dialog.create({ title: 'تنفيذ بصلاحيات كاملة', message: 'ينفّذ كل الأوامر معًا. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، نفّذ' }).onOk(go)
 }
 async function runReady (r) {
-  result.value = await call(r.key, () => flexy.runReady(r.key))
+  if (busy.value) return
+  await show(await call(r.key, () => flexy.runReady(r.key)), false)
   loadLog()
 }
 const cell = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v))
@@ -163,7 +183,9 @@ onMounted(() => { loadLog(); loadDb() })
 .bar { height: 8px; border-radius: 4px; background: var(--q-primary); }
 .line { border-top: 1px solid rgba(0, 0, 0, 0.06); padding: 6px 4px; }
 .ltr { direction: ltr; text-align: left; }
-.sql :deep(textarea) { font-family: monospace; font-size: 13px; min-height: 120px; }
+.sql { max-width: 100%; min-width: 0; }
+.sql :deep(textarea) { font-family: monospace; font-size: 13px; overflow-x: auto; white-space: pre; }
+.card { min-width: 0; max-width: 100%; overflow-x: hidden; }
 .grid { border-collapse: collapse; font-size: 12px; direction: ltr; }
 .grid th, .grid td { border: 1px solid rgba(0, 0, 0, 0.1); padding: 3px 6px; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 </style>
