@@ -102,7 +102,8 @@ export async function idoomLineInfo (token, line) {
 // Sending goes through the Edge function store-flexy: it takes the charge and calls Flexy Core server-side.
 // v1.39: djezzy / ooredoo say whether the shop has a rate on that operator (its screen sends to those only)
 export async function flexyStatus (token) {
-  const rows = await rpc('store_flexy_status_v3', { p_token: token })
+  // v1.55 names the shop's Ooredoo offers; before it, v3
+  const rows = await rpc('store_flexy_status_v4', { p_token: token }).catch(() => rpc('store_flexy_status_v3', { p_token: token }))
   return rows?.[0] || { enabled: false, open: false, max_amount: 0, offers: false, mobilis: false, djezzy: false, ooredoo: false }
 }
 // v1.47: «هل وصل للزبون؟» for its operations the program could not prove; the answer moves no money

@@ -277,7 +277,8 @@ export async function flexySettings () {
 }
 export const setFlexySettings = (open, rate630, rateOffer, max, rateDjezzy = null, rateOoredoo = null) =>
   rpc('store_admin_set_flexy_settings_v2', { p_open: open, p_rate_630: rate630, p_rate_offer: rateOffer, p_max: max, p_rate_630_djezzy: rateDjezzy, p_rate_630_ooredoo: rateOoredoo })
-export const flexyCustomers = () => rpc('store_admin_flexy_customers_v3')
+// v1.55 adds the Ooredoo / Djezzy offers' rates; before it, v3
+export const flexyCustomers = () => rpc('store_admin_flexy_customers_v4').catch(() => rpc('store_admin_flexy_customers_v3'))
 // v1.41: one change for a list of shops (the selection or one shop): { service, rate } | { service, block } | { enabled } | { max } | { role }
 export const flexyBulk = (ids, { service = null, rate = null, block = null, enabled = null, max = null, role = null } = {}) =>
   rpc('store_admin_flexy_bulk', { p_ids: ids, p_service: service, p_rate: rate, p_block: block, p_enabled: enabled, p_max: max, p_role: role })
