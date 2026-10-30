@@ -142,7 +142,10 @@
         <span class="text-weight-bold">{{ b.product_name }}</span>
         <span class="small muted">#{{ b.batch_id }}</span>
       </div>
-      <div class="small muted">{{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}</div>
+      <div class="small muted">{{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}
+        <q-btn flat dense size="sm" color="primary" icon="edit" label="عدّل سعر الشراء" @click="editCost(b)" />
+      </div>
+      <div v-for="(c, n) in costChanges[b.batch_id] || []" :key="n" class="small text-deep-orange">عُدّل من {{ money(c.old) }} إلى {{ money(c.new) }} · {{ dateTime(c.at) }}</div>
       <!-- Each card has exactly one state, so the parts always add up to the total -->
       <div class="row q-gutter-md small">
         <span class="text-weight-bold">المجموع {{ b.available + b.frozen + b.suspect + b.sold + b.voided }}</span>
@@ -476,6 +479,36 @@ async function loadBatches () {
   if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided), suspect: Number(b.suspect) }))
 }
 async function reloadAll () { await Promise.all([load(), loadBatches()]) }
+// v1.48 (owner 2026-10-30): a batch entered with a wrong purchase price is corrected in place; before v1.48: none shown
+const costChanges = ref({})
+const loadCostChanges = () => api.batchCostChanges().then((m) => { costChanges.value = m || {} }, () => {})
+function editCost (b) {
+  Dialog.create({
+    title: 'سعر الشراء الصحيح',
+    message: `${b.product_name} #${b.batch_id}: السعر الحالي ${money(b.cost)} للبطاقة الواحدة.`,
+    prompt: { model: String(b.cost || ''), type: 'number', inputmode: 'numeric', isValid: (v) => Number(v) > 0 && Number(v) !== Number(b.cost) },
+    cancel: 'رجوع', ok: 'التالي'
+  }).onOk(async (v) => {
+    const cost = Math.round(Number(v))
+    const p = await run(() => api.batchCostPreview(b.batch_id, cost))
+    if (!p) return
+    const shops = (p.shops || []).filter((s) => Number(s.diff) !== 0)
+    const lines = [
+      `من ${money(p.old_cost)} إلى ${money(cost)}.`,
+      `${p.unsold} بطاقة غير مباعة تأخذ السعر الجديد (البيع القادم وربحه).`,
+      `${p.sold} بطاقة مباعة: يُصحَّح ربحها في التقارير.`,
+      shops.length
+        ? 'ما دفعته المحلات لا يتغيّر. لو بيعت بالسعر الصحيح لكان الفرق (بقاعدة سعرها اليوم): ' +
+          shops.map((s) => `${s.shop} ${Number(s.diff) > 0 ? '+' : ''}${money(s.diff)} (${s.codes} بطاقة)`).join('، ') + '. تعديله بيدك إن أردت.'
+        : 'لا محل تغيّر عليه شيء.'
+    ]
+    Dialog.create({ title: 'تأكيد تعديل سعر الشراء', message: lines.join('\n'), style: 'white-space: pre-line', cancel: 'رجوع', ok: { label: 'عدّل', color: 'primary' } })
+      .onOk(async () => {
+        const r = await run(() => api.batchCostSet(b.batch_id, cost), { success: (x) => `عُدّل سعر الدفعة #${b.batch_id}: ${x.unsold + x.sold} بطاقة، ${x.orders} طلب.` })
+        if (r) { await reloadAll(); loadCostChanges() }
+      })
+  })
+}
 
 const bf = ref({ brand: null, product: null, supplier: 'all', availOnly: true })
 const brandImage = computed(() => Object.fromEntries(stock.value.map((p) => [p.brand, p.brand_image])))
@@ -586,7 +619,7 @@ function suspectToNormal (b) {
   })
 }
 
-onMounted(() => { load(); loadBatches(); loadAnnouncement() })
+onMounted(() => { load(); loadBatches(); loadCostChanges(); loadAnnouncement() })
 </script>
 
 <style scoped>
