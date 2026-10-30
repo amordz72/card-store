@@ -192,8 +192,26 @@ const subtitle = computed(() => (session.isAdmin ? `المدير · ${admin.emai
 const COPY_SCREEN_SHOPS = ['حساب 2']
 const canCopyScreen = computed(() => session.isAdmin || COPY_SCREEN_SHOPS.includes(customer.profile?.name))
 // Customer numbers leave the screen as «…25» only; amounts stay hidden when hidden
+// «نسخ الشاشة» also says when the page is wider than the phone, and which elements make it so (owner 2026-10-30):
+// the innermost elements whose box goes past the screen's edges, with their class, size and first words
+function widthCheck () {
+  const vw = document.documentElement.clientWidth
+  const extra = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - vw
+  const out = []
+  for (const el of document.querySelectorAll('.q-page *, .q-header *')) {
+    const r = el.getBoundingClientRect()
+    if (!r.width || (r.right <= vw + 1 && r.left >= -1)) continue
+    // only the innermost: a child that overflows too explains it better
+    if ([...el.children].some((c) => { const k = c.getBoundingClientRect(); return k.width && (k.right > vw + 1 || k.left < -1) })) continue
+    const name = el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.') : '')
+    out.push(`${name} · ${Math.round(r.width)}px · من ${Math.round(r.left)} إلى ${Math.round(r.right)} · «${(el.innerText || el.value || '').trim().slice(0, 40)}»`)
+    if (out.length >= 5) break
+  }
+  if (extra <= 1 && !out.length) return `✓ العرض سليم (${vw}px)`
+  return [`⚠ الصفحة أعرض من الشاشة بـ${Math.max(extra, 0)}px (الشاشة ${vw}px). عناصر تتجاوز الحافة:`, ...out.map((x) => '• ' + x)].join('\n')
+}
 async function copyScreen () {
-  const page = document.querySelector('.q-page')?.innerText || ''
+  const page = (document.querySelector('.q-page')?.innerText || '') + '\n\n' + widthCheck()
   const text = [
     title.value + ' · ' + new Date().toLocaleString('ar-DZ'),
     session.isAdmin && monitorBar.value ? '⚠ ' + monitorBar.value.text : '',

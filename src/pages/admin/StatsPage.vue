@@ -206,12 +206,21 @@ async function show (r, wrote) {
 function run () {
   if (busy.value) return
   const wrote = write.value
-  const go = async () => {
-    await show(await call('sql', () => flexy.runSql(text.value, wrote)), wrote)
+  const go = async (again = false) => {
+    const r = await call('sql', () => flexy.runSql(text.value, wrote, again))
+    // Already applied with success (Flexy Core 0088): never twice by mistake, only on purpose
+    if (r && r.error === 'ALREADY_APPLIED') {
+      return Dialog.create({
+        title: 'طُبّق من قبل',
+        message: 'هذا الـSQL نفسه طُبّق بنجاح ' + when(r.at) + '. إعادته قد تكرر ما فعله.',
+        cancel: 'إلغاء', ok: { label: 'أعد التنفيذ عمدًا', color: 'deep-orange' }
+      }).onOk(() => go(true))
+    }
+    await show(r, wrote)
     loadLog()
   }
   if (!wrote) return go()
-  Dialog.create({ title: 'تنفيذ بصلاحيات كاملة', message: 'ينفّذ كل الأوامر معًا. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، نفّذ' }).onOk(go)
+  Dialog.create({ title: 'تنفيذ بصلاحيات كاملة', message: 'ينفّذ كل الأوامر معًا. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، نفّذ' }).onOk(() => go())
 }
 // «الجداول»: loaded once, filtered here; a table opens as «its readable columns, first 20 rows», read only
 const tables = ref(null)
