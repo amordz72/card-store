@@ -379,10 +379,13 @@ function askAction (a) {
       }
     })
 }
+const PS_FIX = "$r = Get-ChildItem C:\\ -Directory -Filter station-connect -Recurse -Depth 4 -ErrorAction SilentlyContinue | Where-Object { Test-Path ($_.FullName + '\\.git') } | Select-Object -First 1; " +
+  "if ($r) { git -C $r.FullName checkout -- agent/src agent/package.json; if ($?) { echo ('DONE ' + $r.FullName) } } else { echo 'NOT FOUND' }"
 // Each window's own way to say «then DONE», and a line end so the paste runs it (cmd and PowerShell run it at once)
 const SHELLS = [
   { key: 'cmd', label: 'انسخ لـ cmd', text: FIX_LINE + ' && echo DONE\r\n' },
-  { key: 'ps', label: 'انسخ لـ PowerShell', text: FIX_LINE + '; if ($?) { echo DONE }\r\n' },
+  // PowerShell finds the copy itself (owner 2026-10-30: one computer had it outside C:\\MyTool)
+  { key: 'ps', label: 'انسخ لـ PowerShell', text: PS_FIX + '\r\n' },
   { key: 'bash', label: 'انسخ لـ Git Bash', text: FIX_LINE + ' && echo DONE\n' }
 ]
 async function copyFix (sh) {
