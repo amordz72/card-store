@@ -193,6 +193,10 @@ export const ownerBuyList = (days = 7) => owner('buy-list?days=' + days, { metho
 export const ownerProfit = (days = 30) => owner('profit?days=' + days, { method: 'GET' })
 export const ownerBuyRate = (route, rate, fee) => owner('profit', { method: 'POST', body: { route, rate, fee } })
 export const ownerMonitor = () => owner('monitor', { method: 'GET' })
+// «اشحنها 1000» (Flexy Core 0125): feeding a Sama SIM from the stock; a review judged success | refused
+export const ownerFeed = () => owner('feed', { method: 'GET' })
+export const ownerFeedStart = (simUuid) => owner('feed', { method: 'POST', body: { sim_uuid: simUuid } })
+export const ownerFeedJudge = (feedId, verdict) => owner('feed/judge', { method: 'POST', body: { feed_id: feedId, verdict } })
 // The connection log (Flexy Core 0070): what was offline at that minute, and the changes 15 min around it
 export const ownerPresence = (at) => owner('presence?at=' + encodeURIComponent(at), { method: 'GET' })
 // «ذاكرة الأرقام» (Flexy Core 0073): what is remembered about one number, and «انسَ» (archived, not lost)
