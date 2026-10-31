@@ -188,6 +188,8 @@ export const ownerTrusted = (body) => owner('trusted', body ? { method: 'POST', 
 export const ownerSimRetire = (simUuid, on) => owner('sims/retire', { method: 'POST', body: { sim_uuid: simUuid, on } })
 // 0130: «للكل / للإدارة / موقوفة» for SIMs, and the phones' two Sama switches (which: discover | execute)
 export const ownerSimAudience = (simUuids, audience) => owner('sims/audience', { method: 'POST', body: { sim_uuids: simUuids, audience } })
+// 0131: «الشريحة المفضّلة»
+export const ownerSimPreferred = (simUuid, on) => owner('sims/preferred', { method: 'POST', body: { sim_uuid: simUuid, on } })
 export const ownerPhoneSwitch = (which, on) => owner('phones/switch', { method: 'POST', body: { which, on } })
 // «المراقبة» (Flexy Core 0068): available / unavailable balance, each SIM's reason, the alerts and the red bar; «تم» = ack
 // «قائمة الشراء» (Flexy Core 0107): the SIMs to feed

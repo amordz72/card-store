@@ -112,7 +112,7 @@
           <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th><th v-if="audiences">لمن</th></tr></thead>
           <tbody>
             <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
-              <td><span class="text-weight-bold">{{ simName(r.m.sim, r.st) || 'جديدة' }}</span><span v-if="adminName(r.m.sim)" class="small muted"> · {{ r.m.sim.code }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
+              <td><span v-if="isPreferred(r.m.sim)" class="text-amber-8" title="مفضّلة: يرسل منها أولًا">⭐ </span><span class="text-weight-bold">{{ simName(r.m.sim, r.st) || 'جديدة' }}</span><span v-if="adminName(r.m.sim)" class="small muted"> · {{ r.m.sim.code }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
               <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
               <td>{{ stName(r.st) || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
@@ -125,6 +125,10 @@
                 <q-btn-toggle :model-value="audienceOf(r.m.sim)" dense unelevated no-caps size="sm" color="grey-3" text-color="dark"
                   :toggle-color="AUDIENCES.find((a) => a.value === audienceOf(r.m.sim))?.color || 'primary'" :disable="!!audienceBusy"
                   :options="AUDIENCES.map((a) => ({ label: a.label, value: a.value }))" @update:model-value="(v) => setAudience([r.m.sim], v)" />
+                <!-- «الشريحة المفضّلة» (owner 2026-11-01, Flexy Core 0131): sent from first, to empty it -->
+                <q-btn v-if="preferredMap" flat dense no-caps size="sm" :icon="isPreferred(r.m.sim) ? 'star' : 'star_outline'"
+                  :color="isPreferred(r.m.sim) ? 'amber-8' : 'grey-6'" :label="isPreferred(r.m.sim) ? 'مفضّلة' : 'اجعلها مفضّلة'"
+                  :loading="preferBusy === r.m.sim.sim_uuid" :disable="!!preferBusy" @click="setPreferred(r.m.sim, !isPreferred(r.m.sim))" />
               </td>
             </tr>
             <tr v-if="!shownSims.length">
@@ -722,6 +726,26 @@ function askAudienceAll (a) {
   const sims = shownSims.value.map((r) => r.m.sim)
   Dialog.create({ title: `الكل: ${a.label}`, message: `${sims.length} شريحة ظاهرة الآن تصبح «${a.label}».`, cancel: { label: 'إلغاء', flat: true }, ok: { label: 'نعم', color: a.color } })
     .onOk(() => setAudience(sims, a.value, 'all:' + a.value))
+}
+// «الشريحة المفضّلة» (owner 2026-11-01, Flexy Core 0131): the program sends from it first, to empty it; null before 0131
+const preferredMap = computed(() => tree.value?.sim_preferred || null)
+const isPreferred = (sim) => !!preferredMap.value?.[sim?.sim_uuid]
+const preferBusy = ref(null)
+async function setPreferred (sim, on) {
+  preferBusy.value = sim.sim_uuid
+  try {
+    const res = await flexy.ownerSimPreferred(sim.sim_uuid, on)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error === 'MIGRATION_0131_PENDING' ? 'طبّق 0131 من «ينتظر تطبيقك» أولًا.' : (res.body?.error || 'FLEXY_CORE'))
+    if (tree.value?.sim_preferred) {
+      if (on) tree.value.sim_preferred[sim.sim_uuid] = new Date().toISOString()
+      else delete tree.value.sim_preferred[sim.sim_uuid]
+    }
+    Notify.create({ type: 'positive', message: on ? `${simName(sim) || 'الشريحة'}: مفضّلة، يرسل منها أولًا حتى تفرغ` : `${simName(sim) || 'الشريحة'}: لم تعد مفضّلة`, position: 'top', timeout: 1800 })
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message })
+  } finally {
+    preferBusy.value = null
+  }
 }
 // «الاستكشاف من الهاتف» / «التنفيذ من الهاتف» (0130): null before 0130
 const phoneSwitches = computed(() => tree.value?.phone_switches || null)
