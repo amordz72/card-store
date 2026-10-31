@@ -104,6 +104,8 @@ export const setLowStock = (days, count) => rpc('store_admin_set_low_stock', { p
 export const capital = (days) => rpc('store_admin_capital', { p_days: days })
 // «التغذية» (v1.61): the cards taken to feed the Sama SIMs that need the owner, «صحّح الرمز» (back to feeding), «مستعملة»
 export const feedCards = () => rpc('store_admin_feed_cards')
+// v1.62: the Mobilis values the feeding can take now, with their counts (the page's list)
+export const feedFaces = () => rpc('store_admin_feed_faces')
 export const feedFix = (cardId, code) => rpc('store_admin_feed_fix', { p_card: cardId, p_code: code })
 export const feedUsed = (cardId) => rpc('store_admin_feed_used', { p_card: cardId })
 export const setLowMin = (productId, min) => rpc('store_admin_set_low_min', { p_product_id: productId, p_min: min })

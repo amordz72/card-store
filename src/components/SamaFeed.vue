@@ -8,7 +8,7 @@
       <div class="text-weight-bold col">تغذية سما من المخزون</div>
       <q-btn flat dense round icon="refresh" :loading="busy" @click="load" />
     </div>
-    <div class="help small muted">«اشحنها 1000» تأخذ أقدم بطاقة Mobilis 1000 من المخزون (تخرج من البيع) وترسلها إلى الشريحة حين تكون هادئة، ولا تقطع أي بيع. ردّ موبيليس يحسم: نجحت فيُضاف المبلغ لرصيدها، أو رفضتها الشبكة فتظهر هنا مع مورّدها. البطاقة لا تُرسل مرتين.</div>
+    <div class="help small muted">«اشحنها» تأخذ أقدم بطاقة Mobilis بالقيمة المختارة من المخزون (تخرج من البيع) وترسلها إلى الشريحة حين تكون هادئة، ولا تقطع أي بيع. ردّ موبيليس يحسم: نجحت فيُضاف المبلغ لرصيدها، أو رفضتها الشبكة فتظهر هنا مع مورّدها. البطاقة لا تُرسل مرتين.</div>
     <div v-if="error" class="small text-negative">{{ error }}</div>
 
     <div v-for="s in sims" :key="s.sim_uuid" class="feed-row">
@@ -17,8 +17,13 @@
         <span v-if="s.feed" class="tiny" :class="tone(s.feed)">{{ stateText(s.feed) }}</span>
         <span v-else class="tiny muted">لم تُغذَّ من المخزون بعد</span>
       </span>
-      <q-btn v-if="!running(s.feed)" dense unelevated no-caps color="primary" label="اشحنها 1000" :loading="starting === s.sim_uuid" @click="ask(s)" />
-      <q-btn v-else dense outline no-caps disable color="grey-7" label="تعبئة جارية" />
+      <!-- Owner 2026-10-31: one list of the values in stock and one button, instead of a button per value -->
+      <span v-if="!running(s.feed) && faces.length" class="row no-wrap items-center q-gutter-xs">
+        <q-select v-model="chosen[s.sim_uuid]" :options="faceOptions" emit-value map-options dense outlined options-dense class="face" />
+        <q-btn dense unelevated no-caps color="primary" label="اشحنها" :loading="starting === s.sim_uuid" @click="ask(s)" />
+      </span>
+      <q-btn v-else-if="running(s.feed)" dense outline no-caps disable color="grey-7" label="تعبئة جارية" />
+      <span v-else-if="facesLoaded" class="tiny text-negative">لا بطاقات Mobilis في المخزون</span>
     </div>
     <div v-if="loaded && !sims.length" class="small muted">لا شريحة سما.</div>
 
@@ -28,7 +33,7 @@
         <div class="small"><b>{{ f.sim_label }}</b> · {{ when(f.decided_at || f.queued_at) }} · {{ REASON[reasonKey(f.reason)] || f.reason }}</div>
         <div v-if="f.reply" class="reply small">«{{ f.reply }}»</div>
         <div class="row q-gutter-xs">
-          <q-btn dense unelevated no-caps color="positive" label="نجحت (وصلت 1000)" :loading="judging === f.feed_id" @click="judge(f, 'success')" />
+          <q-btn dense unelevated no-caps color="positive" :label="'نجحت (وصلت ' + money(f.card_face) + ')'" :loading="judging === f.feed_id" @click="judge(f, 'success')" />
           <q-btn dense outline no-caps color="negative" label="رفضتها الشبكة" :loading="judging === f.feed_id" @click="judge(f, 'refused')" />
         </div>
         <div class="help tiny muted">حكمك على ردّ جديد يحفظه البرنامج، فيحكم وحده إن تكرّر.</div>
@@ -54,8 +59,8 @@
     <q-dialog v-model="confirmOpen">
       <q-card v-if="target" style="min-width: 280px">
         <q-card-section class="column q-gutter-sm">
-          <div class="text-weight-bold">اشحن {{ target.label }} ببطاقة 1000؟</div>
-          <div class="small">تخرج أقدم بطاقة Mobilis 1000 من المخزون (لا تُباع بعدها)، وتُرسل إلى الشريحة في أول لحظة هادئة.</div>
+          <div class="text-weight-bold">اشحن {{ target.label }} ببطاقة {{ money(targetFace) }}؟</div>
+          <div class="small">تخرج أقدم بطاقة Mobilis {{ targetFace }} من المخزون (لا تُباع بعدها)، وتُرسل إلى الشريحة في أول لحظة هادئة.</div>
         </q-card-section>
         <q-card-actions align="left">
           <q-btn unelevated no-caps color="primary" label="نعم، اشحنها" @click="start" />
@@ -101,7 +106,9 @@ const REASON = {
   LATE_REPLY: 'ردّ متأخر'
 }
 const ERRORS = {
-  FEED_NO_CARD: 'لا بطاقة Mobilis 1000 متاحة في المخزون.',
+  FEED_NO_CARD: 'لا بطاقة Mobilis بهذه القيمة متاحة في المخزون.',
+  FEED_FACE_INVALID: 'قيمة البطاقة غير صحيحة.',
+  MIGRATION_0126: 'طبّق 0126 أولًا من «ينتظر تطبيقك» (قيم غير 1000).',
   FEED_BUSY: 'تعبئة جارية على هذه الشريحة.',
   FEED_SIM_NOT_SAMA: 'هذه ليست شريحة سما.',
   FEED_SIM_NOT_FOUND: 'الشريحة غير موجودة.',
@@ -122,6 +129,12 @@ const starting = ref(null)
 const judging = ref(null)
 const usedBusy = ref(null)
 const confirmOpen = ref(false)
+// v1.62: the values in stock, and the one chosen under each SIM (the smallest first, for trying)
+const faces = ref([])
+const facesLoaded = ref(false)
+const chosen = ref({})
+const faceOptions = computed(() => faces.value.map((f) => ({ value: f.face, label: f.available + f.ready > 0 ? `${f.face} (${f.available + f.ready} بطاقة)` : String(f.face) })))
+const targetFace = computed(() => (target.value ? chosen.value[target.value.sim_uuid] : null))
 const target = ref(null)
 const fixOpen = ref(false)
 const fixing = ref(null)
@@ -159,7 +172,7 @@ function stateText (f) {
     case 'queued': return `تنتظر لحظة هادئة على الشريحة (${ago(f.queued_at)})`
     case 'claimed': return `تُرسل الآن (${ago(f.claimed_at)})`
     case 'sent': return `أُرسلت، ننتظر ردّ موبيليس (${ago(f.sent_at)})`
-    case 'success': return `✓ شُحنت +${money(Number(f.amount) || 1000)} · ${when(f.reply_at || f.decided_at)}`
+    case 'success': return `✓ شُحنت +${money(Number(f.amount) || f.card_face)} · ${when(f.reply_at || f.decided_at)}`
     case 'refused': return `رفضتها الشبكة · ${when(f.decided_at)}`
     case 'review': return `تحتاج حكمك: ${REASON[reasonKey(f.reason)] || f.reason}`
     case 'not_sent': return `لم تُرسل · ${REASON[reasonKey(f.reason)] || f.reason} · ${when(f.decided_at)}`
@@ -171,7 +184,20 @@ const tone = (f) => (f.status === 'success' ? 'text-positive' : f.status === 're
 async function load () {
   busy.value = true
   try {
-    const [res, list] = await Promise.all([flexy.ownerFeed(), admin.feedCards().catch((e) => { error.value = e.message || 'تعذّرت قراءة البطاقات'; return null })])
+    const [res, list, values] = await Promise.all([flexy.ownerFeed(), admin.feedCards().catch((e) => { error.value = e.message || 'تعذّرت قراءة البطاقات'; return null }),
+      admin.feedFaces().catch(() => null)])
+    if (Array.isArray(values)) {
+      faces.value = values.filter((f) => f.available + f.ready > 0)
+      facesLoaded.value = true
+      // A value no longer in stock is replaced by the smallest left
+      for (const s of res.body?.sims || []) {
+        if (!faces.value.some((f) => f.face === chosen.value[s.sim_uuid])) chosen.value[s.sim_uuid] = faces.value[0]?.face ?? null
+      }
+    } else if (!facesLoaded.value) {
+      // Before s162: the value 1000 only, as before
+      faces.value = [{ face: 1000, available: 0, ready: 0 }]
+      for (const s of res.body?.sims || []) chosen.value[s.sim_uuid] = 1000
+    }
     if (res.status === 200 && res.body?.ok) {
       view.value = res.body
       if (list) error.value = ''
@@ -195,10 +221,11 @@ async function start () {
   confirmOpen.value = false
   starting.value = s.sim_uuid
   try {
-    const res = await flexy.ownerFeedStart(s.sim_uuid)
+    const res = await flexy.ownerFeedStart(s.sim_uuid, chosen.value[s.sim_uuid] || 1000)
     if (res.status === 200 && res.body?.ok) {
       view.value = res.body
       Notify.create({ type: 'positive', message: res.body.started?.quiet ? `تُرسل بطاقة إلى ${s.label} الآن` : `${s.label} مشغولة: تُرسل حين تهدأ` })
+      admin.feedFaces().then((v) => { if (Array.isArray(v)) faces.value = v.filter((f) => f.available + f.ready > 0) }).catch(() => {})
     } else {
       Notify.create({ type: 'negative', message: say(res) })
     }
@@ -273,4 +300,5 @@ onBeforeUnmount(() => clearTimeout(timer))
 .attention { border: 1px solid #FED7AA; background: #FFF7ED; border-radius: 8px; padding: 8px; }
 .reply { background: #F3F4F6; border-radius: 6px; padding: 4px 6px; word-break: break-word; }
 .tiny { font-size: 11px; }
+.face { min-width: 120px; }
 </style>
