@@ -149,6 +149,11 @@
           <q-item-section avatar><q-icon name="share" /></q-item-section>
           <q-item-section>مشاركة رابط الموقع</q-item-section>
         </q-item>
+        <q-item v-if="session.isAdmin" clickable to="/news">
+          <q-item-section avatar><q-icon name="new_releases" /></q-item-section>
+          <q-item-section>ما الجديد</q-item-section>
+          <q-item-section v-if="newsCount" side><q-badge color="purple-6" :label="newsCount" /></q-item-section>
+        </q-item>
         <!-- «تثبيت التطبيق» (owner 2026-10-31): the store as a program on a computer or phone, no address bar; hidden once installed -->
         <q-item v-if="!standalone" clickable @click="installApp">
           <q-item-section avatar><q-icon name="install_desktop" /></q-item-section>
@@ -201,19 +206,39 @@
             <b v-if="needsNew">{{ needsNew }} {{ needsNew === 1 ? 'جديد' : 'جديدة' }} · </b>{{ needsYou.length }} {{ needsYou.length === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك' }}
           </span>
           <q-icon name="expand_less" size="18px" />
-          <q-menu fit anchor="top middle" self="bottom middle" @before-show="snapNeeds" @show="markNeedsSeen">
+          <q-menu fit anchor="top middle" self="bottom middle" @before-show="snapNeeds(); loadSqlRows()" @show="markNeedsSeen">
             <q-list dense separator class="needs-list">
-              <q-item v-for="it in needsList" :key="it.text" v-close-popup clickable :to="it.to">
-                <q-item-section>
-                  <q-item-label>{{ it.text }} <q-badge v-if="it.isNew" color="purple-6" label="جديد" /></q-item-label>
-                  <q-item-label caption>{{ it.where }}</q-item-label>
-                </q-item-section>
-                <q-item-section side><q-icon name="chevron_left" /></q-item-section>
-              </q-item>
+              <template v-for="it in needsList" :key="it.text">
+                <!-- Owner 2026-10-31: what waits for one press is done here, in the fixed notification («طبّق»), no page to open -->
+                <template v-if="it.sql && sqlRows.length">
+                  <q-item v-for="r in sqlRows" :key="r.uid">
+                    <q-item-section>
+                      <q-item-label>🛠 {{ r.title }} <q-badge v-if="it.isNew" color="purple-6" label="جديد" /></q-item-label>
+                      <q-item-label v-if="r.error" caption class="text-negative">{{ r.error }}</q-item-label>
+                      <q-item-label v-else caption>SQL ينتظر تطبيقك</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn dense unelevated no-caps color="primary" label="طبّق" :loading="sqlBusy === r.uid" :disable="Boolean(sqlBusy)" @click.stop="applySql(r)" />
+                    </q-item-section>
+                  </q-item>
+                </template>
+                <q-item v-else v-close-popup clickable :to="it.to">
+                  <q-item-section>
+                    <q-item-label>{{ it.text }} <q-badge v-if="it.isNew" color="purple-6" label="جديد" /></q-item-label>
+                    <q-item-label caption>{{ it.where }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side><q-icon name="chevron_left" /></q-item-section>
+                </q-item>
+              </template>
             </q-list>
           </q-menu>
         </button>
       </template>
+      <!-- «ما الجديد» (owner 2026-10-31): a fixed line while something is new on this device; the page marks it seen -->
+      <router-link v-if="session.isAdmin && onHome && newsCount" to="/news" class="monitor-bar compact bg-purple-7 news-line">
+        <q-icon name="new_releases" size="16px" /><span class="col ellipsis">🆕 {{ newsCount }} {{ newsCount === 1 ? 'جديد' : 'جديدة' }} في البرنامج: ما الجديد</span>
+        <q-icon name="chevron_left" size="18px" />
+      </router-link>
       <QuickBar :items="nav" />
     </q-footer>
   </q-layout>
@@ -235,6 +260,7 @@ import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
 import QuickBar from 'components/QuickBar.vue'
+import { unseenNews, newsSeenRef } from 'src/composables/useNews'
 import { useBell } from 'src/composables/useBell'
 import { useMyProfits } from 'src/composables/useMyProfits'
 import LockScreen from 'components/LockScreen.vue'
@@ -442,7 +468,7 @@ const WHERE_DB = 'المراقبة ← القاعدة وSQL'
 const needsYou = computed(() => {
   return [
     // The SQL first (owner 2026-10-30: «ما ينتظر تطبيقك يُقال مقدمًا على كل شيء»), then what may have moved money
-    sqlPending.value && { to: DB, where: WHERE_DB, text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
+    sqlPending.value && { sql: true, to: DB, where: WHERE_DB, text: sqlPending.value === 1 ? '🛠 SQL ينتظر تطبيقك' : `🛠 ${sqlPending.value} أوامر SQL تنتظر تطبيقك` },
     reviewWaiting.value && { to: JUDGE, where: WHERE_JUDGE, text: reviewWaiting.value === 1 ? '⚖ عملية تحتاج حكمك (وصلت أم لا؟)' : `⚖ ${reviewWaiting.value} عمليات تحتاج حكمك (وصلت أم لا؟)` },
     automixAlert.value && { to: JUDGE, where: WHERE_JUDGE, text: `⚠ الأوتوميكس فشل اليوم ${automixAlert.value.pct}% (${automixAlert.value.failed} من ${automixAlert.value.total}): راجعه` },
     failuresOpen.value && { to: JUDGE, where: WHERE_JUDGE, text: failuresOpen.value === 1 ? '🔴 فشل بلا حل ينتظرك' : `🔴 ${failuresOpen.value} فشل بلا حل تنتظرك` },
@@ -489,6 +515,46 @@ async function installApp () {
     style: 'white-space: pre-line'
   })
 }
+// «طبّق» in the fixed notification: the waiting SQL listed by name, each applied here (the same server path as the page)
+const sqlRows = ref([])
+const sqlBusy = ref('')
+async function loadSqlRows () {
+  if (!sqlPending.value) { sqlRows.value = []; return }
+  try {
+    const r = await flexyApi.ownerSql()
+    const b = r?.body
+    if (r?.status !== 200 || !b?.ok) return
+    const nameOf = (m) => { const first = (String(m.sql || '').split('\n').find((l) => l.startsWith('--')) || '').replace(/^--\s*/, ''); const q = first.match(/«([^»]{3,60})»/); return q ? q[1] : (first.split(/[(:]/)[0].trim().slice(0, 60) || m.key) }
+    sqlRows.value = [
+      ...(b.migrations || []).map((m) => ({ uid: 'm' + m.key, mig: m.key, title: m.key + ' · ' + nameOf(m) })),
+      ...(b.pending?.open || []).map((p) => ({ uid: 'p' + p.id, id: p.id, title: p.title }))
+    ]
+  } catch { /* the line still opens the page */ }
+}
+function applySql (r) {
+  $q.dialog({ title: 'طبّق: ' + r.title, message: 'ينفّذ كل الأوامر معًا. إن فشل أحدها لا يتغيّر شيء. متابعة؟', cancel: 'لا', ok: 'نعم، طبّق' }).onOk(async () => {
+    sqlBusy.value = r.uid
+    try {
+      const res = await (r.mig ? flexyApi.applyMigration(r.mig) : flexyApi.applyPending(r.id))
+      const b = res?.body
+      if (res?.status === 200 && b?.ok !== false) {
+        $q.notify({ type: 'positive', message: '✓ طُبّق: ' + r.title, position: 'top' })
+        sqlRows.value = sqlRows.value.filter((x) => x.uid !== r.uid)
+        refreshBell()
+      } else {
+        r.error = '✗ لم يُطبَّق: ' + (b?.message || b?.error || res?.status)
+        sqlRows.value = [...sqlRows.value]
+      }
+    } catch (e) {
+      r.error = '✗ لم يُطبَّق: ' + (e?.message || 'لا اتصال')
+      sqlRows.value = [...sqlRows.value]
+    } finally {
+      sqlBusy.value = ''
+    }
+  })
+}
+// «ما الجديد»: lines this device has not seen yet
+const newsCount = computed(() => { void newsSeenRef.value; return unseenNews() })
 // The one official link (owner setting «الرابط الرسمي», else the built-in one), by the phone's share sheet or copied
 async function shareSite () {
   let url = adminApi.DEFAULT_OFFICIAL_SITE

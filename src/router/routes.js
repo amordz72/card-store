@@ -33,6 +33,8 @@ const routes = [
       { path: 'flexy/switches', component: () => import('pages/admin/SwitchesPage.vue'), meta: { admin: true, title: 'المفاتيح' } },
       { path: 'flexy/notebook', component: () => import('pages/admin/NotebookPage.vue'), meta: { admin: true, title: 'دفتر البرنامج' } },
       { path: 'flexy/numbers', component: () => import('pages/admin/NumberMemoryPage.vue'), meta: { admin: true, title: 'ذاكرة الأرقام' } },
+      // «ما الجديد» (owner 2026-10-31)
+      { path: 'news', component: () => import('pages/admin/NewsPage.vue'), meta: { admin: true, title: 'ما الجديد' } },
       { path: 'ideas', component: () => import('pages/admin/IdeasPage.vue'), meta: { heavy: true, admin: true, title: 'أفكار وأوامر' } },
       { path: 'stats', redirect: '/flexy/monitor?tab=db' },
       { path: 'usage', component: () => import('pages/admin/UsagePage.vue'), meta: { heavy: true, admin: true, title: 'الاستعمال' } },
