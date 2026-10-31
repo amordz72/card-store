@@ -189,6 +189,9 @@ export const ownerSimRetire = (simUuid, on) => owner('sims/retire', { method: 'P
 // «المراقبة» (Flexy Core 0068): available / unavailable balance, each SIM's reason, the alerts and the red bar; «تم» = ack
 // «قائمة الشراء» (Flexy Core 0107): the SIMs to feed
 export const ownerBuyList = (days = 7) => owner('buy-list?days=' + days, { method: 'GET' })
+// «نسب الشراء والربح» (Flexy Core 0122): the owner's buy rate per route and what the operations left; a new rate from now on
+export const ownerProfit = (days = 30) => owner('profit?days=' + days, { method: 'GET' })
+export const ownerBuyRate = (route, rate, fee) => owner('profit', { method: 'POST', body: { route, rate, fee } })
 export const ownerMonitor = () => owner('monitor', { method: 'GET' })
 // The connection log (Flexy Core 0070): what was offline at that minute, and the changes 15 min around it
 export const ownerPresence = (at) => owner('presence?at=' + encodeURIComponent(at), { method: 'GET' })
