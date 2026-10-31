@@ -55,6 +55,15 @@
           :label="`${p.brand} · ${p.name} (متوفر ${p.available})`" @update:model-value="(v) => mark(p, v)" />
         <div v-if="!gameProducts.length" class="muted">لا توجد بطاقات ألعاب في المخزن بعد.</div>
         <q-separator />
+        <!-- s165 (owner 2026-10-31): topped up from the platform balance (topup-dz), no card from the stock; its cost = the platform's price -->
+        <div class="text-weight-bold">من رصيد المنصة (بلا بطاقة من المخزن)</div>
+        <div v-for="p in gameProducts.filter((x) => marked.includes(Number(x.product_id)))" :key="'pl' + p.product_id" class="row items-center no-wrap q-gutter-sm">
+          <q-toggle class="col" :model-value="platformIds.includes(Number(p.product_id))" :label="`${p.brand} · ${p.name}`"
+            @update:model-value="(v) => setPlatform(p, v)" />
+          <q-input v-model.number="platformCost[p.product_id]" dense outlined type="number" inputmode="numeric" label="سعر المنصة" style="width:110px" />
+        </div>
+        <div class="help small muted">مفعّل = الطلب لا يأخذ بطاقة من المخزن؛ تشحنه على المنصة من رصيدك. سعر المنصة هو تكلفته، وسعر الزبون حسب قاعدة أسعاره.</div>
+        <q-separator />
         <div class="text-weight-bold">التقسيم (كمية من عدة بطاقات)</div>
         <q-toggle v-for="b in splitBrands" :key="b.brand" :model-value="b.split" :label="`${b.brand}: يسمح بالتقسيم`"
           @update:model-value="(v) => setSplit(b, v)" />
@@ -95,7 +104,9 @@
         <q-btn v-if="g.status === 'queued'" unelevated color="primary" label="أبدأ" :disable="busy" @click="claim(g, true)" />
 
         <template v-else-if="g.mine">
-          <div class="row items-center no-wrap q-pa-sm code-box">
+          <!-- s165: no card: topped up from the owner's platform balance (topup-dz) -->
+          <div v-if="!g.code" class="q-pa-sm code-box small">من رصيد المنصة: اشحن هذا المعرّف على المنصة، ثم «تمّ الشحن» أو «لم يتم».</div>
+          <div v-else class="row items-center no-wrap q-pa-sm code-box">
             <div class="col ltr text-left">
               <div class="text-weight-bold">{{ g.code }}</div>
               <div v-if="g.serial" class="small muted">{{ g.serial }}</div>
@@ -104,7 +115,7 @@
           </div>
           <div class="grid-2">
             <q-btn unelevated color="positive" label="تمّ الشحن" :disable="busy" @click="done(g)" />
-            <q-btn outline color="warning" label="البطاقة مستعملة" :disable="busy" @click="usedCard(g)" />
+            <q-btn v-if="g.code" outline color="warning" label="البطاقة مستعملة" :disable="busy" @click="usedCard(g)" />
             <q-btn outline color="negative" label="لم يتم" :disable="busy" @click="failed(g)" />
             <q-btn flat color="grey-8" label="تراجع" :disable="busy" @click="claim(g, false)" />
           </div>
@@ -290,6 +301,8 @@ async function previewFor () {
 const allCustomers = ref([])
 const customerOpts = ref([])
 const forCards = ref([])
+const platformIds = ref([])
+const platformCost = ref({})
 const ordering = ref(false)
 let orderRequest = newRequestId()
 async function loadForm () {
@@ -298,7 +311,9 @@ async function loadForm () {
   if (cs) allCustomers.value = cs.filter((c) => c.active && !c.is_shop).map((c) => ({ label: `${c.name} · …${String(c.phone).slice(-4)}`, value: c.customer_id, name: c.name }))
   customerOpts.value = allCustomers.value
   const on = (ids || []).map(Number)
-  if (stock) forCards.value = stock.filter((p) => on.includes(Number(p.product_id)) && p.active && Number(p.available) > 0)
+  const plat = await adminApi.gamePlatformList().catch(() => [])
+  platformIds.value = (plat || []).map((x) => Number(x.product_id))
+  if (stock) forCards.value = stock.filter((p) => on.includes(Number(p.product_id)) && p.active && (Number(p.available) > 0 || platformIds.value.includes(Number(p.product_id))))
 }
 function filterCustomers (val, update) {
   update(() => { customerOpts.value = val ? allCustomers.value.filter((c) => c.label.includes(val)) : allCustomers.value })
@@ -308,7 +323,7 @@ async function orderFor () {
   const who = allCustomers.value.find((c) => c.value === f.customer)?.name || ''
   ordering.value = true
   const player = f.player.replace(/\s/g, '')
-  const r = await run(() => (f.product ? adminApi.gameOrderFor(f.customer, f.product, player, orderRequest)
+  const r = await run(() => (f.product ? (platformIds.value.includes(Number(f.product)) ? adminApi.gameOrderPlatformFor : adminApi.gameOrderFor)(f.customer, f.product, player, orderRequest)
     : adminApi.gameOrderUnitsFor(f.customer, f.brand || splitBrands.value[0]?.brand, forPlan.value.units, player, orderRequest)),
   { success: (x) => `أُرسل طلب ${who}` + (x.debt_added > 0 ? ` · أُضيف ${x.debt_added} دج إلى دينه` : '') })
   ordering.value = false
@@ -325,7 +340,18 @@ async function setAlwaysOpen (v) {
   const r = await run(() => adminApi.gameAlwaysOpen(v), { success: v ? 'الطلب مفتوح دائمًا.' : 'الطلب مفتوح فقط وأنت «متاح».' })
   if (r !== undefined) { alwaysOpen.value = r === true; loadBoard() }
 }
+async function setPlatform (p, on) {
+  const cost = Number(platformCost.value[p.product_id]) || null
+  if (on && !cost) { Notify.create({ type: 'warning', message: 'اكتب سعر المنصة أولًا.' }); return }
+  const r = await run(() => adminApi.gamePlatformSet(p.product_id, on, cost).then(() => true), { success: on ? 'صار من رصيد المنصة.' : 'عاد إلى بطاقات المخزن.' })
+  if (r) loadPlatform()
+}
+const loadPlatform = () => adminApi.gamePlatformList().then((l) => {
+  platformIds.value = (l || []).map((x) => Number(x.product_id))
+  for (const x of l || []) if (x.cost && !platformCost.value[x.product_id]) platformCost.value[x.product_id] = Number(x.cost)
+}, () => {})
 async function loadSettings () {
+  loadPlatform()
   loadSplitBrands()
   const [stock, ids] = await Promise.all([run(() => adminApi.stock()), run(() => adminApi.playerTopupProducts())])
   if (stock) gameProducts.value = stock.filter((p) => p.category === 'game' && p.active && p.brand_active)

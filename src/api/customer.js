@@ -147,6 +147,12 @@ export async function gameCreate (token, productId, playerId, requestId) {
   const rows = await rpc('store_game_create', { p_token: token, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
   return rows?.[0] || null
 }
+// s165: game products topped up from the owner's platform balance (no card from the stock)
+export const gamePlatformList = (token) => rpc('store_game_platform_list', { p_token: token })
+export async function gameCreatePlatform (token, productId, playerId, requestId) {
+  const rows = await rpc('store_game_create_platform', { p_token: token, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
+  return rows?.[0] || null
+}
 // v1.51: any amount, made of several cards (300 = 200 + 100); the price is the sum of the cards
 export const gameSplitPreview = (token, brand, units) => rpc('store_game_split_preview', { p_token: token, p_brand: brand, p_units: units })
 export const gameCreateUnits = (token, brand, units, playerId, requestId) =>
