@@ -150,6 +150,11 @@
           <q-item-section avatar><q-icon name="share" /></q-item-section>
           <q-item-section>مشاركة رابط الموقع</q-item-section>
         </q-item>
+        <!-- «تثبيت التطبيق» (owner 2026-10-31): the store as a program on a computer or phone, no address bar; hidden once installed -->
+        <q-item v-if="!standalone" clickable @click="installApp">
+          <q-item-section avatar><q-icon name="install_desktop" /></q-item-section>
+          <q-item-section>تثبيت التطبيق</q-item-section>
+        </q-item>
         <q-item v-if="lock.enabled" clickable @click="lock.lock()">
           <q-item-section avatar><q-icon name="lock" /></q-item-section>
           <q-item-section>قفل الآن</q-item-section>
@@ -477,6 +482,27 @@ const needsList = computed(() => {
   return [...list.filter((x) => x.isNew), ...list.filter((x) => !x.isNew)]
 })
 // Not while the page is hidden (2026-10-30, the database's load): a phone in a pocket asks nothing
+// «تثبيت التطبيق»: Chrome/Edge offer the install (beforeinstallprompt); elsewhere, how to do it by hand
+const standalone = ref(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true)
+let installEvent = null
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e })
+window.addEventListener('appinstalled', () => { standalone.value = true; installEvent = null })
+async function installApp () {
+  if (installEvent) {
+    installEvent.prompt()
+    try { await installEvent.userChoice } catch { /* closed */ }
+    installEvent = null
+    return
+  }
+  $q.dialog({
+    title: 'تثبيت التطبيق',
+    message: 'على الكمبيوتر (Chrome أو Edge): اضغط زر التثبيت في آخر شريط العنوان، أو القائمة ⋮ ثم «تثبيت التطبيق».\n' +
+      'على الهاتف (Chrome): القائمة ⋮ ثم «إضافة إلى الشاشة الرئيسية». على iPhone (Safari): زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».\n' +
+      'بعدها يفتح المتجر كبرنامج، بلا شريط عنوان.',
+    ok: 'حسنًا',
+    style: 'white-space: pre-line'
+  })
+}
 // The one official link (owner setting «الرابط الرسمي», else the built-in one), by the phone's share sheet or copied
 async function shareSite () {
   let url = adminApi.DEFAULT_OFFICIAL_SITE
