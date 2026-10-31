@@ -48,12 +48,20 @@
       <!-- The state only (owner 2026-10-30: the program's rules beside «متصل» read as «مطفأ»); the rules are numbers on «المفاتيح» -->
       <div v-if="tree" class="small muted">آخر تحديث {{ clock(tree.checked_at) }}<template v-if="typeFilter"> · <button type="button" class="link" @click="typeFilter = null">مفلتر: {{ typeName(typeFilter) }} ✕</button></template></div>
       <div v-if="error" class="small text-negative">{{ error }}</div>
+      <!-- The phones as a Sama backup (owner 2026-11-01, Flexy Core 0130): here, not on «المفاتيح». Never ordinary credit. -->
+      <div v-if="tree" class="row items-center q-gutter-x-md">
+        <template v-if="phoneSwitches">
+          <q-toggle :model-value="phoneSwitches.discover" :disable="!!switching" label="الاستكشاف من الهاتف" @update:model-value="(v) => setPhoneSwitch('discover', v)" />
+          <q-toggle :model-value="phoneSwitches.execute" :disable="!!switching" label="التنفيذ من الهاتف" @update:model-value="(v) => setPhoneSwitch('execute', v)" />
+          <div class="small muted full-width">عروض سما فقط، وبعد شرائح الكمبيوترات حين لا تكون واحدة جاهزة. شريحة الهاتف «للكل» وحدها تأخذ عمليات المحلات.</div>
+        </template>
+        <div v-else class="small muted">مفتاحا الهاتف (الاستكشاف والتنفيذ) وحالة كل شريحة: بعد تطبيق 0130 من «ينتظر تطبيقك».</div>
+      </div>
     </div>
 
     <!-- One part at a time (owner 2026-10-30: «اجعل الكمبيوترات في تبويب آخر، التنقل للأسفل مزعج»); the last one kept -->
     <q-btn-toggle v-if="tree" v-model="pageTab" spread unelevated no-caps toggle-color="primary" color="white" text-color="dark" class="page-tabs"
-      :options="[{ label: 'الشرائح', value: 'sims' }, { label: `الكمبيوترات (${presentCount} متصل)`, value: 'computers' },
-        ...(phones.length ? [{ label: 'هاتف الإدارة', value: 'phone' }] : [])]" />
+      :options="[{ label: 'الشرائح', value: 'sims' }, { label: `إضافة كمبيوتر (${presentCount} متصل)`, value: 'computers' }]" />
 
     <!-- SIMs (owner 2026-10-25, agreed on a picture): the computer first, then active or not inside it.
          Active = its computer present and its modem connected. Gone 7+ days = «قديمة» at the end. -->
@@ -63,6 +71,18 @@
         <q-btn v-for="c in stationChips" :key="c.value" dense unelevated rounded no-caps size="md" :label="c.label"
           :color="simStation === c.value ? 'primary' : 'white'" :text-color="simStation === c.value ? 'white' : c.muted ? 'grey-6' : 'dark'"
           class="chip" @click="simStation = c.value" />
+      </div>
+      <!-- The device picked (owner 2026-11-01): its state in one line -->
+      <div v-if="pickedStation" class="small q-px-sm q-pt-xs" :class="isAbsent(pickedStation) ? 'text-deep-orange' : 'text-positive'">
+        {{ stName(pickedStation) }}: {{ isAbsent(pickedStation) ? 'مطفأ' : 'متصل' }}<template v-if="pickedStation.last_seen_at"> · آخر ظهور منذ {{ since(pickedStation.last_seen_at) }}</template>
+        <template v-if="isAbsent(pickedStation) && pickedStation.reasons?.[0]?.text"> · {{ pickedStation.reasons[0].text }}</template>
+        <template v-if="pickedStation.agent_version"> · {{ pickedStation.agent_version }}</template>
+      </div>
+      <!-- «الكل:» applies one audience to the SIMs shown (owner 2026-11-01) -->
+      <div v-if="audiences && simTab !== 'missing' && shownSims.length" class="row items-center q-gutter-xs q-px-sm q-pt-sm">
+        <span class="small text-weight-bold">الكل ({{ shownSims.length }}):</span>
+        <q-btn v-for="a in AUDIENCES" :key="a.value" dense outline no-caps size="sm" :color="a.color" :label="a.label"
+          :loading="audienceBusy === 'all:' + a.value" :disable="!!audienceBusy" @click="askAudienceAll(a)" />
       </div>
       <div class="sub">
         <!-- One word per SIM from the top layer down (owner 2026-10-28): its computer off is not its problem;
@@ -89,7 +109,7 @@
       </div>
       <div v-if="simTab !== 'missing'" class="table-wrap">
         <table class="sims">
-          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th></tr></thead>
+          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th><th v-if="audiences">لمن</th></tr></thead>
           <tbody>
             <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
               <td><span class="text-weight-bold">{{ simName(r.m.sim, r.st) || 'جديدة' }}</span><span v-if="adminName(r.m.sim)" class="small muted"> · {{ r.m.sim.code }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
@@ -100,13 +120,19 @@
                 <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim) && !modemGone(r)" size="12px" class="q-mr-xs" />{{ statusText(r) }}
                   <!-- A warning can always be sent to Claude (owner 2026-10-30: «لا زر نسخ، ولا أستطيع تحديد النص») -->
                   <q-btn v-if="simState(r) !== 'ready' || onboardingOf(r.m.sim)?.stage === 'alert'" flat round dense size="sm" icon="smart_toy" aria-label="نسخ لـClaude" @click.stop="copySimForClaude(r)" /></div></td>
+              <!-- للكل / للإدارة / موقوفة (owner 2026-11-01, Flexy Core 0130), like the offers -->
+              <td v-if="audiences" @click.stop>
+                <q-btn-toggle :model-value="audienceOf(r.m.sim)" dense unelevated no-caps size="sm" color="grey-3" text-color="dark"
+                  :toggle-color="AUDIENCES.find((a) => a.value === audienceOf(r.m.sim))?.color || 'primary'" :disable="!!audienceBusy"
+                  :options="AUDIENCES.map((a) => ({ label: a.label, value: a.value }))" @update:model-value="(v) => setAudience([r.m.sim], v)" />
+              </td>
             </tr>
             <tr v-if="!shownSims.length">
-              <td colspan="5" class="text-center muted">لا شرائح بهذا الفلتر
+              <td :colspan="audiences ? 6 : 5" class="text-center muted">لا شرائح بهذا الفلتر
                 <q-btn v-if="typeFilter || simStation !== 'all'" flat dense no-caps size="sm" color="primary" label="إلغاء الفلاتر" @click="clearFilters" /></td>
             </tr>
             <tr v-if="simTab === 'station_off' && simRows.old.length" class="static">
-              <td colspan="5"><button type="button" class="link" @click="showOldSims = !showOldSims">قديمة ({{ simRows.old.length }}) {{ showOldSims ? '▴' : '▾' }}</button></td>
+              <td :colspan="audiences ? 6 : 5"><button type="button" class="link" @click="showOldSims = !showOldSims">قديمة ({{ simRows.old.length }}) {{ showOldSims ? '▴' : '▾' }}</button></td>
             </tr>
           </tbody>
         </table>
@@ -204,27 +230,6 @@
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-
-    <!-- The owner's phone (agent «phone-*»): never counted as a computer, its SIM never in the SIM counts (owner 2026-10-28) -->
-    <div v-if="tree && phones.length" v-show="pageTab === 'phone'" class="card q-pa-none">
-      <div class="section-title q-pa-sm">هاتف الإدارة</div>
-      <div v-for="st in phones" :key="st.station_uuid" class="phone-row">
-        <div class="row items-center q-gutter-sm">
-          <span class="col text-weight-bold">{{ stName(st) }}<span class="muted small"> · {{ st.code }}</span><span class="muted small"> · {{ st.computer_name || '' }}</span></span>
-          <q-badge :color="isAbsent(st) ? 'grey-6' : 'positive'" :label="isAbsent(st) ? 'مطفأ' : '✅ متصل'" />
-        </div>
-        <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
-        <button v-for="m in st.modems.filter((x) => x.sim && x.level !== 'old')" :key="m.sim.sim_uuid" type="button" class="phone-sim" @click="open(st, m)">
-          <!-- Same lines as a computer's SIM (owner 2026-10-31): the label, the number and the balance never run together -->
-          <span class="text-weight-bold">{{ simName(m.sim, st) }}</span><span v-if="adminName(m.sim)" class="small muted"> · {{ m.sim.code }}</span>
-          <div class="small muted"><bdi>{{ m.sim.label || m.sim.sim_type_name }}</bdi></div>
-          <div class="row items-center q-gutter-x-md">
-            <bdi class="ltr">{{ m.sim.msisdn || (m.sim.msisdn_tail ? '…' + m.sim.msisdn_tail : '—') }}</bdi>
-            <span :class="m.sim.balance == null ? 'text-deep-orange' : m.sim.balance <= 0 ? 'text-negative' : ''">{{ m.sim.balance == null ? 'غير مقروء' : money(m.sim.balance) }}</span>
-          </div>
-        </button>
       </div>
     </div>
 
@@ -573,7 +578,8 @@ const adminNames = computed(() => {
   return Object.fromEntries([...sims].sort((a, b) => String(a.code).localeCompare(String(b.code))).map((x, i) => [x.sim_uuid, `إدارة-${i + 1}`]))
 })
 const adminName = (sim) => (sim ? adminNames.value[sim.sim_uuid] || '' : '')
-const stName = (st) => (st && (st.phone || isPhone(st)) ? 'هاتف الإدارة' : (st?.code || 'كمبيوتر'))
+// 0130: a phone may serve the shops too, so it is «📱 الهاتف» (its name on the phone), no longer «هاتف الإدارة»
+const stName = (st) => (st && (st.phone || isPhone(st)) ? '📱 ' + (st.computer_name || 'هاتف') : (st?.code || 'كمبيوتر'))
 const simName = (sim, st) => (sim ? adminName(sim) || (st && (st.phone || isPhone(st)) ? 'إدارة' : sim.code) : '')
 const phones = computed(() => (tree.value?.stations || []).filter((s) => (s.phone || isPhone(s)) && s.level !== 'old'))
 const current = computed(() => computers.value.filter((s) => s.level !== 'old'))
@@ -598,20 +604,26 @@ const typeName = (type) => SUMMARY_TYPES.find(([t]) => t === type)?.[1] || type
 const typeFilter = ref(null)
 const simStation = ref('all')
 const simTab = ref('ready')
-const readTab = () => { try { return localStorage.getItem('devices.tab') || 'sims' } catch { return 'sims' } }
+// «هاتف الإدارة» is gone (owner 2026-11-01): its phones are in «الشرائح»
+const readTab = () => { try { return localStorage.getItem('devices.tab') === 'computers' ? 'computers' : 'sims' } catch { return 'sims' } }
 const pageTab = ref(readTab())
 watch(pageTab, (v) => { try { localStorage.setItem('devices.tab', v) } catch { /* private window */ } })
 const route = useRoute()
 const showOldSims = ref(false)
 const pickType = (type) => { typeFilter.value = typeFilter.value === type ? null : type }
 function clearFilters () { typeFilter.value = null; simStation.value = 'all' }
+// The phones 📱 in the same row as server-N (owner 2026-11-01)
 const stationChips = computed(() => [
   { value: 'all', label: 'الكل' },
   ...current.value.filter((st) => !isAbsent(st)).map((st) => ({ value: st.station_uuid, label: st.code || 'كمبيوتر' })),
-  ...current.value.filter(isAbsent).map((st) => ({ value: st.station_uuid, label: (st.code || 'كمبيوتر') + ' (مطفأ)', muted: true }))
+  ...phones.value.filter((st) => !isAbsent(st)).map((st) => ({ value: st.station_uuid, label: stName(st) })),
+  ...current.value.filter(isAbsent).map((st) => ({ value: st.station_uuid, label: (st.code || 'كمبيوتر') + ' (مطفأ)', muted: true })),
+  ...phones.value.filter(isAbsent).map((st) => ({ value: st.station_uuid, label: stName(st) + ' (مطفأ)', muted: true }))
 ])
+const pickedStation = computed(() => (simStation.value === 'all' ? null
+  : [...current.value, ...phones.value].find((st) => st.station_uuid === simStation.value) || null))
 // Every SIM with its computer; old = its modem or its computer gone for longer than old_days.
-const everySim = computed(() => [...current.value, ...gone.value].flatMap((st) =>
+const everySim = computed(() => [...current.value, ...phones.value, ...gone.value].flatMap((st) =>
   st.modems.filter((m) => m.sim).map((m) => ({ st, m, old: st.level === 'old' || m.level === 'old' }))))
 const isActive = (r) => !r.old && !isAbsent(r.st) && isConnected(r.m)
 // The core's one word; an older core without it: the old rule
@@ -671,11 +683,61 @@ function focusFromRoute () {
 const shownSims = computed(() => simTab.value === 'station_off'
   ? [...simRows.value.station_off, ...(showOldSims.value ? simRows.value.old : [])]
   : simRows.value[simTab.value])
-// The summary counts every active SIM of each type, whatever the filters (owner 2026-10-25).
-const summary = computed(() => [
-  { label: 'كمبيوتر', n: presentCount.value },
-  ...SUMMARY_TYPES.map(([type, label]) => ({ type, label, n: everySim.value.filter((r) => !r.old && simState(r) === 'ready' && r.m.sim.sim_type === type).length }))
-])
+// The summary counts every active SIM of each type, whatever the filters (owner 2026-10-25); since 0130 only the ones
+// «للكل» (owner 2026-11-01: the available SIMs), and the phones' SIMs on their own tile, never in a type's count.
+const summary = computed(() => {
+  const ready = everySim.value.filter((r) => !r.old && simState(r) === 'ready')
+  const forAll = (r) => !audiences.value || audienceOf(r.m.sim) === 'all'
+  return [
+    { label: 'كمبيوتر', n: presentCount.value },
+    ...SUMMARY_TYPES.map(([type, label]) => ({ type, label, n: ready.filter((r) => !isPhone(r.st) && forAll(r) && r.m.sim.sim_type === type).length })),
+    ...(phones.value.length ? [{ label: '📱 هاتف', n: ready.filter((r) => isPhone(r.st)).length }] : [])
+  ]
+})
+
+// Each SIM's audience (owner 2026-11-01, Flexy Core 0130): null before 0130 (no column, no line)
+const AUDIENCES = [
+  { value: 'all', label: 'للكل', color: 'positive' },
+  { value: 'admin', label: 'للإدارة', color: 'primary' },
+  { value: 'off', label: 'موقوفة', color: 'negative' }
+]
+const audiences = computed(() => tree.value?.sim_audiences || null)
+const audienceOf = (sim) => audiences.value?.[sim?.sim_uuid]?.audience || 'all'
+const audienceBusy = ref(null)
+async function setAudience (sims, audience, tag = null) {
+  audienceBusy.value = tag || sims[0]?.sim_uuid || 'x'
+  try {
+    const res = await flexy.ownerSimAudience(sims.map((x) => x.sim_uuid), audience)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error === 'MIGRATION_0130_PENDING' ? 'طبّق 0130 من «ينتظر تطبيقك» أولًا.' : (res.body?.error || 'FLEXY_CORE'))
+    for (const x of sims) if (tree.value?.sim_audiences) tree.value.sim_audiences[x.sim_uuid] = { ...(tree.value.sim_audiences[x.sim_uuid] || {}), audience, set: true }
+    const word = AUDIENCES.find((a) => a.value === audience)?.label
+    Notify.create({ type: 'positive', message: sims.length === 1 ? `${simName(sims[0]) || 'الشريحة'}: ${word}` : `${sims.length} شرائح: ${word}`, position: 'top', timeout: 1500 })
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message })
+  } finally {
+    audienceBusy.value = null
+  }
+}
+function askAudienceAll (a) {
+  const sims = shownSims.value.map((r) => r.m.sim)
+  Dialog.create({ title: `الكل: ${a.label}`, message: `${sims.length} شريحة ظاهرة الآن تصبح «${a.label}».`, cancel: { label: 'إلغاء', flat: true }, ok: { label: 'نعم', color: a.color } })
+    .onOk(() => setAudience(sims, a.value, 'all:' + a.value))
+}
+// «الاستكشاف من الهاتف» / «التنفيذ من الهاتف» (0130): null before 0130
+const phoneSwitches = computed(() => tree.value?.phone_switches || null)
+const switching = ref(null)
+async function setPhoneSwitch (which, on) {
+  switching.value = which
+  try {
+    const res = await flexy.ownerPhoneSwitch(which, on)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error === 'MIGRATION_0130_PENDING' ? 'طبّق 0130 من «ينتظر تطبيقك» أولًا.' : (res.body?.error || 'FLEXY_CORE'))
+    if (tree.value) tree.value.phone_switches = res.body.phone_switches
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message })
+  } finally {
+    switching.value = null
+  }
+}
 // «إصلاح الغائبة» (owner 2026-10-31): the computer is on but this SIM's modem is not seen: said as it is, never «يُقرأ»
 const ABSENT_MS = 3 * 60_000
 const modemGone = (r) => !isAbsent(r.st) && !isPhone(r.st) && !r.old && r.m.last_seen_at && Date.now() - Date.parse(r.m.last_seen_at) >= ABSENT_MS

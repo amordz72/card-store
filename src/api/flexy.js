@@ -186,6 +186,9 @@ export const ownerDevices = () => owner('devices', { method: 'GET' })
 export const ownerTrusted = (body) => owner('trusted', body ? { method: 'POST', body } : { method: 'GET' })
 // 0113: «أخرجها من الخدمة» / «أرجعها»
 export const ownerSimRetire = (simUuid, on) => owner('sims/retire', { method: 'POST', body: { sim_uuid: simUuid, on } })
+// 0130: «للكل / للإدارة / موقوفة» for SIMs, and the phones' two Sama switches (which: discover | execute)
+export const ownerSimAudience = (simUuids, audience) => owner('sims/audience', { method: 'POST', body: { sim_uuids: simUuids, audience } })
+export const ownerPhoneSwitch = (which, on) => owner('phones/switch', { method: 'POST', body: { which, on } })
 // «المراقبة» (Flexy Core 0068): available / unavailable balance, each SIM's reason, the alerts and the red bar; «تم» = ack
 // «قائمة الشراء» (Flexy Core 0107): the SIMs to feed
 export const ownerBuyList = (days = 7) => owner('buy-list?days=' + days, { method: 'GET' })
