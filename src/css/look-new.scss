@@ -16,7 +16,12 @@
   // The header becomes one white card on the grey page
   .q-header { background: var(--look-bg) !important; border-bottom: 0 !important; }
   .q-header .q-toolbar { background: #fff; margin: 10px 12px 2px; border-radius: 18px; box-shadow: var(--look-shadow); min-height: 58px; }
-  .monitor-bar.compact { margin: 6px 12px 0; border-radius: 14px; }
+  .q-footer .monitor-bar { margin: 4px 10px; border-radius: 14px; }
+  .look-head { min-width: 0; }
+  .look-balance { color: #2FAE1E; font-weight: 800; font-size: 22px; white-space: nowrap; }
+  .look-avatar { width: 44px; height: 44px; border-radius: 50%; background: #E7E8FF; color: var(--q-primary); display: flex; align-items: center;
+    justify-content: center; font-weight: 700; text-decoration: none; position: relative; flex-shrink: 0; }
+  .look-avatar::after { content: ''; position: absolute; bottom: 1px; left: 1px; width: 11px; height: 11px; border-radius: 50%; background: #2FAE1E; border: 2px solid #fff; }
 
   // Cards: white, rounder, a soft shadow instead of a border, more air
   .card { border: 0; border-radius: 18px; padding: 16px; box-shadow: var(--look-shadow); }
