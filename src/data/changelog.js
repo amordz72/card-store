@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-d',
+    date: '2026-11-01',
+    title: '«تعبئة»: فليكسي وإيدوم في مكان واحد',
+    items: [
+      { text: 'زر «فليكسي» للمحلات صار «تعبئة»: رقم موبايل = فليكسي، رقم ثابت (9 أرقام) أو 4G (213…) = بطاقات إيدوم في المكان نفسه', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'بطاقات إيدوم أسطر صغيرة (الاسم والسعر) بدل الدوائر الكبيرة؛ «تعبئة إيدوم» باقية حتى تجربها', to: '/flexy/shop', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-c',
     date: '2026-11-01',
     title: 'الشريحة المفضّلة',

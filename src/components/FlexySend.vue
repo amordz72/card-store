@@ -12,6 +12,8 @@
         <template v-if="carrier" #append><span class="carrier" :class="carrier.cls">{{ carrier.name }}</span></template>
       </q-input>
     </div>
+    <!-- Another service for the same field (owner 2026-11-01: «تعبئة» = Flexy and Idoom): the page puts it here -->
+    <slot v-if="!phoneFull" name="other" :raw="rawDigits" />
 
     <!-- Only the number until it is whole (owner 2026-10-31, as the other app); then «رصيد عادي» first, and a Mobilis
          line is read behind it so «عروض» finds it known -->
@@ -200,6 +202,7 @@ const other = ref(null)
 const opened = ref(null)
 const waiting = ref('')
 
+const rawDigits = computed(() => phone.value.replace(/\D/g, ''))
 const digits = computed(() => {
   let d = phone.value.replace(/\D/g, '')
   if (/^213\d{9}$/.test(d)) d = '0' + d.slice(3)
@@ -263,7 +266,9 @@ watch(() => props.rows, async (list) => {
 // Shown in pairs while typing (06 67 06 89 43): a wrong digit is seen before sending
 function typed (v) {
   const s = String(v || '')
-  phone.value = /^[\d\s]*$/.test(s) ? s.replace(/\D/g, '').slice(0, 10).replace(/(\d{2})(?=\d)/g, '$1 ') : s
+  // 213… (Idoom 4G, or a mobile in international form) keeps its 12 digits (owner 2026-11-01)
+  const d = s.replace(/\D/g, '')
+  phone.value = /^[\d\s]*$/.test(s) ? (d.startsWith('213') ? d.slice(0, 12) : d.slice(0, 10).replace(/(\d{2})(?=\d)/g, '$1 ')) : s
 }
 
 // The key of a press whose answer was lost, per request: the same request pressed again reuses it

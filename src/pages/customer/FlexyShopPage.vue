@@ -20,6 +20,7 @@
       :credit-prefixes="access.creditPrefixes.value" :offer-prefixes="access.offerPrefixes.value" note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer" :available-offers="availableOffers"
       :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
+      <template #other="{ raw }"><IdoomCards :raw="raw" /></template>
       <q-badge :color="access.open.value ? 'positive' : 'negative'" class="q-pa-sm self-start">
         {{ access.open.value ? 'الخدمة متاحة الآن' : 'الخدمة متوقفة الآن — حاول بعد قليل' }}
       </q-badge>
@@ -36,6 +37,7 @@ import * as api from 'src/api/customer'
 import { money } from 'src/api/format'
 import { offerTitle } from 'src/api/flexyExplain'
 import FlexySend from 'src/components/FlexySend.vue'
+import IdoomCards from 'src/components/IdoomCards.vue'
 import { when } from 'src/api/when'
 import { Notify } from 'quasar'
 
