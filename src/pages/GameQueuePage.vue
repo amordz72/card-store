@@ -79,7 +79,13 @@
             <div v-if="groups[g.game_id]" class="small text-deep-orange text-weight-bold">مقسّم: {{ groups[g.game_id].units }} = {{ groups[g.game_id].names }} · جزء {{ groups[g.game_id].part }} من {{ groups[g.game_id].parts }}</div>
             <div class="small muted">{{ g.customer_name }} · {{ ago(g.created_at) }}<span v-if="g.cards_used"> · بطاقات مستعملة: {{ g.cards_used }}</span></div>
           </div>
-          <q-badge :color="g.status === 'queued' ? 'grey-7' : 'info'">{{ g.status === 'queued' ? 'في الانتظار' : 'يشحنه: ' + (g.taken_by || '') }}</q-badge>
+          <q-badge :color="g.status === 'queued' ? 'grey-7' : 'info'">{{ g.status === 'queued' ? 'في الانتظار' : 'يشحنه: ' + (g.taken_by || phoneOf[g.game_id]?.phone || 'هاتف') }}</q-badge>
+        </div>
+        <!-- s164: what the Rech-Doom phone saw (owner only): it never decides success; the owner presses «تمّ» or «لم يتم» -->
+        <div v-if="session.isAdmin && phoneOf[g.game_id]" class="small phone-said">
+          📱 {{ phoneOf[g.game_id].phone || 'الهاتف' }}: {{ PHONE_SAID[phoneOf[g.game_id].outcome] || 'يعمل عليه الآن' }}
+          <span v-if="phoneOf[g.game_id].player_name"> · اللاعب: <bdi>{{ phoneOf[g.game_id].player_name }}</bdi></span>
+          <div v-if="phoneOf[g.game_id].reply" class="reply">«{{ phoneOf[g.game_id].reply }}»</div>
         </div>
         <div class="row items-center no-wrap q-gutter-sm">
           <span class="col player-id ltr text-left">{{ g.player_id }}</span>
@@ -182,6 +188,15 @@ async function loadOpen () {
   // v1.51: the split parts (before v1.51: none)
   api.gameGroups(tok()).then((m) => { groups.value = m || {} }, () => {})
   if (session.isAdmin) refreshBell()
+  // s164: what the phone said on each order (before s164 is applied: nothing shows)
+  if (session.isAdmin) adminApi.gamePhoneView().then((v) => { phoneOf.value = Object.fromEntries((v?.orders || []).map((o) => [o.game_id, o])) }, () => {})
+}
+const phoneOf = ref({})
+const PHONE_SAID = {
+  sent: 'ضغط «تأكيد» — راجع ردّ الموقع ثم «تمّ» أو «لم يتم»',
+  unknown: 'لا يُعرف هل ضغط «تأكيد» — راجع قبل أي قرار',
+  no_report: 'لم يرسل نتيجة خلال 10 دقائق — راجع في Garena قبل أي قرار',
+  not_sent: 'توقف قبل «تأكيد» (البطاقة لم تُستعمل) — ينتظر شخصًا'
 }
 const { rows: doneRows, total: doneTotal, loadingMore, reset: resetDone, more, size } =
   useLoadMore((limit, offset) => run(() => api.gameQueue(tok(), false, limit, offset)), { key: 'game_id' })
@@ -346,6 +361,8 @@ onUnmounted(() => clearInterval(timer))
 <style scoped>
 .player-id { font-size: 1.6rem; font-weight: 700; letter-spacing: 1px; }
 .mine { border-color: #6366F1; }
+.phone-said { background: #FFF7ED; border-radius: 8px; padding: 6px 10px; }
+.phone-said .reply { white-space: pre-line; overflow-wrap: anywhere; max-height: 140px; overflow: auto; color: #5B6170; }
 .code-box { border: 1px dashed #A5A9F0; background: #F5F6FF; border-radius: 12px; }
 .op-row { padding: 10px 14px; border-bottom: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
 .op-row:last-child { border-bottom: 0; }

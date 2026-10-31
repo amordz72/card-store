@@ -235,6 +235,9 @@ export const executorNewToken = (id) => rpc('store_admin_executor_new_token', { 
 export const executorSetActive = (id, active) => rpc('store_admin_executor_set_active', { p_executor_id: id, p_active: active })
 // v1.37: only a disabled phone; it leaves the list and its token stops for good (past jobs keep it)
 export const executorDelete = (id) => rpc('store_admin_executor_delete', { p_executor_id: id })
+// s164 (owner 2026-10-31): Free Fire by the Rech-Doom phone: a switch per phone, and what each phone said on game orders
+export const executorGame = (id, on) => rpc('store_admin_executor_game', { p_executor_id: id, p_on: on })
+export const gamePhoneView = () => rpc('store_admin_game_phone_view')
 export const idoomCancel = (jobId) => rpc('store_admin_idoom_cancel', { p_job_id: jobId })
 export async function executorCreate (name) {
   const rows = await rpc('store_admin_executor_create', { p_name: name })
