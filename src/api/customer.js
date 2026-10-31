@@ -135,6 +135,13 @@ export async function gameStatus (token) {
   const rows = await rpc('store_game_status', { p_token: token })
   return rows?.[0] || { is_open: false, is_operator: false }
 }
+// الخدمات (owner 2026-10-31): a service is ordered, held, then done by the owner
+export const services = (token) => rpc('store_services', { p_token: token })
+export const serviceCreate = (token, productId, qty, fields, note, requestId) => rpc('store_service_create', {
+  p_token: token, p_product_id: productId, p_qty: qty, p_fields: fields || {}, p_note: note || null, p_request_id: requestId
+})
+export const serviceOrders = (token, limit, offset) => rpc('store_service_orders', { p_token: token, p_limit: limit, p_offset: offset })
+export const serviceCancel = (token, id) => rpc('store_service_cancel', { p_token: token, p_id: id })
 export const gameCards = (token) => rpc('store_game_cards', { p_token: token })
 export async function gameCreate (token, productId, playerId, requestId) {
   const rows = await rpc('store_game_create', { p_token: token, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })

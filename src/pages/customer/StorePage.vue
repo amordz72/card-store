@@ -1,7 +1,7 @@
 <template>
   <q-page class="page">
     <q-input v-model="query" outlined dense clearable label="بحث" placeholder="مثال: موبيليس 1000" bg-color="white" />
-    <CatalogFilter v-model:cat="cat" v-model:brand="brand" :brands="brandList" />
+    <CatalogFilter v-model:cat="cat" v-model:brand="brand" :brands="brandList" :only="shownCats" />
     <q-btn rounded no-caps class="self-start" :unelevated="availOnly" :outline="!availOnly" color="positive"
       :label="availOnly ? '✓ المتوفر فقط' : 'المتوفر فقط'" :aria-pressed="availOnly" @click="availOnly = !availOnly" />
 
@@ -11,7 +11,7 @@
       <template v-for="b in g.brands" :key="b.name">
         <div class="brand-title">{{ b.name }}</div>
         <div class="grid-2">
-          <div v-for="p in b.items" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !p.available }">
+          <div v-for="p in b.items" :key="p.product_id" class="card column q-gutter-xs" :class="{ 'out-of-stock': !isAvail(p) }">
             <CardImage :item="p" />
             <!-- A game card (owner 2026-10-30): its amount big, the price under it, never confused -->
             <template v-if="p.category === 'game' && gameAmount(p.name)">
@@ -25,10 +25,19 @@
               <q-separator />
               <div class="text-weight-medium">{{ p.name }}</div>
             </template>
-            <div v-if="!p.available && splits[p.product_id]" class="small text-weight-medium text-deep-orange">متوفر من {{ partsText(splits[p.product_id]) }}</div>
-            <div v-else class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
-            <q-btn unelevated :color="canBuy(p) ? 'primary' : 'grey-4'" :text-color="canBuy(p) ? 'white' : 'grey-8'"
-              :label="canBuy(p) ? 'شراء' : 'نفد'" :disable="!canBuy(p)" @click="openBuy(p)" />
+            <!-- A service (owner 2026-10-31): no stock; ordered, then done by the shop. Closed ones stay shown. -->
+            <template v-if="svc[p.product_id]">
+              <div class="small text-weight-medium" :class="svc[p.product_id].open ? 'text-primary' : 'muted'">
+                {{ svc[p.product_id].open ? 'خدمة · تُطلب ويُنفّذها المحل' : 'مغلقة الآن' }}</div>
+              <q-btn unelevated :color="canOrder(p) ? 'primary' : 'grey-4'" :text-color="canOrder(p) ? 'white' : 'grey-8'"
+                :label="buyer.isShop.value ? 'للزبائن' : svc[p.product_id].open ? 'اطلب' : 'مغلقة'" :disable="!canOrder(p)" @click="openService(p)" />
+            </template>
+            <template v-else>
+              <div v-if="!p.available && splits[p.product_id]" class="small text-weight-medium text-deep-orange">متوفر من {{ partsText(splits[p.product_id]) }}</div>
+              <div v-else class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
+              <q-btn unelevated :color="canBuy(p) ? 'primary' : 'grey-4'" :text-color="canBuy(p) ? 'white' : 'grey-8'"
+                :label="canBuy(p) ? 'شراء' : 'نفد'" :disable="!canBuy(p)" @click="openBuy(p)" />
+            </template>
           </div>
         </div>
       </template>
@@ -63,6 +72,9 @@
       </q-card>
     </q-dialog>
 
+    <ServiceOrderDialog v-model="serviceOpen" :service="serviceSel" :balance="Number(buyer.balance.value) || 0" :hide="buyer.hide.value"
+      @sent="onServiceSent" />
+
     <CodesDialog v-model="codesOpen" title="تم الشراء بنجاح" :subtitle="bought.subtitle" :codes="bought.codes" :order-id="bought.orderId"
       :mark-copied="buyer.markCopied" />
   </q-page>
@@ -70,7 +82,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { LocalStorage } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { useBuyer } from 'src/composables/useBuyer'
@@ -80,6 +92,8 @@ import { money, gameAmount, CATEGORIES } from 'src/api/format'
 import CodesDialog from 'components/CodesDialog.vue'
 import CatalogFilter from 'components/CatalogFilter.vue'
 import CardImage from 'components/CardImage.vue'
+import ServiceOrderDialog from 'components/ServiceOrderDialog.vue'
+import * as adminApi from 'src/api/admin'
 import * as customerApi from 'src/api/customer'
 import { useCustomerStore } from 'stores/customer'
 
@@ -108,6 +122,8 @@ watch(query, (q) => {
   if (t.length >= 2) searchTimer = setTimeout(() => interest('search:' + t), 1500)
 })
 const inCat = (p) => cat.value === 'all' || p.category === cat.value
+// «منتجات أخرى» only once it has something (the other sections as always)
+const shownCats = computed(() => CATEGORIES.map((c) => c.id).filter((id) => id !== 'other' || products.value.some((p) => p.category === 'other')))
 const brandList = computed(() => [...new Set(products.value.filter(inCat).map((p) => p.brand))])
 
 const shownProducts = computed(() => {
@@ -115,7 +131,7 @@ const shownProducts = computed(() => {
   return products.value
     .filter((p) => inCat(p) && (brand.value === 'all' || p.brand === brand.value))
     .filter((p) => !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q))
-    .filter((p) => !availOnly.value || p.available)
+    .filter((p) => !availOnly.value || isAvail(p))
 })
 
 // Rows arrive ordered by category, brand, card. Keep that order; inside a brand
@@ -127,7 +143,7 @@ const groups = computed(() => CATEGORIES.map((c) => {
     if (!b) brands.push(b = { name: p.brand, items: [] })
     b.items.push(p)
   }
-  for (const b of brands) b.items.sort((x, y) => Number(y.available) - Number(x.available))
+  for (const b of brands) b.items.sort((x, y) => Number(isAvail(y)) - Number(isAvail(x)))
   return { ...c, brands }
 }).filter((g) => g.brands.length))
 
@@ -135,8 +151,17 @@ const groups = computed(() => CATEGORIES.map((c) => {
 const splits = ref({})
 const canBuy = (p) => p.available || !!splits.value[p.product_id]
 const partsText = (s) => (s.parts.length === 2 ? 'بطاقتين' : s.parts.length + ' بطاقات') + ' (' + s.parts.join(' + ') + ')'
+// Services by product id (store_services for a customer, store_admin_services for the owner). Before the services
+// SQL is applied both fail: then no product is a service and the store works as before.
+const svc = ref({})
+const isAvail = (p) => (svc.value[p.product_id] ? !!svc.value[p.product_id].open : p.available)
+const canOrder = (p) => !buyer.isShop.value && !!svc.value[p.product_id]?.open
+async function loadServices () {
+  const rows = await (buyer.isShop.value ? adminApi.services() : customerApi.services(customer.token)).catch(() => [])
+  svc.value = Object.fromEntries((rows || []).filter((x) => x.active !== false).map((x) => [x.product_id, x]))
+}
 async function load () {
-  const [rows, sp] = await Promise.all([run(() => buyer.catalog()), buyer.splitOffers()])
+  const [rows, sp] = await Promise.all([run(() => buyer.catalog()), buyer.splitOffers(), loadServices()])
   if (rows) products.value = rows
   splits.value = sp || {}
   loaded.value = true
@@ -146,6 +171,8 @@ async function load () {
 // «/store?brand=PUBG» (a home banner link) opens on that brand
 const route = useRoute()
 function openBrand () {
+  // «/store?cat=other» (from «الخدمات») opens on that section
+  if (CATEGORIES.some((c) => c.id === route.query.cat)) cat.value = route.query.cat
   const p = products.value.find((x) => x.brand === route.query.brand)
   if (!p) return
   cat.value = p.category
@@ -166,6 +193,19 @@ function openBuy (p) {
   qty.value = 1
   requestId = newRequestId()   // one id per purchase attempt; a retry reuses it
   buyOpen.value = true
+}
+
+const serviceOpen = ref(false)
+const serviceSel = ref(null)
+function openService (p) {
+  interest('service:' + p.name)
+  serviceSel.value = { ...svc.value[p.product_id], name: p.name, base_price: p.base_price }
+  serviceOpen.value = true
+}
+const router = useRouter()
+function onServiceSent () {
+  run(() => buyer.refresh())
+  router.push('/services')
 }
 
 const codesOpen = ref(false)
