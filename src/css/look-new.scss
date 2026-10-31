@@ -1,6 +1,6 @@
 // «الشكل الجديد» (owner 2026-10-31, look v1 approved: developer projects/card-store/ui-reference/). Inspired by the
-// reference the owner sent, never copied. Everything is scoped under .look-new on the layout, so the old look stays
-// untouched until the owner approves: for now the admin previews it with ?look=1 (AppLayout), page by page.
+// reference the owner sent, never copied. Scoped under .look-new on the layout, now on for everyone (owner «عمّم الشكل»);
+// the old look is main at 1f74987.
 .look-new {
   --q-primary: #5B5FEF;
   // The pages' own brand accents (old orange by default, see var(--brand-*) in the pages) follow the new look

@@ -507,7 +507,7 @@ function details (o) {
 // ---- The Sama board (owner 2026-10-31): fixed rows; only their text changes when the line is known ----
 // The owner tries it first on his own send page (untested live, it is the shops' money screen); the shops get it
 // when he says so: BOARD_FOR_SHOPS = true (owner 2026-10-31).
-const BOARD_FOR_SHOPS = false
+const BOARD_FOR_SHOPS = true // owner 2026-10-31: «افتح اللوحة للمحلات»
 const boardOn = computed(() => (session.isAdmin || BOARD_FOR_SHOPS) && props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
   (showAutomix.value || (looked.value && !shape.value && !newGroup.value && !noOffers.value && (families.value.length || internet.value.length))))
 const lineKnown = computed(() => looked.value && !holding.value && (families.value.length > 0 || internet.value.length > 0))
