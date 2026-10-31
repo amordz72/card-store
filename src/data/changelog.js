@@ -3,6 +3,18 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-10-31-i',
+    date: '2026-10-31',
+    title: 'فليكسي: بطاقات سما ومفتاحها',
+    items: [
+      { text: 'حقل الرقم وحده حتى يكتمل، ثم «رصيد عادي» و«عروض»؛ رقم موبيليس يُقرأ خطه في الخلفية من تلك اللحظة', to: '/flexy/send', pr: 'card-store' },
+      { text: '«عروض»: تحميل 3 ثوانٍ، ثم بطاقات Sama Mix (مفتوحة) وSama Talk وSama Net وعروض أخرى بشكل واحد', to: '/flexy/send', pr: 'card-store' },
+      { text: 'عرض ليس لخط الزبون: نافذة «لا يوجد عرض…» تختفي وحدها، وخلفها عروض خطه الحقيقية', to: '/flexy/send', pr: 'card-store' },
+      { text: 'مفتاح «لوحة سما التلقائية» في «المفاتيح» (بعد تطبيق s166)', to: '/flexy/switches', pr: 'card-store، s166' },
+      { text: 'الرقم لا يبقى بعد تحديث الصفحة، وزر المسح خارج الحقل، والرقم أقرب في موزيلا', to: '/flexy/send', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-10-31-h',
     date: '2026-10-31',
     title: 'لوحة سما الجديدة',

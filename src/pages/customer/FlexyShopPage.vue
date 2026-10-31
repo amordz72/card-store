@@ -16,7 +16,7 @@
       <div class="text-weight-bold">الفليكسي غير مفعّل لحسابك</div>
       <div class="small muted">اطلب من المحل تفعيله.</div>
     </div>
-    <FlexySend v-else remember="shop" :open="access.open.value" :max-amount="access.maxAmount.value" :offers="access.offers.value"
+    <FlexySend v-else remember="shop" :automix="automix" :open="access.open.value" :max-amount="access.maxAmount.value" :offers="access.offers.value"
       :credit-prefixes="access.creditPrefixes.value" :offer-prefixes="access.offerPrefixes.value" note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer" :available-offers="availableOffers"
       :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
@@ -45,6 +45,9 @@ import { Notify } from 'quasar'
 const customer = useCustomerStore()
 const buyer = useBuyer()
 const access = useFlexyAccess()
+// The owner's «اللوحة التلقائية» switch (s166); unknown = on
+const automix = ref(true)
+api.flexyUi(customer.token).then((r) => { automix.value = r?.automix !== false }).catch(() => {})
 
 const PAGE = 10
 

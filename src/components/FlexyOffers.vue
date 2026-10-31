@@ -8,17 +8,17 @@
       — الأرجح أن خطه لا يقبله: جرّب عرضًا آخر.
     </div>
     <!-- No spinner while the Sama board shows (owner 2026-10-29): the discovery goes on behind it -->
-    <div v-else-if="loading && !boardOn" class="card column items-center q-gutter-sm q-pa-lg">
+    <div v-else-if="loading && !boardOn && !curtain" class="card column items-center q-gutter-sm q-pa-lg">
       <q-spinner color="primary" size="32px" />
       <div class="small muted">جارٍ معرفة نوع خط الزبون… قد يأخذ حتى دقيقة.</div>
     </div>
-    <div v-else-if="error && !boardOn" class="card column items-center q-gutter-sm q-pa-lg">
+    <div v-else-if="error && !boardOn && !curtain" class="card column items-center q-gutter-sm q-pa-lg">
       <div class="small text-negative text-center">{{ error }}</div>
       <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="load({ retry: true })" />
     </div>
     <!-- Sections come from the offers themselves (owner 2026-10-28): each offer's category (bundle /
          internet); no category = bundle, so an operator without categories (Sama) looks as before. -->
-    <template v-else-if="!boardOn && !holding && (families.length || internet.length)">
+    <template v-else-if="!curtain && !boardOn && !holding && (families.length || internet.length)">
       <div v-if="families.length" class="card q-pa-none">
         <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
           group="families" header-class="family" expand-separator>
@@ -69,17 +69,20 @@
       <div class="small muted">«صيغة جديدة» تنشئ {{ shape.word || shape.candidates[0]?.label }} أخرى لهذا النوع من الخطوط، وتستكشفها الآن للإدارة. لا مال في أي خيار.</div>
     </div>
     <!-- Only the network's own «no offers» says so (owner rule): the automix is gone, ordinary credit stays -->
-    <div v-else-if="looked && noOffers && !boardOn" class="card text-center q-pa-lg">لا توجد عروض لهذا الرقم. أرسل له رصيدًا عاديًا.</div>
-    <div v-else-if="looked && !boardOn && !newGroup && !blocked.length" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
+    <div v-else-if="looked && noOffers && !boardOn && !curtain" class="card text-center q-pa-lg">لا توجد عروض لهذا الرقم. أرسل له رصيدًا عاديًا.</div>
+    <div v-else-if="looked && !boardOn && !newGroup && !blocked.length && !curtain" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
     <!-- The Sama board (owner 2026-10-31, «نفذ»): one look for every Mobilis number, the owner's page too. Tabs closed
          at first; fixed rows «Sama Mix N» / «Sama Net N» that never change by themselves. A press sends at once: the line's
          own offer when known (the discovery gets up to 5 s, shown as the send's own wait), else the automatic one (it
          stops before any money). A row the known line lacks says «لا يوجد عرض متاح لهذا الرقم» when pressed and goes.
          No word on the screen tells how it works (no «أوتوميكس», no «عُرف الخط»). -->
-    <div v-if="boardOn" class="card q-pa-none board">
+    <!-- Opening «عروض» (owner 2026-10-31): 3 s of loading like every app, the same for every Mobilis number; the line is
+         read behind it (it started when the number was whole). -->
+    <div v-if="curtain" class="card column items-center q-pa-xl"><q-spinner-dots color="primary" size="40px" /></div>
+    <div v-else-if="boardOn" class="card column q-gutter-sm q-pa-md board">
       <div v-if="boardStatus" class="board-status small text-primary"><q-spinner size="14px" class="q-mr-xs" />{{ boardStatus }}</div>
-      <q-expansion-item v-for="sec in board" :key="sec.key" :label="sec.title" group="board" expand-separator
-        :header-class="sec.net ? 'family net-tab' : 'family'">
+      <q-expansion-item v-for="sec in board" :key="sec.key" :label="sec.title" group="board" :default-opened="sec.key === 'mix'"
+        class="tab-card" header-class="tab-head">
         <div v-if="sec.note" class="small muted text-center q-pa-md">
           <q-spinner v-if="sec.spin" size="16px" class="q-mr-xs" />{{ sec.note }}
         </div>
@@ -166,7 +169,11 @@ const props = defineProps({
   // «صيغ»: decide(phone, 'confirm' | 'change' | 'new', group) when a menu matched no variant exactly
   decide: { type: Function, default: null },
   // Djezzy: explore(phone) → { status: 'discovering' | 'done' }, the line's «Offres Internet» read once
-  explore: { type: Function, default: null }
+  explore: { type: Function, default: null },
+  // The «عروض» tab is on screen (the line is read before, as soon as the number is whole)
+  visible: { type: Boolean, default: true },
+  // The owner's switch («المفاتيح»): the Sama board with its automatic offers; off = the line's offers once known
+  boardSwitch: { type: Boolean, default: true }
 })
 const emit = defineEmits(['sent'])
 // The lab, only for the owner's live session on a new group (never loaded on a shop's page)
@@ -180,7 +187,10 @@ const AUTO = {
   small: [50, 100].map((a) => autoOffer('Mixed', a, `Sama Mix ${a}`)),
   // «Mixed N» (Flexy Core): the line's own offer of kind «مختلط» and that amount, whatever its group
   mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Mixed', a, `Sama Mix ${a}`)),
-  net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `Sama Net ${a}`, 'internet'))
+  net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `Sama Net ${a}`, 'internet')),
+  // Between Mix and Net to slow a little (owner 2026-10-31: rarely chosen). No automatic route: never sent blind
+  // (the core would swap it for the line's mixed offer), it waits for the line to be known.
+  talk: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Talk', a, `Sama Talk ${a}`))
 }
 const fits = (o) => o.amount <= props.maxAmount
 // The owner's page only for now (the shops' page reads through the store)
@@ -377,6 +387,17 @@ const holding = computed(() => autoSent.value !== '' && autoSent.value === props
 watch(() => props.running, (now, before) => {
   if (before && !now && autoSent.value && autoSent.value === props.phone) { autoSent.value = ''; load() }
 })
+// The 3 s curtain each time «عروض» opens for a Mobilis number
+const curtain = ref(false)
+let curtainTimer = null
+watch(() => [props.visible, props.phone], ([v], old) => {
+  const opened = v && !(old && old[0])
+  if (!v || !props.phoneOk || !props.phone.startsWith('06')) { curtain.value = false; return }
+  if (!opened) return
+  curtain.value = true
+  clearTimeout(curtainTimer)
+  curtainTimer = setTimeout(() => { curtain.value = false }, 3000)
+}, { immediate: true })
 
 // One request; while the core discovers the line, ask again every 3 s (at most 90 s).
 // `retry` («أعد المحاولة») asks the core for a new discovery when the last one ended.
@@ -461,7 +482,10 @@ watch(() => [props.active, props.phone, props.phoneOk], () => {
 async function recheck (p) {
   if (p !== props.phone || !props.phoneOk) return false
   const before = group.value
+  const sent = autoRow && autoRow.phone === p ? autoRow : null
   await load()
+  // The automatic offer stopped because the line has none at that price: the same window as a press, the line's offers behind it
+  if (sent && boardOn.value && lineHas(sent.kind, sent.amount) === null) { autoRow = null; absent(sent); return 'told' }
   return Boolean(before && group.value && before !== group.value)
 }
 defineExpose({ recheck })
@@ -471,15 +495,17 @@ function details (o) {
 }
 
 // ---- The Sama board (owner 2026-10-31, «نفذ»): fixed rows, tabs closed at first; nothing changes before a press ----
-const boardOn = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone && !shape.value && !newGroup.value)
-// Rows the known line lacks, removed once pressed (this number only)
-const gone = ref(new Set())
-watch(() => props.phone, () => { gone.value = new Set() })
+// realView: after «لا يوجد عرض…», the line's own offers in the ordinary look (owner 2026-10-31), this number only
+const realView = ref(false)
+watch(() => props.phone, () => { realView.value = false })
+const boardOn = computed(() => props.boardSwitch && !realView.value && props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
+  !shape.value && !newGroup.value)
 // The line's own offer for one row: same price; Mix before other families for the mixed rows (unavailable ones too)
 function realFor (kind, amount) {
   const list = offers.value.filter((o) => o.amount === amount)
   if (kind === 'net') return list.find((o) => o.category === 'internet') || null
   const bundles = list.filter((o) => o.category !== 'internet')
+  if (kind === 'talk') return bundles.find((o) => /talk/i.test(o.family || o.label)) || null
   return bundles.find((o) => /mix/i.test(o.family || o.label)) || bundles[0] || null
 }
 // What the line surely has for a row: its offer, null = surely none, undefined = not known (send the automatic one)
@@ -497,7 +523,7 @@ const board = computed(() => {
   const checking = automix.value.small === null
   const avail = (kind) => (kind === 'small' ? automix.value.small : automix.value.big) !== false
   const used = new Set()
-  const rows = (kind, list) => list.filter(fits).filter((a) => !gone.value.has(kind + a.amount)).map((a) => {
+  const rows = (kind, list) => list.filter(fits).map((a) => {
     const real = lineHas(kind, a.amount)
     if (real) used.add(real)
     const ok = !checking && avail(kind)
@@ -508,6 +534,7 @@ const board = computed(() => {
     }
   })
   const mix = [...rows('small', AUTO.small), ...rows('mix', AUTO.mix)]
+  const talk = rows('talk', AUTO.talk)
   const net = rows('net', AUTO.net)
   const other = { key: 'other', title: 'عروض أخرى', rows: [] }
   if (certain.value) {
@@ -524,7 +551,8 @@ const board = computed(() => {
   }
   return [
     { key: 'mix', title: 'Sama Mix', rows: mix },
-    { key: 'net', title: 'Sama Net (إنترنت)', net: true, rows: net },
+    { key: 'talk', title: 'Sama Talk', rows: talk },
+    { key: 'net', title: 'Sama Net', net: true, rows: net },
     other
   ]
 })
@@ -557,27 +585,38 @@ function pick (r) {
     ok: last ? 'نعم، أرسل مرة ثانية' : 'نعم، أرسل'
   }).onDismiss(() => { asking = false }).onOk(() => sendRow(p, r))
 }
+// «لا يوجد عرض…» (owner 2026-10-31): a window that goes by itself in 2–3 s; behind it the screen turns into the line's
+// own offers in the ordinary look, so the change is never seen happening
+function absent (r) {
+  const noNet = r.kind === 'net' && !internet.value.length
+  const d = Dialog.create({ message: noNet ? 'لا توجد عروض إنترنت لهذا الرقم' : 'لا يوجد عرض ' + money(r.amount) + ' لهذا الرقم', ok: 'حسنًا' })
+  realView.value = true
+  setTimeout(() => d.hide(), 2500)
+}
+let autoRow = null
 async function sendRow (p, r) {
   waiting.value = r.key
   try {
-    // The discovery still running: up to 5 s more, as the send's own wait (owner 2026-10-31)
-    for (const end = Date.now() + 5000; loading.value && Date.now() < end && props.phone === p;) await sleep(250)
+    // The line not known yet: up to 5 s more, as the send's own wait (owner 2026-10-31); «Sama Talk» has no automatic
+    // route, so it waits for the line (at most 30 s) and never goes blind
+    const limit = r.kind === 'talk' ? 30000 : 5000
+    for (const end = Date.now() + limit; lineHas(r.kind, r.amount) === undefined && (loading.value || r.kind === 'talk') && Date.now() < end && props.phone === p;) await sleep(250)
     if (props.phone !== p) return
     const has = lineHas(r.kind, r.amount)
-    if (has === null) {
-      gone.value = new Set([...gone.value, r.key])
-      Notify.create({ message: 'لا يوجد عرض متاح لهذا الرقم', position: 'top', timeout: 3000, color: 'deep-orange' })
-      return
-    }
+    if (has === null) { absent(r); return }
     if (has && has.available === false) {
       Notify.create({ message: 'غير متاح الآن، حاول بعد دقيقة.', position: 'top', timeout: 3000, color: 'deep-orange' })
+      return
+    }
+    if (!has && r.kind === 'talk') {
+      Notify.create({ message: 'تعذّر الإرسال الآن، حاول بعد قليل.', position: 'top', timeout: 3000, color: 'deep-orange' })
       return
     }
     const o = has || r.auto
     const res = await run(() => props.send(p, o.label))
     if (res) {
       const auto = !has
-      if (auto) { autoSent.value = p; justSent.value = true; setTimeout(() => { justSent.value = false }, 10000) }
+      if (auto) { autoRow = { phone: p, kind: r.kind, amount: r.amount }; autoSent.value = p; justSent.value = true; setTimeout(() => { justSent.value = false }, 10000) }
       emit('sent', { phone: p, offer: o, result: res, auto })
     }
   } finally {
@@ -629,7 +668,10 @@ function confirm (o) {
 .live { border: 2px solid #0E7490; padding: 12px; }
 .board-status { padding: 10px 14px; min-height: 40px; display: flex; align-items: center; color: #5B6170; }
 .board .offer-row { min-height: 60px; }
-:deep(.net-tab) { color: #0E7490; }
+.tab-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(30, 41, 59, 0.08); overflow: hidden; }
+:deep(.tab-head) { min-height: 64px; }
+:deep(.tab-head .q-item__label) { text-align: center; font-size: 1.15rem; font-weight: 600; color: #475569; }
+.board { background: transparent; box-shadow: none; }
 .offer-row.net { border-inline-start: 4px solid #0E7490; }
 .link { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
 .amounts { display: flex; flex-wrap: wrap; gap: 8px; }

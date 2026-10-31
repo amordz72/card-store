@@ -7,7 +7,7 @@
       <q-btn round unelevated :color="phoneMode ? 'primary' : 'grey-4'" :text-color="phoneMode ? 'white' : 'grey-8'" icon="smartphone"
         :aria-label="phoneMode ? 'إيقاف الإرسال من الهاتف' : 'الإرسال من هاتفي'" :aria-pressed="phoneMode" @click="switchVia" />
     </div>
-    <FlexySend remember="owner" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
+    <FlexySend remember="owner" :automix="automix" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :explore-offer="exploreOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
@@ -66,6 +66,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
+import { flexyUi } from 'src/api/admin'
 import { money } from 'src/api/format'
 import FlexySend from 'src/components/FlexySend.vue'
 import { explain, offerTitle } from 'src/api/flexyExplain'
@@ -75,6 +76,9 @@ import { useBell } from 'src/composables/useBell'
 // Flexy Core, under his money switch, no wallet. Flexy Core checks and chooses the SIM itself at
 // send time (no «تحقق», owner 2026-10-25); its choice per SIM is on «المحطات والشرائح».
 const $q = useQuasar()
+// «اللوحة التلقائية» (s166, «المفاتيح»); unknown = on
+const automix = ref(true)
+flexyUi().then((r) => { automix.value = r?.automix !== false }).catch(() => {})
 
 const PAGE = 10
 const MAX_AMOUNT = 50000

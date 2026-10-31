@@ -32,6 +32,14 @@
       <div class="help col-12 small muted">أقل من 500 دج: أرسلي أولًا وسما عند الضرورة. 500 فما فوق: سما أولًا وأرسلي عند الضرورة.</div>
     </div>
 
+    <!-- «اللوحة التلقائية» (owner 2026-10-31, store s166): the Sama board with its automatic offers, shops and owner -->
+    <div class="card row items-center q-gutter-sm">
+      <q-toggle :model-value="automixOn" :disable="automixOn === null || busy === 'automix'" color="primary"
+        :label="automixOn ? 'لوحة سما التلقائية مفعّلة' : 'لوحة سما التلقائية ملغاة: تظهر عروض الخط بعد معرفته'" @update:model-value="flipAutomix" />
+      <q-spinner v-if="busy === 'automix'" size="16px" />
+      <div class="help col-12 small muted">{{ automixOn === null ? 'يحتاج تطبيق s166 من «ينتظر تطبيقك».' : 'مفعّلة: بطاقات Sama Mix / Talk / Net فورًا، والعرض التلقائي إن لم يُعرف الخط بعد. ملغاة: انتظار معرفة الخط ثم عروضه.' }}</div>
+    </div>
+
     <!-- «المهام الآلية» (owner 2026-10-29, Flexy Core 0076): what the program does by itself, one switch each,
          what it did last; then everything it did, and every switch change -->
     <div class="section-title q-mt-md">المهام الآلية · ما يفعله البرنامج وحده</div>
@@ -74,6 +82,7 @@ import { ADMIN_TABS, ADMIN_LINKS } from 'src/api/sections'
 import { onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
+import { flexyUi, setFlexyAutomix } from 'src/api/admin'
 
 const $q = useQuasar()
 const switchOn = ref(null)
@@ -116,6 +125,18 @@ function flipOoredoo (on) {
   ask('فتح إرسال أوريدو الحقيقي', 'كل «إرسال» إلى 05 يُخرج رصيدًا حقيقيًا من شريحة أوريدو فورًا عند تأكيد الشبكة. متأكد؟', apply)
 }
 const flipSama = (on) => run('sama', () => flexy.setSamaOffersSwitch(on))
+// «اللوحة التلقائية» (store s166): null until read (before s166: stays null and the toggle is disabled)
+const automixOn = ref(null)
+flexyUi().then((r) => { automixOn.value = r?.automix !== false }).catch(() => {})
+async function flipAutomix (on) {
+  busy.value = 'automix'
+  try {
+    await setFlexyAutomix(on)
+    automixOn.value = on
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e?.message || 'تعذّر الحفظ.' })
+  } finally { busy.value = null }
+}
 
 // «المهام الآلية»
 const tasks = ref([])
