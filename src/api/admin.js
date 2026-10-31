@@ -308,6 +308,9 @@ export const setExtraOrigins = (origins) => rpc('store_admin_set_extra_origins',
 
 // Flexy for shops (v1.33): the owner's settings, per-shop rates («نسب المحلات»), the shops' operations and reviews
 // v1.39: a rate per operator per shop (rate_630 = Mobilis, rate_630_djezzy, rate_630_ooredoo; null = closed for it)
+// «اللوحة التلقائية» (store s166): read (token null = the owner) and switch
+export const flexyUi = () => rpc('store_flexy_ui', { p_token: null })
+export const setFlexyAutomix = (on) => rpc('store_admin_flexy_automix_set', { p_on: on })
 export async function flexySettings () {
   const rows = await rpc('store_admin_flexy_settings_v2')
   return rows?.[0] || null

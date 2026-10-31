@@ -3,23 +3,26 @@
     <!-- The page's own line (the shop's «الخدمة متاحة» or the owner's money switch) -->
     <slot />
 
-    <div class="card column q-gutter-sm">
-      <q-input :model-value="phone" dense outlined label="رقم الزبون" inputmode="tel" maxlength="16" clearable @focus="(e) => e.target.select()"
+    <div class="card row items-center no-wrap q-gutter-x-sm">
+      <!-- «امسح» outside the field, on its right (owner 2026-10-31); its place stays so the field never moves -->
+      <q-btn round unelevated size="sm" color="grey-3" text-color="grey-9" icon="close" aria-label="امسح الرقم"
+        :style="{ visibility: phone ? 'visible' : 'hidden' }" @click="phone = ''" />
+      <q-input :model-value="phone" class="col" dense outlined label="رقم الزبون" inputmode="tel" maxlength="16" @focus="(e) => e.target.select()"
         placeholder="0X XX XX XX XX" input-class="ltr text-center phone" @update:model-value="typed">
         <template v-if="carrier" #append><span class="carrier" :class="carrier.cls">{{ carrier.name }}</span></template>
       </q-input>
     </div>
 
-    <q-tabs v-model="tab" dense class="tabs" active-color="primary" indicator-color="primary" no-caps>
+    <!-- Only the number until it is whole (owner 2026-10-31, as the other app); then «رصيد عادي» first, and a Mobilis
+         line is read behind it so «عروض» finds it known -->
+    <q-tabs v-if="phoneFull" v-model="tab" dense class="tabs" active-color="primary" indicator-color="primary" no-caps>
       <q-tab name="630" label="رصيد عادي" />
       <q-tab name="offer" label="عروض" />
     </q-tabs>
 
-    <template v-if="tab === '630'">
-      <!-- The amounts show once the number is whole (owner 2026-10-29, as the other app): then they are this
-           operator's own (Ooredoo from 10, Mobilis 40, Djezzy 100) and do not change under the hand -->
-      <div v-if="!phoneFull" class="card text-center muted q-pa-md">اكتب رقم الزبون لتظهر المبالغ.</div>
-      <div v-else class="card column q-gutter-sm">
+    <template v-if="phoneFull && tab === '630'">
+      <!-- The amounts are this operator's own (Ooredoo from 10, Mobilis 40, Djezzy 100) and do not change under the hand -->
+      <div class="card column q-gutter-sm">
         <div class="amounts">
           <q-btn v-for="a in amounts" :key="a" dense unelevated no-caps class="chip"
             :outline="amount !== a" :color="amount === a ? 'primary' : 'grey-7'" :label="money(a)" @click="pick(a)" />
@@ -32,9 +35,10 @@
         :disable="!canSend" @click="pressSend" />
       <div v-if="waiting" class="small muted text-center">{{ waiting }}</div>
     </template>
-    <div v-else-if="!offers" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
+    <div v-else-if="phoneFull && !offers" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
     <div v-else-if="phoneFull && !phoneOk" class="card text-center muted q-pa-lg">قريبًا: عروض هذا المتعامل غير متوفرة بعد.</div>
-    <FlexyOffers v-else ref="offersRef" :phone="digits" :phone-ok="phoneOk" :active="tab === 'offer'" :max-amount="maxAmount"
+    <FlexyOffers v-if="offers && phoneOk" v-show="tab === 'offer'" ref="offersRef" :phone="digits" :phone-ok="phoneOk"
+      :active="tab === 'offer' || digits.startsWith('06')" :visible="tab === 'offer'" :board-switch="automix" :max-amount="maxAmount"
       :lookup="lookup" :send="sendOffer" :available="availableOffers" :running="offerRunning" :probe="probeOffer" :decide="decideOffer" :explore="exploreOffer" :repeat-of="repeatOf" @sent="sentOffer" />
 
     <div>
@@ -180,30 +184,17 @@ const props = defineProps({
   // the others hear «قريبًا» on «إرسال». Offers stay Mobilis only.
   creditPrefixes: { type: Array, default: () => ['06'] },
   // Prefixes whose OFFERS this screen may show (owner 2026-10-27: his page adds 07, Djezzy LEGEND/IZZY)
-  offerPrefixes: { type: Array, default: () => ['06'] }
+  offerPrefixes: { type: Array, default: () => ['06'] },
+  // «اللوحة التلقائية» (owner's switch in «المفاتيح», store s166): the Sama board; off = the line's offers once known
+  automix: { type: Boolean, default: true }
 })
 const emit = defineEmits(['sent', 'refresh', 'more'])
 const { busy, run } = useRun()
 
 const tab = ref('630')
-// The number stays (owner 2026-10-26): leaving the page, «تحديث الآن» or closing the browser keeps it;
-// a successful send clears it, and so do 30 minutes without touching it.
-const PHONE_KEEP_MS = 30 * 60_000
-const phoneKey = props.remember ? 'flexy-phone:' + props.remember : ''
-function keptPhone () {
-  try {
-    const k = JSON.parse(localStorage.getItem(phoneKey) || 'null')
-    return k && typeof k.v === 'string' && Date.now() - k.at < PHONE_KEEP_MS ? k.v : ''
-  } catch { return '' }
-}
-const phone = ref(phoneKey ? keptPhone() : '')
-watch(phone, (v) => {
-  if (!phoneKey) return
-  try {
-    if (v) localStorage.setItem(phoneKey, JSON.stringify({ v, at: Date.now() }))
-    else localStorage.removeItem(phoneKey)
-  } catch { /* private mode: it lives with the page only */ }
-})
+// The number lives with the page only (owner 2026-10-31: a refresh starts empty); the copy older versions kept goes
+try { if (props.remember) localStorage.removeItem('flexy-phone:' + props.remember) } catch { /* private mode */ }
+const phone = ref('')
 const amount = ref(null)
 const other = ref(null)
 const opened = ref(null)
@@ -217,6 +208,8 @@ const digits = computed(() => {
 // Any Algerian mobile can be typed; only Mobilis is sent today, the others hear «قريبًا» on «إرسال»
 const phoneFull = computed(() => /^0[567]\d{8}$/.test(digits.value))
 const phoneOk = computed(() => phoneFull.value && props.offerPrefixes.includes(digits.value.slice(0, 2)))
+// No whole number: back to «رصيد عادي» (owner 2026-10-31)
+watch(phoneFull, (full) => { if (!full) tab.value = '630' })
 const creditOk = computed(() => phoneFull.value && props.creditPrefixes.includes(digits.value.slice(0, 2)))
 const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
 const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]] : null))
@@ -257,8 +250,10 @@ watch(() => props.rows, async (list) => {
     const was = lastStatus.get(j.id)
     lastStatus.set(j.id, j.running ? 'running' : j.badge?.label)
     if (j.kind !== 'offer' || j.running || was !== 'running' || !j.stopped) continue
-    const changed = j.lineChanged || (offersRef.value ? await offersRef.value.recheck(j.phone) : false)
-    if (j.lineChanged && offersRef.value) await offersRef.value.recheck(j.phone)
+    const told = offersRef.value ? await offersRef.value.recheck(j.phone) : false
+    // «told»: the offers screen said «لا يوجد عرض…» itself (its window, the line's offers behind it)
+    if (told === 'told') { hide(j.id); continue }
+    const changed = j.lineChanged || told
     if (!changed) continue
     hide(j.id)
     Notify.create({ message: 'لا يوجد عرض متاح لهذا الرقم', position: 'top', timeout: 4000, color: 'deep-orange' })
@@ -355,5 +350,5 @@ function sentOffer (e) {
 .moved { color: #BF360C; }
 .details { margin-top: 6px; padding: 8px; border: 1px solid #E4E6EC; border-radius: 8px; background: #F8F9FB; }
 .reply { white-space: normal; word-break: break-word; }
-:deep(.phone) { font-size: 1.4rem; letter-spacing: 1px; }
+:deep(.phone) { font-size: 1.4rem; letter-spacing: 0; word-spacing: -0.2em; font-variant-numeric: tabular-nums; }
 </style>

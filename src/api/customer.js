@@ -128,6 +128,8 @@ export const flexyRefresh = (token) => shop('refresh', { token })
 export const flexyOffer = (token, phone, offer, requestId) => shop('send', { token, kind: 'offer', phone, offer, request_id: requestId })
 export const flexyOffers = (token, phone) => shop('offers', { token, phone })
 // «أوتوميكس» (owner 2026-10-29): which quick offers a SIM can take now → { name: true | false }
+// «اللوحة التلقائية» (store s166): the owner's switch for the Sama board; before s166 it reads as on
+export const flexyUi = (token) => rpc('store_flexy_ui', { p_token: token })
 export const flexyAvailable = (token, offers) => shop('available', { token, offers }).then((r) => r?.available || {})
 
 // Game top-up by player id (v1.25): the card comes from stock and is never shown; an operator tops up by hand
