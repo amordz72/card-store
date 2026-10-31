@@ -46,7 +46,7 @@ const routes = [
       // services (owner 2026-10-31): the owner's queue, a customer's own orders
       { path: 'services', component: () => import('pages/ServicesSwitch.vue'), meta: { title: 'الخدمات' } },
       // shops the owner enabled (v1.33)
-      { path: 'flexy/shop', component: () => import('pages/customer/FlexyShopPage.vue'), meta: { customer: true, title: 'فليكسي' } }
+      { path: 'flexy/shop', component: () => import('pages/customer/FlexyShopPage.vue'), meta: { customer: true, title: 'تعبئة' } }
     ]
   },
 

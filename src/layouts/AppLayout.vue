@@ -396,7 +396,7 @@ const MENU = [
       { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi', idoom: true },
       { to: '/game', label: 'شحن الألعاب بالمعرّف', icon: 'sports_esports', game: true },
       { to: '/services', label: 'الخدمات', icon: 'room_service' },
-      { to: '/flexy/shop', label: 'فليكسي', icon: 'send_to_mobile', flexy: true }
+      { to: '/flexy/shop', label: 'تعبئة', icon: 'send_to_mobile', flexy: true }
     ]
   },
   {
@@ -445,7 +445,7 @@ const nav = computed(() => [
   // Owner 2026-10-26, from the right: «فليكسي» in the transfers' place (transfers stay in the side
   // menu), then «تعبئة إيدوم», the home in the middle, the cards and the operations. One bar for both.
   session.isAdmin ? { to: '/flexy/send', label: 'فليكسي', icon: 'send_to_mobile' }
-    : hasFlexy.value ? { to: '/flexy/shop', label: 'فليكسي', icon: 'send_to_mobile' }
+    : hasFlexy.value ? { to: '/flexy/shop', label: 'تعبئة', icon: 'send_to_mobile' }
       : { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
   hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }
     : game.isOperator.value ? { to: '/game', label: 'شحن الألعاب', icon: 'sports_esports' }
