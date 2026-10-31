@@ -78,7 +78,7 @@
     <q-expansion-item class="card q-mt-md" icon="smartphone" label="ربط هاتف Rech-Doom" dense>
       <q-form class="column q-gutter-sm q-pt-sm" @submit.prevent="addExecutor">
         <div class="small muted">ثبّت تطبيق Rech-Doom على الهاتف، ثم أنشئ رمزًا يُلصق فيه مرة واحدة.</div>
-        <q-btn unelevated color="primary" icon="download" label="تنزيل تطبيق Rech-Doom" :href="apkUrl" download="rech-doom.apk" />
+        <q-btn unelevated color="primary" icon="download" label="تنزيل تطبيق Rech-Doom" :href="apkUrl" :download="apkName" />
         <!-- Android browsers refuse to share .apk files, so the other phone gets the link or scans it -->
         <q-btn outline color="primary" icon="share" label="إرسال رابط التطبيق لهاتف آخر" @click="share(OFFICIAL_APK, 'تطبيق Rech-Doom')" />
         <div class="row items-center no-wrap q-gutter-sm">
@@ -201,12 +201,16 @@ const phone = computed(() => {
 
 const siteUrl = window.location.origin + window.location.pathname
 // Published here by the Rech-Doom build (same key every version, so it installs over the old one)
-const apkUrl = new URL('apps/rech-doom.apk', siteUrl).href
 const apk = ref(null)
+// The saved file carries its version (owner 2026-10-31: «always the same name, I can't tell them apart»),
+// and ?v= stops the browser from handing back the old cached file.
+const apkVer = computed(() => apk.value?.version || '')
+const apkUrl = computed(() => new URL('apps/rech-doom.apk' + (apkVer.value ? `?v=${apkVer.value}` : ''), siteUrl).href)
+const apkName = computed(() => `Rech-Doom-${apkVer.value || 'latest'}.apk`)
 // Shared links always point at the one official site, whichever host this page was opened from.
 // The owner setting «الرابط الرسمي» (v1.32) wins over the built-in link.
 const OFFICIAL_SITE = ref(api.DEFAULT_OFFICIAL_SITE)
-const OFFICIAL_APK = computed(() => OFFICIAL_SITE.value + 'apps/rech-doom.apk')
+const OFFICIAL_APK = computed(() => OFFICIAL_SITE.value + 'apps/rech-doom.apk' + (apkVer.value ? `?v=${apkVer.value}` : ''))
 const apkQr = ref('')
 watch(OFFICIAL_APK, (link) => {
   QRCode.toDataURL(link, { margin: 1, width: 264 }).then((url) => { apkQr.value = url }).catch(() => {})
