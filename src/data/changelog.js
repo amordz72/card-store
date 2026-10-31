@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-c',
+    date: '2026-11-01',
+    title: 'الشريحة المفضّلة',
+    items: [
+      { text: '⭐ «اجعلها مفضّلة» بجانب كل شريحة: يرسل منها البرنامج أولًا وأكثر شيء حتى تفرغ، لكل الأنواع (بعد تطبيق 0131)', to: '/flexy/devices', pr: 'card-store، flexy-core 0131' },
+      { text: 'كل الشروط باقية: «للإدارة» لا تأخذ عمليات المحلات، و«موقوفة» لا شيء، ورصيدها يجب أن يغطي المبلغ', to: '/flexy/devices', pr: 'flexy-core 0131' }
+    ]
+  },
+  {
     id: '2026-11-01-b',
     date: '2026-11-01',
     title: 'حالة كل شريحة والهواتف احتياطًا',
