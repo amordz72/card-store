@@ -41,7 +41,7 @@
         <div class="ltr text-left text-weight-medium">{{ r.code }}<span v-if="r.serial" class="small muted"> · {{ r.serial }}</span></div>
         <div class="small">{{ REPORT_REASONS[r.reason] }}<span v-if="r.note"> — {{ r.note }}</span></div>
         <div class="small muted">أُبلغ {{ dateTime(r.created_at) }}<span v-if="r.resolved_at"> · رُدّ {{ dateTime(r.resolved_at) }}</span></div>
-        <div v-if="r.admin_note" class="small text-weight-medium" style="color:#9A3412">رد المتجر: {{ r.admin_note }}</div>
+        <div v-if="r.admin_note" class="small text-weight-medium" style="color:var(--brand-deep, #9A3412)">رد المتجر: {{ r.admin_note }}</div>
       </div>
       <div v-if="loaded && !rows.length" class="text-center muted q-pa-lg">لا توجد بلاغات</div>
     </template>

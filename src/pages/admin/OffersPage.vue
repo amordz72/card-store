@@ -612,11 +612,11 @@ onMounted(load)
 .modes > div.dv.on { background: #0E7490; }
 .tabs { background: #E5E7EB; border-radius: 9px; }
 .tab { text-align: center; padding: 7px 0; font-weight: 700; color: #6B7280; cursor: pointer; font-size: 13px; }
-.tab.on { color: #C2410C; background: #fff; border-bottom: 3px solid #C2410C; border-radius: 9px 9px 0 0; }
+.tab.on { color: var(--brand-accent, #C2410C); background: #fff; border-bottom: 3px solid var(--brand-accent, #C2410C); border-radius: 9px 9px 0 0; }
 .pg { padding: 4px 14px; font-size: 11px; color: #6B7280; background: #F8FAFC; border-top: 1px solid #ECEEF3; }
 .pg:first-child { border-top: 0; }
 .orow.picked { background: #FFF7ED; }
-.bulkbar { position: sticky; bottom: 72px; z-index: 5; background: #fff; border: 2px solid #C2410C; border-radius: 12px; padding: 8px 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15); }
+.bulkbar { position: sticky; bottom: 72px; z-index: 5; background: #fff; border: 2px solid var(--brand-accent, #C2410C); border-radius: 12px; padding: 8px 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15); }
 .orow { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 14px; border-top: 1px solid #ECEEF3; }
 .off { opacity: 0.5; }
 .nm { font-weight: 700; }
@@ -629,7 +629,7 @@ onMounted(load)
 .t-off { background: #F3F4F6; color: #6B7280; }
 .t-new { background: #EDE9FE; color: #6D28D9; }
 .t-chg { background: #FFEDD5; color: #9A3412; }
-.pchip { border: 1px dashed #C2410C; border-radius: 6px; padding: 1px 7px; font-weight: 800; color: #C2410C; cursor: pointer; white-space: nowrap; }
+.pchip { border: 1px dashed var(--brand-accent, #C2410C); border-radius: 6px; padding: 1px 7px; font-weight: 800; color: var(--brand-accent, #C2410C); cursor: pointer; white-space: nowrap; }
 .chg { background: #FFF7ED; border-color: #FDBA74; }
 .chg-h { padding: 8px 14px; font-weight: 800; color: #9A3412; }
 .chg-r { display: flex; justify-content: space-between; gap: 8px; padding: 6px 14px; border-top: 1px solid #FED7AA; font-size: 12.5px; }
