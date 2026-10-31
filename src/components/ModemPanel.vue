@@ -39,7 +39,17 @@
       <div v-if="store" class="small" :class="(store.local_inbox || 0) >= 0.8 * (store.local_max || 500) ? 'text-negative' : 'muted'">
         مخزن المودم: {{ store.local_inbox ?? '—' }} من {{ store.local_max ?? '—' }}. إذا امتلأ لا تصل رسائل جديدة.
       </div>
-      <div class="small muted">قراءة فقط: لا حذف ولا إرسال.</div>
+      <!-- «أرسل رسالة» (owner 2026-10-31, Flexy Core 0123, Agent 0.9.9): one SMS from THIS SIM, never retried;
+           a Mobilis card to 111 recharges the SIM that sent it. The reply shows below by itself. -->
+      <div class="send column q-gutter-xs">
+        <div class="text-weight-bold">أرسل رسالة <span class="small muted">من: {{ simName || 'هذه الشريحة' }}</span></div>
+        <q-input v-model="smsTo" dense outlined label="المستلم" placeholder="111" inputmode="numeric" input-class="ltr text-left" maxlength="15" />
+        <q-input v-model="smsText" dense outlined autogrow label="المحتوى" input-class="ltr text-left" :counter="true" maxlength="160" />
+        <q-btn unelevated no-caps color="primary" icon="send" label="أرسل" :loading="sending" :disable="busy || sending || !page?.ready || !/^[0-9]{3,15}$/.test(smsTo.trim()) || !smsText.trim()" @click="sendSms" />
+        <div v-if="smsResult" class="small" :class="smsResult.cls">{{ smsResult.text }}</div>
+        <div class="small muted">رسالة واحدة في كل ضغطة، ولا تُعاد وحدها. المحتوى يبقى في سجل الأوامر.</div>
+      </div>
+      <div class="small muted">القراءة لا تحذف شيئًا.</div>
       <div v-if="!messages.length" class="small muted">لا رسائل مقروءة بعد.</div>
       <div v-for="(m, i) in messages" :key="m.index || i" class="sms">
         <div class="row justify-between small muted"><bdi class="ltr">{{ m.sender || '—' }}</bdi><bdi class="ltr">{{ m.date }}</bdi></div>
@@ -177,6 +187,8 @@ const props = defineProps({
   // The offers tab's live session on a new group (owner 2026-10-28): the lab alone, its code ready
   ussdOnly: { type: Boolean, default: false },
   startCode: { type: String, default: '' },
+  // Shown above «أرسل» (owner 2026-10-31: «أي شريحة»): the SIM the message leaves from
+  simName: { type: String, default: '' },
   // Exploring a new group's pages (owner 2026-10-28: no PIN nor «1» in a discovery): moving and reading only,
   // an offer's code shows its price and nothing more
   explore: { type: Boolean, default: false }
@@ -291,6 +303,41 @@ const readSms = () => run(async () => {
     if (!busyStatus(await loadSms())) break
   }
 })
+// «أرسل رسالة»: queued for this SIM, followed until the modem says sent / failed; then the inbox is read for the reply
+const smsTo = ref('111')
+const smsText = ref('')
+const sending = ref(false)
+const smsResult = ref(null)
+const SMS_CODES = { MODEM_BUSY: 'المودم بقي مشغولًا دقيقة: أعد بعد قليل', SMS_SEND_BUSY: 'رسالة سابقة لم تنتهِ بعد', UNSUPPORTED_COMMAND_ACTION: 'برنامج هذا الكمبيوتر قديم: ينتظر التحديث 0.9.9', NO_SEND_STATUS: 'المودم قبلها ولم يقل هل خرجت: انظر الرسائل الواردة' }
+async function sendSms () {
+  if (sending.value) return
+  sending.value = true; smsResult.value = null; error.value = ''
+  try {
+    const job = await call('sms-send', { sim_uuid: props.simUuid, to: smsTo.value.trim(), text: smsText.value })
+    smsResult.value = { cls: 'muted', text: 'في الطريق إلى المودم…' }
+    let st = null
+    for (let i = 0; i < 60 && alive; i++) {
+      await sleep(2000)
+      st = await call('sms-send?job_uuid=' + encodeURIComponent(job))
+      if (st && !busyStatus(st.status)) break
+    }
+    if (st?.status === 'success') {
+      smsResult.value = { cls: 'text-positive', text: '✓ أُرسلت إلى ' + st.to + '. تُقرأ الرسائل الواردة بعد 20 ثانية…' }
+      smsText.value = ''
+      await sleep(20000)
+      if (alive) await readSms()
+      smsResult.value = { cls: 'text-positive', text: '✓ أُرسلت إلى ' + st.to + '. الرد (إن وصل) في الرسائل أدناه.' }
+    } else if (st?.status === 'failed' || st?.status === 'review') {
+      smsResult.value = { cls: 'text-negative', text: (st.status === 'review' ? '؟ ' : '✗ ') + (SMS_CODES[st.error_code || st.result_code] || st.error_code || st.result_code || 'لم تُرسل') }
+    } else {
+      smsResult.value = { cls: 'text-deep-orange', text: 'لم يأخذها الكمبيوتر بعد: هل هو متصل؟' }
+    }
+  } catch (e) {
+    smsResult.value = { cls: 'text-negative', text: SMS_CODES[String(e?.message || '')] || reason(e) }
+  } finally {
+    sending.value = false
+  }
+}
 async function follow () {
   await loadLab()
   for (let i = 0; i < 40 && alive && anyWaiting.value; i++) { await sleep(2000); await loadLab() }
@@ -423,4 +470,5 @@ onBeforeUnmount(() => { alive = false; clearTimeout(timer) })
 .xok { color: #16A34A; font-size: 11.5px; font-weight: 800; white-space: nowrap; }
 .xdone { padding: 9px 10px; font-weight: 800; color: #166534; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; }
 .console { background: #f6f6f6; border-radius: 6px; padding: 8px; min-height: 56px; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
+.send { border: 1px solid #E4E6EC; border-radius: 10px; padding: 10px; }
 </style>

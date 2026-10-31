@@ -288,7 +288,8 @@
         </template>
         <template v-if="picked.m.sim">
           <q-separator />
-          <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" :sim-type="picked.m.sim.sim_type" :phone="String(picked.st.agent_version || '').startsWith('phone-')" /></q-card-section>
+          <q-card-section class="q-pt-sm"><ModemPanel :sim-uuid="picked.m.sim.sim_uuid" :sim-type="picked.m.sim.sim_type" :phone="String(picked.st.agent_version || '').startsWith('phone-')"
+            :sim-name="(simName(picked.m.sim, picked.st) || '') + (picked.st.code ? ' · ' + picked.st.code : '')" /></q-card-section>
         </template>
         <q-card-actions align="right" class="wrap">
           <!-- The admin phone (Flexy Core 0037): «اكتشاف الرصيد» = one *222# from the phone; its reply is the
