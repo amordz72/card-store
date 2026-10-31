@@ -3,29 +3,6 @@
     <q-header class="bg-white text-dark" bordered>
       <!-- «الشكل الجديد» preview (owner 2026-10-31): admin only, from a link with ?look=1, until «الشكل القديم» -->
       <div v-if="lookNew" class="look-preview-strip">معاينة الشكل الجديد (لك وحدك)<a @click="lookOff">ارجع للقديم</a></div>
-      <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it.
-           Owner 2026-10-31 («مزعج جدًا وينزل الشاشة»): one thin line always, never more; the count of new ones and of all.
-           A press opens the stacked list: the new ones first with «جديد», the old ones stay under them. -->
-      <template v-if="session.isAdmin && needsYou.length">
-        <button type="button" class="monitor-bar compact bg-indigo-8 more needs-line" aria-label="ما ينتظرك">
-          <q-icon name="build" size="16px" />
-          <span class="col ellipsis">
-            <b v-if="needsNew">{{ needsNew }} {{ needsNew === 1 ? 'جديد' : 'جديدة' }} · </b>{{ needsYou.length }} {{ needsYou.length === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك' }}
-          </span>
-          <q-icon name="expand_more" size="18px" />
-          <q-menu fit anchor="bottom middle" self="top middle" @before-show="snapNeeds" @show="markNeedsSeen">
-            <q-list dense separator class="needs-list">
-              <q-item v-for="it in needsList" :key="it.text" v-close-popup clickable :to="it.to">
-                <q-item-section>
-                  <q-item-label>{{ it.text }} <q-badge v-if="it.isNew" color="purple-6" label="جديد" /></q-item-label>
-                  <q-item-label caption>{{ it.where }}</q-item-label>
-                </q-item-section>
-                <q-item-section side><q-icon name="chevron_left" /></q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
-        </button>
-      </template>
       <!-- Weak internet: started from the home page (startup.js); one press back to where he was going -->
       <div v-if="weakFrom" class="monitor-bar bg-grey-8">
         <q-icon name="network_check" size="18px" />
@@ -33,19 +10,21 @@
         <a href="#" class="text-underline" @click.prevent="weakBack">ارجع إلى {{ weakFrom.title || 'الصفحة' }}</a>
         <a href="#" class="text-underline" @click.prevent="weakOff">لا تفعل هذا</a>
       </div>
-      <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
-      <router-link v-if="session.isAdmin && monitorBar" to="/flexy/monitor?tab=now" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
-        <q-icon name="warning" size="18px" />
-        <span class="col">{{ monitorBar.text }}</span>
-        <span class="text-underline">افتح</span>
-      </router-link>
       <q-toolbar class="q-py-sm">
         <q-btn flat round icon="menu" aria-label="القائمة" @click="drawer = !drawer" />
-        <q-toolbar-title class="column">
+        <!-- «الشكل الجديد» header (look v1): the eye beside the menu, the balance big in the middle, the page's name under it
+             (none on the home page), the avatar at the end -->
+        <q-btn v-if="lookNew" round unelevated color="grey-6" class="q-ml-xs" :icon="buyer.hide.value ? 'visibility_off' : 'visibility'"
+          :aria-label="buyer.hide.value ? 'إظهار المبالغ' : 'إخفاء المبالغ'" @click="buyer.toggleHide()" />
+        <q-toolbar-title v-if="lookNew" class="column items-center look-head">
+          <span class="look-balance">{{ buyer.hide.value ? '••••••' : money(buyer.balance.value || 0) }}</span>
+          <span v-if="route.path !== '/'" class="small muted ellipsis">{{ title }}</span>
+        </q-toolbar-title>
+        <q-toolbar-title v-if="!lookNew" class="column">
           <span class="text-weight-bold">{{ title }}</span>
           <span class="small muted">{{ subtitle }}</span>
         </q-toolbar-title>
-        <div class="column items-end q-px-sm q-py-xs rounded-borders" style="background:#ECFDF3;color:#15803D">
+        <div v-if="!lookNew" class="column items-end q-px-sm q-py-xs rounded-borders" style="background:#ECFDF3;color:#15803D">
           <span class="small">{{ session.isAdmin ? 'رصيد المحل' : 'رصيدك' }}</span>
           <span class="text-weight-bold">{{ buyer.hide.value ? '••••••' : money(buyer.balance.value || 0) }}</span>
         </div>
@@ -147,8 +126,9 @@
         </q-btn>
         <!-- «نسخ الشاشة» (owner 2026-10-29): the page as text to paste in the chat instead of a screenshot -->
         <q-btn v-if="canCopyScreen" flat round icon="content_copy" class="q-ml-xs" aria-label="نسخ الشاشة" @click="copyScreen" />
-        <q-btn round unelevated color="grey-7" class="q-ml-sm" :icon="buyer.hide.value ? 'visibility_off' : 'visibility'"
+        <q-btn v-if="!lookNew" round unelevated color="grey-7" class="q-ml-sm" :icon="buyer.hide.value ? 'visibility_off' : 'visibility'"
           :aria-label="buyer.hide.value ? 'إظهار المبالغ' : 'إخفاء المبالغ'" @click="buyer.toggleHide()" />
+        <router-link v-if="lookNew" to="/account" class="look-avatar q-ml-sm" :aria-label="subtitle">{{ avatarLetter }}</router-link>
       </q-toolbar>
     </q-header>
 
@@ -194,6 +174,37 @@
     <QuickIdea v-if="session.isAdmin" :screen-text="screenText" :page-title="title" />
 
     <q-footer class="bg-white">
+      <!-- Owner 2026-10-31 («ينزلان الشاشة وهما مزعجان»): the admin's red and blue bars live here, right above the bottom
+           buttons and outside the page: the content ends above them. On the home page only (owner, same day); the bell still counts them everywhere. Customers have neither. -->
+        <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
+      <router-link v-if="session.isAdmin && onHome && monitorBar" to="/flexy/monitor?tab=now" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
+        <q-icon name="warning" size="18px" />
+        <span class="col">{{ monitorBar.text }}</span>
+        <span class="text-underline">افتح</span>
+      </router-link>
+      <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it.
+           Owner 2026-10-31 («مزعج جدًا وينزل الشاشة»): one thin line always, never more; the count of new ones and of all.
+           A press opens the stacked list: the new ones first with «جديد», the old ones stay under them. -->
+      <template v-if="session.isAdmin && onHome && needsYou.length">
+        <button type="button" class="monitor-bar compact bg-indigo-8 more needs-line" aria-label="ما ينتظرك">
+          <q-icon name="build" size="16px" />
+          <span class="col ellipsis">
+            <b v-if="needsNew">{{ needsNew }} {{ needsNew === 1 ? 'جديد' : 'جديدة' }} · </b>{{ needsYou.length }} {{ needsYou.length === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك' }}
+          </span>
+          <q-icon name="expand_less" size="18px" />
+          <q-menu fit anchor="top middle" self="bottom middle" @before-show="snapNeeds" @show="markNeedsSeen">
+            <q-list dense separator class="needs-list">
+              <q-item v-for="it in needsList" :key="it.text" v-close-popup clickable :to="it.to">
+                <q-item-section>
+                  <q-item-label>{{ it.text }} <q-badge v-if="it.isNew" color="purple-6" label="جديد" /></q-item-label>
+                  <q-item-label caption>{{ it.where }}</q-item-label>
+                </q-item-section>
+                <q-item-section side><q-icon name="chevron_left" /></q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </button>
+      </template>
       <QuickBar :items="nav" />
     </q-footer>
   </q-layout>
@@ -238,6 +249,8 @@ watch(() => route.query.look, (v) => {
   try { lookPreview.value ? sessionStorage.setItem(LOOK_KEY, '1') : sessionStorage.removeItem(LOOK_KEY) } catch { /* private mode */ }
 }, { immediate: true })
 const lookNew = computed(() => session.isAdmin && lookPreview.value)
+const onHome = computed(() => route.path === '/')
+const avatarLetter = computed(() => (session.isAdmin ? 'م' : (customer.profile?.name || '؟').trim().charAt(0)))
 function lookOff () {
   lookPreview.value = false
   try { sessionStorage.removeItem(LOOK_KEY) } catch { /* private mode */ }
