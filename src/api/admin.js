@@ -281,6 +281,11 @@ export const playerTopupProducts = () => rpc('store_admin_player_topup_products'
 // v1.49: orders by player id accepted any time (null = read only)
 export const gameAlwaysOpen = (on = null) => rpc('store_admin_game_always_open', { p_on: on })
 // v1.50: the owner orders a top-up FOR a customer (WhatsApp); his short balance becomes debt
+// s165: «من رصيد المنصة» per game product, and the owner's order for such a product
+export const gamePlatformList = () => rpc('store_game_platform_list', { p_token: null })
+export const gamePlatformSet = (productId, on, cost) => rpc('store_admin_game_platform_set', { p_product_id: productId, p_on: on, p_cost: cost })
+export const gameOrderPlatformFor = (customerId, productId, playerId, requestId) =>
+  rpc('store_admin_game_order_platform', { p_customer_id: customerId, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
 export const gameOrderFor = (customerId, productId, playerId, requestId) =>
   rpc('store_admin_game_order', { p_customer_id: customerId, p_product_id: productId, p_player_id: playerId, p_request_id: requestId })
 // v1.51: by amount, split into cards; and the owner's «يسمح بالتقسيم» per game

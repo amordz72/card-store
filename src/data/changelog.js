@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-10-31-g',
+    date: '2026-10-31',
+    title: 'الألعاب من رصيد المنصة',
+    items: [
+      { text: 'منتج ألعاب «من رصيد المنصة» (topup-dz): لا يأخذ بطاقة من المخزن، تشحنه من رصيدك هناك. فعّله وسعر المنصة من إعدادات «شحن الألعاب»', to: '/game', pr: 'card-store، s165' },
+      { text: 'يطلبه الزبون من صفحته، وتطلبه أنت باسم زبون؛ «لم يتم» يعيد المبلغ كاملًا', to: '/game', pr: 'card-store، s165' }
+    ]
+  },
+  {
     id: '2026-10-31-f',
     date: '2026-10-31',
     title: 'Free Fire من الهاتف',

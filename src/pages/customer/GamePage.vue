@@ -120,6 +120,7 @@ const when = (t) => new Date(t).toLocaleString('ar-DZ')
 
 // The cards the owner marked «يُشحن بالمعرّف», in stock
 const catalog = ref([])
+const platformIds = ref([])
 const gameIds = ref([])
 const recent = ref([])
 // The buttons: per game, by amount; a card out of stock shows when the cards in stock make it up (its plan, v1.51)
@@ -129,7 +130,8 @@ const gameGroups = computed(() => {
   const out = []
   for (const c of catalog.value.filter((p) => gameIds.value.includes(Number(p.product_id)))) {
     const plan = !c.available ? splitPlans.value[c.product_id] : null
-    if (!c.available && !plan) continue
+    // s165: a product the owner tops up from his platform balance needs no card in the stock
+    if (!c.available && !plan && !platformIds.value.includes(Number(c.product_id))) continue
     let g = out.find((x) => x.brand === c.brand)
     if (!g) out.push(g = { brand: c.brand, items: [] })
     g.items.push({ ...c, units: /جوهر/.test(c.name) && unitsOf(c) ? '💎 ' + unitsOf(c) : gameAmount(c.name) || c.name, n: unitsOf(c) || 0, plan })
@@ -173,6 +175,7 @@ const { rows, total, loadingMore, reset, refresh, more, size } =
 const open = computed(() => rows.value.some((g) => ['queued', 'claimed'].includes(g.status)))
 
 async function loadCards () {
+  api.gamePlatformList(customer.token).then((l) => { platformIds.value = (l || []).map((x) => Number(x.product_id)) }, () => {})
   const [cat, ids, rec] = await Promise.all([
     run(() => buyer.catalog()), run(() => api.gameCards(customer.token)), run(() => api.gameRecentIds(customer.token))
   ])
@@ -191,11 +194,12 @@ function confirmOrder (c) {
   Dialog.create({
     title: 'تأكيد الشحن',
     html: true,
-    message: `شحن <b>${c.name}</b> للمعرّف <b dir="ltr">${digits.value}</b><br>تأكد من المعرّف: الشحن لا يُسترجع بعد تنفيذه.<br>يُخصم من رصيدك ثمن البطاقة.`,
+    message: `شحن <b>${c.name}</b> للمعرّف <b dir="ltr">${digits.value}</b><br>تأكد من المعرّف: الشحن لا يُسترجع بعد تنفيذه.<br>يُخصم من رصيدك ثمنه.`,
     cancel: 'إلغاء',
     ok: 'نعم، اشحن'
   }).onOk(async () => {
-    const r = await run(() => api.gameCreate(customer.token, c.product_id, digits.value, crypto.randomUUID()),
+    const viaPlatform = platformIds.value.includes(Number(c.product_id))
+    const r = await run(() => (viaPlatform ? api.gameCreatePlatform : api.gameCreate)(customer.token, c.product_id, digits.value, crypto.randomUUID()),
       { success: 'أُرسل الطلب. تابع حالته في «طلبات الشحن».' })
     if (r) { buyer.refresh(); reset(); loadCards() }
   })
