@@ -53,6 +53,11 @@
       <div v-if="buyLoaded && !buy.items.length && !buyFlexy.length" class="text-center muted q-pa-lg">لا شيء تشتريه الآن ✓</div>
     </div>
 
+    <!-- v1.60 + Flexy Core 0122 (owner 2026-10-31): his money and what it earned -->
+    <div v-if="tab === 'capital'" class="tab-pane">
+      <CapitalTab />
+    </div>
+
     <div v-show="tab === 'settings'" class="tab-pane">
     <div class="card column q-gutter-sm">
       <div class="text-weight-bold">قائمة الشراء</div>
@@ -355,11 +360,12 @@ import CatalogFilter from 'components/CatalogFilter.vue'
 import ImageField from 'components/ImageField.vue'
 import BannersAdmin from 'components/BannersAdmin.vue'
 import CodesDialog from 'components/CodesDialog.vue'
+import CapitalTab from 'components/CapitalTab.vue'
 
 const { busy, run } = useRun()
 
 // --- tabs (remembered on this device)
-const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'low', label: 'تكاد تنفد' }, { id: 'buy', label: 'قائمة الشراء' }, { id: 'batches', label: 'الدفعات' }, { id: 'settings', label: 'إعدادات' }]
+const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'low', label: 'تكاد تنفد' }, { id: 'buy', label: 'قائمة الشراء' }, { id: 'batches', label: 'الدفعات' }, { id: 'capital', label: 'رأس المال' }, { id: 'settings', label: 'إعدادات' }]
 const TAB_KEY = 'cs_stock_tab'
 const readTab = () => { try { const t = LocalStorage.getItem(TAB_KEY); return TABS.some((x) => x.id === t) ? t : 'codes' } catch { return 'codes' } }
 // the bell opens «تكاد تنفد» (?tab=low)
