@@ -9,7 +9,7 @@
         <q-item-label v-if="op.phone" caption><bdi dir="ltr">{{ op.phone }}</bdi></q-item-label>
         <q-item-label v-if="lastSim" caption>الشريحة: <bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
         <q-item-label v-if="before" caption>رصيد الشريحة قبل: {{ before }}</q-item-label>
-        <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:#FFF1E8;color:#9A3412">{{ op.customer_name }}</span></q-item-label>
+        <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:var(--brand-soft, #FFF1E8);color:var(--brand-deep, #9A3412)">{{ op.customer_name }}</span></q-item-label>
         <q-item-label caption>{{ dateTime(op.created_at) }}<span v-if="op.source !== 'core'"> · رقم {{ op.op_id }}</span></q-item-label>
       </q-item-section>
       <q-item-section side top class="items-end q-gutter-xs">

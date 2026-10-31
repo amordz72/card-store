@@ -536,7 +536,7 @@ async function logout () {
 </script>
 
 <style scoped>
-.menu-active { background: #FFF1E8; color: #9A3412; font-weight: 600; }
+.menu-active { background: var(--brand-soft, #FFF1E8); color: var(--brand-deep, #9A3412); font-weight: 600; }
 .monitor-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; }
 .monitor-bar + .monitor-bar { border-top: 1px solid rgba(255, 255, 255, 0.2); }
 .monitor-bar.compact { padding: 5px 12px; font-size: 13px; min-height: 30px; }

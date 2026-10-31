@@ -315,7 +315,7 @@
             <q-input :model-value="productForm.margin" dense outlined type="number" stack-label label="الربح الكلي" suffix="%"
               @update:model-value="(v) => editPrice('margin', v)" />
           </div>
-          <div v-if="productForm.basePrice > 0 && productForm.usualCost > 0" class="small" style="color:#C2410C">
+          <div v-if="productForm.basePrice > 0 && productForm.usualCost > 0" class="small" style="color:var(--brand-accent, #C2410C)">
             الربح الكلي {{ money(productForm.basePrice - productForm.usualCost) }} = {{ productForm.margin }}% من سعر البيع (يُقسم بينك وبين الزبون في «الأسعار»)
           </div>
           <div class="help small muted">سعر الشراء اختياري: يُملأ تلقائيًا عند إضافة الأكواد، ويُحسب منه الربح قبل وصولها.</div>
@@ -911,5 +911,5 @@ onMounted(() => { load(); loadBatches(); loadCostChanges(); loadBatchChanges(); 
 .picked-bar { padding: 10px; border-radius: 10px; background: #ECFDF5; border: 2px solid #059669; color: #065F46; font-size: 16px; }
 .picked-bar img { display: block; flex: 0 0 56px; height: 32px; width: 56px; object-fit: contain; }
 .picked-bar.none { background: #FEF2F2; border-color: #FCA5A5; color: #B91C1C; }
-.brand-pick.on { border-color: #C2410C; box-shadow: 0 0 0 2px #C7CAF5; }
+.brand-pick.on { border-color: var(--brand-accent, #C2410C); box-shadow: 0 0 0 2px #C7CAF5; }
 </style>

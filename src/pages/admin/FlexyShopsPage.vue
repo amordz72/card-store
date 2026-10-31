@@ -399,7 +399,7 @@ onMounted(() => run(load))
 .shop-head.sel, .shop-row.sel { grid-template-columns: 28px 2fr 1fr 1fr 1fr 1fr; }
 .rate.off { background: #E5E7EB; color: #9CA3AF; text-decoration: line-through; }
 .svc-row { display: grid; grid-template-columns: 64px 1fr 86px; gap: 6px; align-items: center; }
-.bulk { position: sticky; bottom: 0; z-index: 2; background: #FFF; border-top: 2px solid #C2410C; margin: 0 -4px; padding: 8px 10px; }
+.bulk { position: sticky; bottom: 0; z-index: 2; background: #FFF; border-top: 2px solid var(--brand-accent, #C2410C); margin: 0 -4px; padding: 8px 10px; }
 .shop-row { width: 100%; border: 0; border-top: 1px solid #EEF0F4; background: transparent; padding: 8px 0; text-align: right; font: inherit; color: inherit; cursor: pointer; }
 .rate-row { display: grid; grid-template-columns: 72px 86px 1fr; gap: 8px; align-items: center; }
 .dim { opacity: .45; }

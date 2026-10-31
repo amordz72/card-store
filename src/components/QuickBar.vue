@@ -21,7 +21,7 @@ const isActive = (item) => (item.exact ? route.path === item.to : route.path ===
 <style scoped>
 .quick-bar { background: #fff; border-top: 1px solid #E4E6EC; border-radius: 22px 22px 0 0; padding: 6px 4px 8px; box-shadow: 0 -2px 10px rgba(0, 0, 0, .05); }
 .quick-bar__item { flex: 1; color: #5B6170; text-decoration: none; gap: 2px; min-width: 0; }
-.quick-bar__item--active { color: #9A3412; }
+.quick-bar__item--active { color: var(--brand-deep, #9A3412); }
 .quick-bar__label { font-size: 12px; font-weight: 600; white-space: nowrap; }
 .quick-bar__home { width: 56px; height: 56px; border-radius: 50%; margin-top: -26px; background: #4F46E5; color: #fff;
   display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(79, 70, 229, .35); border: 4px solid #fff; }
