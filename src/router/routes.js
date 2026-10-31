@@ -41,6 +41,8 @@ const routes = [
       { path: 'idoom', component: () => import('pages/IdoomSwitch.vue'), meta: { heavy: true, title: 'تعبئة إيدوم' } },
       // the queue for the owner and his workers, the order page for customers
       { path: 'game', component: () => import('pages/GameSwitch.vue'), meta: { heavy: true, title: 'شحن الألعاب بالمعرّف' } },
+      // services (owner 2026-10-31): the owner's queue, a customer's own orders
+      { path: 'services', component: () => import('pages/ServicesSwitch.vue'), meta: { title: 'الخدمات' } },
       // shops the owner enabled (v1.33)
       { path: 'flexy/shop', component: () => import('pages/customer/FlexyShopPage.vue'), meta: { customer: true, title: 'فليكسي' } }
     ]
