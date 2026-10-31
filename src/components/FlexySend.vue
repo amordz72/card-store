@@ -261,7 +261,7 @@ watch(() => props.rows, async (list) => {
     if (j.lineChanged && offersRef.value) await offersRef.value.recheck(j.phone)
     if (!changed) continue
     hide(j.id)
-    Notify.create({ message: 'لم يُنفَّذ العرض: لهذا الرقم عروض جديدة', position: 'top', timeout: 4000, color: 'deep-orange' })
+    Notify.create({ message: 'لا يوجد عرض متاح لهذا الرقم', position: 'top', timeout: 4000, color: 'deep-orange' })
   }
 }, { deep: true })
 

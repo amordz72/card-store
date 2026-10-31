@@ -17,7 +17,7 @@ const CODES = {
   '665_MENU_UNRECOGNIZED': 'قائمة العروض لم تُفهم، فلم يُختر شيء. لم يُخصم شيء.',
   '665_MENU_NO_PHONE': 'قائمة العروض بلا رقم الزبون، فلم يُختر شيء. لم يُخصم شيء.',
   '665_MENU_PHONE_MISMATCH': 'القائمة لرقم غير رقم الزبون، فلم يُختر شيء. لم يُخصم شيء.',
-  '665_LINE_GROUP_CHANGED': 'خط الزبون تغيّرت مجموعته (Sama / PixX / Revolution)، فلم يُرسل العرض. لم يُخصم شيء.',
+  '665_LINE_GROUP_CHANGED': 'لا يوجد هذا العرض لهذا الرقم، فلم يُرسل. لم يُخصم شيء.',
   '665_GROUP_UNKNOWN': 'لم تُعرف مجموعة خط الزبون. لم يُخصم شيء.',
   '665_DISCOVERED': 'قراءة عروض الرقم فقط، بلا شراء.',
   '665_CHOICE_NOT_DISPATCHED': 'رقم العرض لم يصل إلى المودم. لم يُخصم شيء.',
@@ -143,6 +143,6 @@ const ALGIERS = new Intl.DateTimeFormat('fr-DZ', {
 })
 export const algeriaTime = (t) => (t ? ALGIERS.format(new Date(t)).replace(',', '') : '—')
 // A SIM as the owner names it: «sama-4 · bergoug-n0 · 0656645038 · server-3»
-// «Mixed N» is the automix (Flexy Core 0071+, owner 2026-10-29): «مختلط N»; the network names the line's offer it took
-export const offerTitle = (label) => (/^Mixed \d+$/.test(label || '') ? 'مختلط ' + label.slice(6) + ' (أوتوميكس)' : label)
+// «Mixed N» is the automatic offer (Flexy Core 0071+): shown «Sama Mix N» like the board's row (owner 2026-10-31: no word says how)
+export const offerTitle = (label) => (/^Mixed \d+$/.test(label || '') ? 'Sama Mix ' + label.slice(6) : label)
 export const simLine = (w) => [w.sim_code, w.sim_label, w.sim_msisdn, w.station_code].filter(Boolean).join(' · ')
