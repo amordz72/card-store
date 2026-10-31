@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-a',
+    date: '2026-11-01',
+    title: 'هاتف الإدارة',
+    items: [
+      { text: 'شريحة الهاتف: الاسم والرقم والرصيد في أسطر منفصلة مثل شرائح الكمبيوتر (كانت ملتصقة)', to: '/flexy/devices', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-10-31-i',
     date: '2026-10-31',
     title: 'فليكسي: بطاقات سما ومفتاحها',
