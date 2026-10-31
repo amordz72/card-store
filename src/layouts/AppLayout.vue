@@ -177,11 +177,16 @@
       <!-- Owner 2026-10-31 («ينزلان الشاشة وهما مزعجان»): the admin's red and blue bars live here, right above the bottom
            buttons and outside the page: the content ends above them. On the home page only (owner, same day); the bell still counts them everywhere. Customers have neither. -->
         <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
-      <router-link v-if="session.isAdmin && onHome && monitorBar" to="/flexy/monitor?tab=now" class="monitor-bar" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
-        <q-icon name="warning" size="18px" />
-        <span class="col">{{ monitorBar.text }}</span>
-        <span class="text-underline">افتح</span>
-      </router-link>
+      <!-- Folds like the blue one (owner 2026-10-31): one thin line when folded, the fold kept on this device (localStorage) -->
+      <div v-if="session.isAdmin && onHome && monitorBar" class="monitor-bar compact" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
+        <q-icon name="warning" size="16px" />
+        <router-link to="/flexy/monitor?tab=now" class="col ellipsis text-white" style="text-decoration:none">
+          {{ redFolded ? (monitorBar.level === 'down' ? 'المراقبة: عطل يحتاجك' : 'المراقبة: تنبيه') : monitorBar.text }}
+        </router-link>
+        <button type="button" class="fold-btn" :aria-label="redFolded ? 'افتح الشريط' : 'اطوِ الشريط'" @click="toggleRed">
+          <q-icon :name="redFolded ? 'expand_less' : 'expand_more'" size="18px" />
+        </button>
+      </div>
       <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it.
            Owner 2026-10-31 («مزعج جدًا وينزل الشاشة»): one thin line always, never more; the count of new ones and of all.
            A press opens the stacked list: the new ones first with «جديد», the old ones stay under them. -->
@@ -250,6 +255,13 @@ watch(() => route.query.look, (v) => {
 }, { immediate: true })
 const lookNew = computed(() => session.isAdmin && lookPreview.value)
 const onHome = computed(() => route.path === '/')
+// The red bar's fold, kept on this device across visits (owner 2026-10-31)
+const RED_FOLD_KEY = 'cs_red_bar_folded'
+const redFolded = ref((() => { try { return localStorage.getItem(RED_FOLD_KEY) === '1' } catch { return false } })())
+function toggleRed () {
+  redFolded.value = !redFolded.value
+  try { localStorage.setItem(RED_FOLD_KEY, redFolded.value ? '1' : '0') } catch { /* private mode */ }
+}
 const avatarLetter = computed(() => (session.isAdmin ? 'م' : (customer.profile?.name || '؟').trim().charAt(0)))
 function lookOff () {
   lookPreview.value = false
@@ -544,5 +556,6 @@ async function logout () {
 .monitor-bar.more { width: 100%; border: 0; font: inherit; font-size: 13px; cursor: pointer; justify-content: center; }
 .monitor-bar .text-underline { text-decoration: underline; font-size: 13px; }
 .needs-line { justify-content: flex-start; text-align: start; }
+.fold-btn { background: none; border: 0; color: #fff; cursor: pointer; padding: 0 2px; display: flex; align-items: center; }
 .needs-list { max-height: 60vh; overflow-y: auto; }
 </style>
