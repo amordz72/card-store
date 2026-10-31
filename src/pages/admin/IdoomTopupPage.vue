@@ -100,6 +100,9 @@
             <q-btn flat dense size="sm" color="primary" icon="key" label="رمز جديد" :disable="busy" @click="newToken(p)" />
             <q-toggle :model-value="p.active" :label="p.active ? 'مفعّل' : 'معطّل'" color="positive" :disable="busy"
               @update:model-value="(v) => setActive(p, v)" />
+            <!-- s164: this phone also takes Free Fire orders (Shop2game, Rech-Doom 0.9.1); off by default -->
+            <q-toggle v-if="p.active && gameKnown" :model-value="Boolean(gameOn[p.id])" label="Free Fire" color="deep-orange" :disable="busy"
+              @update:model-value="(v) => setGame(p, v)" />
             <q-btn v-if="!p.active" flat dense round size="sm" color="negative" icon="delete" :disable="busy"
               aria-label="حذف الهاتف" @click="removePhone(p)" />
           </div>
@@ -230,6 +233,14 @@ async function load () {
   if (j) jobs.value = j
   if (p) phones.value = p
   loaded.value = true
+  // Before s164 is applied the view is missing: the switch simply does not show
+  api.gamePhoneView().then((v) => { gameOn.value = Object.fromEntries((v?.phones || []).map((x) => [x.id, x.game_on])); gameKnown.value = true })
+    .catch(() => { gameKnown.value = false })
+}
+const gameOn = ref({})
+const gameKnown = ref(false)
+async function setGame (p, on) {
+  if (await run(() => api.executorGame(p.id, on).then(() => true), { success: on ? `${p.name} يأخذ طلبات Free Fire الآن.` : `${p.name} لم يعد يأخذ Free Fire.` })) load()
 }
 
 async function lookup () {
