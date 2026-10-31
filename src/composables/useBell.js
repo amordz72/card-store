@@ -14,6 +14,7 @@ import { indicatorsSeenThisWeek } from 'src/components/ShopIndicators.vue'
 const openReports = ref(0)
 const idoomReview = ref(0)
 const gameWaiting = ref(0)
+const serviceWaiting = ref(0)
 const flexyReview = ref(0)
 // v1.43: a shop's failed flexy whose charge did not come back
 const flexyUnrefunded = ref(0)
@@ -51,12 +52,13 @@ const agentUpdateVersion = ref('')
 // 'dead' | 'expiring' | other; the bell counts 1 for the first two
 const repoKeyLevel = ref('')
 const repoKeyAlert = computed(() => (repoKeyLevel.value === 'dead' || repoKeyLevel.value === 'expiring' ? 1 : 0))
-const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value + agentUpdates.value + shopsDown.value + lowStock.value)
+const bellTotal = computed(() => openReports.value + idoomReview.value + gameWaiting.value + serviceWaiting.value + flexyReview.value + flexyUnrefunded.value + devicesDown.value + offerAlerts.value + simAlerts.value + newReplies.value + repoKeyAlert.value + monitorAlerts.value + monitorIncidents.value + agentUpdates.value + shopsDown.value + lowStock.value)
 
 async function refreshBell () {
   try { openReports.value = Number(await adminApi.openReportsCount()) || 0 } catch { /* keep the last value */ }
   try { idoomReview.value = Number(await adminApi.idoomReviewCount()) || 0 } catch { /* keep the last value */ }
   try { gameWaiting.value = Number(await customerApi.gameOpenCount(null)) || 0 } catch { /* keep the last value */ }
+  try { serviceWaiting.value = Number(await adminApi.serviceOpenCount()) || 0 } catch { /* before the services SQL, or keep the last value */ }
   // «متاح» for game top-ups stays on while any admin page is open, not only the games page (owner 2026-10-26).
   // Only while it is live now: a switch the 30-minute rule already closed is never reopened by this.
   try {
@@ -140,5 +142,5 @@ export function agentUpdatesOf (body, now = Date.now()) {
 }
 
 export function useBell () {
-  return { lowStock, automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
+  return { lowStock, automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, serviceWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell }
 }

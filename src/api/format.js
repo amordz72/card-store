@@ -18,7 +18,9 @@ export function dateTime (iso) {
 export const CATEGORIES = [
   { id: 'phone', label: 'هاتف' },
   { id: 'net', label: 'إنترنت' },
-  { id: 'game', label: 'ألعاب' }
+  { id: 'game', label: 'ألعاب' },
+  // «منتجات أخرى» (services, owner 2026-10-31): the last section of the store
+  { id: 'other', label: 'منتجات أخرى' }
 ]
 
 const BRAND_COLORS = {

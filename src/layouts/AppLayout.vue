@@ -129,6 +129,12 @@
                 <q-item-section avatar><q-icon name="local_offer" /></q-item-section>
                 <q-item-section>شاشة العروض (الجديدة تنتظرك)</q-item-section>
               </q-item>
+              <!-- Services (owner 2026-10-31): named by what it does, «افتح الطلب» -->
+              <q-item v-if="serviceWaiting" v-close-popup clickable to="/services">
+                <q-item-section avatar><q-icon name="room_service" /></q-item-section>
+                <q-item-section>طلبات خدمات تنتظرك · افتح الطلب</q-item-section>
+                <q-item-section side><q-badge color="negative" :label="serviceWaiting" /></q-item-section>
+              </q-item>
               <q-item v-if="gameWaiting" v-close-popup clickable to="/game">
                 <q-item-section avatar><q-icon name="sports_esports" /></q-item-section>
                 <q-item-section>شحن ألعاب في الانتظار</q-item-section>
@@ -329,6 +335,7 @@ const MENU = [
       { to: '/prices', label: 'أسعار ونسب الزبائن', icon: 'sell', admin: true },
       { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi', idoom: true },
       { to: '/game', label: 'شحن الألعاب بالمعرّف', icon: 'sports_esports', game: true },
+      { to: '/services', label: 'الخدمات', icon: 'room_service' },
       { to: '/flexy/shop', label: 'فليكسي', icon: 'send_to_mobile', flexy: true }
     ]
   },
@@ -392,7 +399,7 @@ const nav = computed(() => [
 watch(() => route.fullPath, () => { if ($q.screen.width < 1024) drawer.value = false })
 
 // Bell count: refreshed on every page change and every minute (owner only)
-const { lowStock, automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
+const { lowStock, automixAlert, failuresOpen, reviewWaiting, handoverNeeds, sqlPending, approvalsWaiting, shopsDown, agentUpdates, agentUpdateVersion, openReports, idoomReview, gameWaiting, serviceWaiting, flexyReview, flexyUnrefunded, flexyUnrefundedAmount, devicesDown, offerAlerts, simAlerts, newReplies, repoKeyLevel, repoKeyAlert, monitorBar, monitorAlerts, monitorIncidents, bellTotal, refreshBell } = useBell()
 // «مطلوب منك»: the SQL Claude put first, then approvals, a dead GitHub key, Agent updates; one line with the count
 const JUDGE = '/flexy/monitor?tab=judge'
 const DB = '/flexy/monitor?tab=db'

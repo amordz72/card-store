@@ -260,6 +260,19 @@ export const removeBanner = (id) => rpc('store_admin_remove_banner', { p_id: id 
 // Game top-up (v1.25): workers, cards topped up by player id, the top-up site link
 export const setGameOperator = (customerId, enabled) => rpc('store_admin_set_game_operator', { p_customer_id: customerId, p_enabled: enabled })
 export const gameOperators = () => rpc('store_admin_game_operators')
+// الخدمات (owner 2026-10-31): the owner alone works the queue
+export const services = () => rpc('store_admin_services')
+export const serviceSave = (productId, s) => rpc('store_admin_service_save', {
+  p_product_id: productId, p_is_service: s.isService ?? null, p_open: s.open ?? null, p_fields: s.fields ?? null, p_default_cost: s.defaultCost ?? null
+})
+export const serviceQueue = (open, limit, offset) => rpc('store_admin_service_queue', { p_open: open, p_limit: limit, p_offset: offset })
+export const serviceOpenCount = () => rpc('store_admin_service_open_count')
+export const serviceClaim = (id) => rpc('store_admin_service_claim', { p_id: id })
+export const servicePrice = (id, unitPrice, reason) => rpc('store_admin_service_price', { p_id: id, p_unit_price: unitPrice, p_reason: reason })
+export const serviceDone = (id, qtyDone, costTotal, reply) => rpc('store_admin_service_done', {
+  p_id: id, p_qty_done: qtyDone, p_cost_total: costTotal ?? null, p_reply: reply || null
+})
+export const serviceFail = (id, reply) => rpc('store_admin_service_fail', { p_id: id, p_reply: reply || null })
 export const setPlayerTopup = (productId, enabled) => rpc('store_admin_set_player_topup', { p_product_id: productId, p_enabled: enabled })
 export const playerTopupProducts = () => rpc('store_admin_player_topup_products')
 // v1.49: orders by player id accepted any time (null = read only)
