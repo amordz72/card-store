@@ -1,6 +1,8 @@
 <template>
-  <q-layout view="hHh LpR lFf">
+  <q-layout view="hHh LpR lFf" :class="{ 'look-new': lookNew }">
     <q-header class="bg-white text-dark" bordered>
+      <!-- «الشكل الجديد» preview (owner 2026-10-31): admin only, from a link with ?look=1, until «الشكل القديم» -->
+      <div v-if="lookNew" class="look-preview-strip">معاينة الشكل الجديد (لك وحدك)<a @click="lookOff">ارجع للقديم</a></div>
       <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it.
            Owner 2026-10-31 («مزعج جدًا وينزل الشاشة»): one thin line always, never more; the count of new ones and of all.
            A press opens the stacked list: the new ones first with «جديد», the old ones stay under them. -->
@@ -226,6 +228,21 @@ import { useFlexyAccess } from 'src/composables/useFlexyAccess'
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
+// «الشكل الجديد» (owner 2026-10-31): the admin previews it page by page from a link (?look=1, kept for this tab; ?look=0
+// or «ارجع للقديم» ends it). Customers never get it until the owner approves the whole look.
+const LOOK_KEY = 'cs_look_preview'
+const lookPreview = ref((() => { try { return sessionStorage.getItem(LOOK_KEY) === '1' } catch { return false } })())
+watch(() => route.query.look, (v) => {
+  if (v === undefined) return
+  lookPreview.value = v === '1'
+  try { lookPreview.value ? sessionStorage.setItem(LOOK_KEY, '1') : sessionStorage.removeItem(LOOK_KEY) } catch { /* private mode */ }
+}, { immediate: true })
+const lookNew = computed(() => session.isAdmin && lookPreview.value)
+function lookOff () {
+  lookPreview.value = false
+  try { sessionStorage.removeItem(LOOK_KEY) } catch { /* private mode */ }
+  if (route.query.look) router.replace({ query: { ...route.query, look: undefined } })
+}
 const customer = useCustomerStore()
 const admin = useAdminStore()
 const buyer = useBuyer()

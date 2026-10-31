@@ -62,3 +62,4 @@ body {
 
 /* Explanations of how the program works: hidden unless «أظهر الشروح» (src/api/help.js) */
 body:not(.show-help) .help { display: none !important; }
+@import './look-new.scss';
