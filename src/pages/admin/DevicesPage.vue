@@ -217,8 +217,13 @@
         </div>
         <div v-if="isAbsent(st)" class="small muted">{{ st.reasons[0]?.text }}</div>
         <button v-for="m in st.modems.filter((x) => x.sim && x.level !== 'old')" :key="m.sim.sim_uuid" type="button" class="phone-sim" @click="open(st, m)">
-          <span class="text-weight-bold">{{ simName(m.sim, st) }}</span><span class="muted"> · <template v-if="adminName(m.sim)">{{ m.sim.code }} · </template>{{ m.sim.label || m.sim.sim_type_name }}</span>
-          <span class="q-ml-sm">{{ m.sim.balance == null ? 'غير مقروء' : money(m.sim.balance) }}</span>
+          <!-- Same lines as a computer's SIM (owner 2026-10-31): the label, the number and the balance never run together -->
+          <span class="text-weight-bold">{{ simName(m.sim, st) }}</span><span v-if="adminName(m.sim)" class="small muted"> · {{ m.sim.code }}</span>
+          <div class="small muted"><bdi>{{ m.sim.label || m.sim.sim_type_name }}</bdi></div>
+          <div class="row items-center q-gutter-x-md">
+            <bdi class="ltr">{{ m.sim.msisdn || (m.sim.msisdn_tail ? '…' + m.sim.msisdn_tail : '—') }}</bdi>
+            <span :class="m.sim.balance == null ? 'text-deep-orange' : m.sim.balance <= 0 ? 'text-negative' : ''">{{ m.sim.balance == null ? 'غير مقروء' : money(m.sim.balance) }}</span>
+          </div>
         </button>
       </div>
     </div>
