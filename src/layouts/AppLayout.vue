@@ -235,8 +235,9 @@ const drawer = ref(false)
 
 const subtitle = computed(() => (session.isAdmin ? `المدير · ${admin.email || ''}` : customer.profile?.name || ''))
 // The owner, and his test shop «حساب 2» (owner 2026-10-29: «احربه كعميل»)
-const COPY_SCREEN_SHOPS = ['حساب 2']
-const canCopyScreen = computed(() => session.isAdmin || COPY_SCREEN_SHOPS.includes(customer.profile?.name))
+// Owner 2026-10-31: administration and development tools are for the admin only, with no exception by account name
+// (the «حساب 2» exception was removed: a name can be given to any account).
+const canCopyScreen = computed(() => session.isAdmin)
 // Customer numbers leave the screen as «…25» only; amounts stay hidden when hidden
 // «نسخ الشاشة» also says when the page is wider than the phone, and which elements make it so (owner 2026-10-30):
 // the innermost elements whose box goes past the screen's edges, with their class, size and first words
