@@ -237,6 +237,7 @@
       </div>
     </div>
 
+    <RechDoomPhones v-show="pageTab === 'sims'" />
     <!-- Never a full message store (Flexy Core 0040): «تصفير» empties every modem's store once the server saved each
          message. Rarely used (owner 2026-10-30): folded at the end; SIMs not connected are not listed, their request waits. -->
     <q-expansion-item v-show="pageTab === 'sims'" class="card q-pa-none" dense icon="sms" label="مخزن الرسائل" header-class="text-weight-bold">
@@ -391,6 +392,7 @@ import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 import ModemPanel from 'src/components/ModemPanel.vue'
 import AddComputer from 'src/components/AddComputer.vue'
+import RechDoomPhones from 'src/components/RechDoomPhones.vue'
 
 // Read only: Flexy Core answers from what the stations already report. No USSD, no money.
 const LEVEL = {

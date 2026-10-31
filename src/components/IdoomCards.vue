@@ -15,8 +15,7 @@
         <span class="price">{{ money(c.base_price) }}</span>
       </button>
       <div v-if="!cards.length" class="muted text-center q-pa-sm">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
-      <div class="small muted">يُخصم ثمن البطاقة من رصيدك. إن لم تتم التعبئة يُعاد المبلغ تلقائيًا.
-        <router-link to="/idoom">تعبئاتي في إيدوم</router-link></div>
+      <div class="small muted">يُخصم ثمن البطاقة من رصيدك. إن لم تتم التعبئة يُعاد المبلغ تلقائيًا.</div>
     </template>
   </div>
 </template>
@@ -72,7 +71,7 @@ function confirmCharge (c) {
     const r = await run(() => api.idoomCreate(customer.token, c.product_id, line, crypto.randomUUID()))
     if (r) {
       buyer.refresh()
-      Notify.create({ type: 'positive', message: 'أُرسل الطلب. تابع حالته في «تعبئاتي في إيدوم».', position: 'top' })
+      Notify.create({ type: 'positive', message: 'أُرسل الطلب. تابع حالته في «آخر العمليات».', position: 'top' })
       emit('sent')
     }
   })

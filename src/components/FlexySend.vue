@@ -54,7 +54,7 @@
           <div class="row items-center no-wrap q-gutter-sm">
             <div class="col column">
               <span class="text-weight-bold">{{ j.title }}</span>
-              <span class="small muted">{{ j.kind === 'offer' ? 'عرض' : 'رصيد عادي' }} · <bdi dir="ltr">{{ spaced(j.phone) }}</bdi></span>
+              <span class="small muted">{{ j.kind === 'offer' ? 'عرض' : j.kind === 'idoom' ? 'إيدوم' : 'رصيد عادي' }} · <bdi dir="ltr">{{ j.kind === 'idoom' ? j.phone : spaced(j.phone) }}</bdi></span>
             </div>
             <span v-if="j.running" class="row items-center no-wrap q-gutter-xs text-primary small">
               <q-spinner size="20px" /><span>جارٍ…</span>
@@ -288,7 +288,7 @@ async function keyed (id, fn) {
 
 // The last operation, when it went to the same number with the same amount (630) or the same offer
 function repeatOf (p, { amount = null, offer = null }) {
-  const last = props.rows[0]
+  const last = props.rows.find((j) => j.kind !== 'idoom')
   if (!last || last.phone !== p) return null
   const same = offer ? last.kind === 'offer' && last.offer === offer : last.kind !== 'offer' && Number(last.amount) === Number(amount)
   return same ? last : null

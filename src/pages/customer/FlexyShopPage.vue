@@ -18,9 +18,9 @@
     </div>
     <FlexySend v-else remember="shop" :automix="automix" :open="access.open.value" :max-amount="access.maxAmount.value" :offers="access.offers.value"
       :credit-prefixes="access.creditPrefixes.value" :offer-prefixes="access.offerPrefixes.value" note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer" :available-offers="availableOffers"
-      :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
+      :rows="allOps" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
-      <template #other="{ raw }"><IdoomCards :raw="raw" /></template>
+      <template #other="{ raw }"><IdoomCards :raw="raw" @sent="afterIdoom" /></template>
       <q-badge :color="access.open.value ? 'positive' : 'negative'" class="q-pa-sm self-start">
         {{ access.open.value ? 'الخدمة متاحة الآن' : 'الخدمة متوقفة الآن — حاول بعد قليل' }}
       </q-badge>
@@ -38,6 +38,8 @@ import { money } from 'src/api/format'
 import { offerTitle } from 'src/api/flexyExplain'
 import FlexySend from 'src/components/FlexySend.vue'
 import IdoomCards from 'src/components/IdoomCards.vue'
+import { idoomView } from 'src/api/idoomView'
+import { useIdoomAccess } from 'src/composables/useIdoomAccess'
 import { when } from 'src/api/when'
 import { Notify } from 'quasar'
 
@@ -77,6 +79,17 @@ const ops = computed(() => rows.value.map((j) => ({
   badge: view(j), at: j.created_at, reply: j.network_reply,
   running: ['queued', 'sent'].includes(j.status), stopped: j.status === 'not_sent'
 })))
+// «تعبئة» (owner 2026-11-01): the Idoom top-ups in the same list, by time, like «العمليات»
+const idoomAccess = useIdoomAccess()
+const idoomRows = ref([])
+const loadIdoom = () => (idoomAccess.enabled.value
+  ? api.idoomJobs(customer.token, PAGE, 0).then((l) => { idoomRows.value = l || [] }).catch(() => null)
+  : Promise.resolve())
+const idoomRunning = computed(() => idoomRows.value.some((j) => ['queued', 'claimed'].includes(j.status)))
+const allOps = computed(() => [...ops.value, ...idoomRows.value.map((j) => ({
+  id: 'idoom:' + j.job_id, title: j.product_name, phone: j.line, kind: 'idoom', amount: j.charged_amount,
+  badge: idoomView(j), at: j.created_at, reply: null, running: ['queued', 'claimed'].includes(j.status)
+}))].sort((a, b) => String(b.at).localeCompare(String(a.at))))
 const hasMore = ref(false)
 const loadingMore = ref(false)
 const refreshing = ref(false)
@@ -103,8 +116,9 @@ async function refreshNow () {
   const wasRunning = running.value
   try {
     if (wasRunning) await api.flexyRefresh(customer.token).catch(() => null)
-    await loadFirst()
-    if (wasRunning && !running.value) buyer.refresh()
+    const idoomWas = idoomRunning.value
+    await Promise.all([loadFirst(), loadIdoom()])
+    if ((wasRunning && !running.value) || (idoomWas && !idoomRunning.value)) buyer.refresh()
   } catch { /* offline: keep what is shown */ } finally { refreshing.value = false }
 }
 
@@ -113,7 +127,7 @@ let timer = null
 let delay = 3000
 function schedule () {
   clearTimeout(timer)
-  if (!running.value) { delay = 3000; return }
+  if (!running.value && !idoomRunning.value) { delay = 3000; return }
   timer = setTimeout(async () => {
     await refreshNow()
     delay = Math.min(Math.round(delay * 1.6), 30000)
@@ -140,6 +154,12 @@ async function afterSend () {
   schedule()
 }
 
+async function afterIdoom () {
+  await loadIdoom()
+  delay = 3000
+  schedule()
+}
+
 // The shop's questions (v1.47; before it, none)
 const questions = ref([])
 const answering = ref('')
@@ -162,7 +182,8 @@ onMounted(async () => {
   await access.refresh()
   if (!access.enabled.value) return
   loadQuestions()
-  await loadFirst().catch(() => null)
+  await idoomAccess.refresh()
+  await Promise.all([loadFirst().catch(() => null), loadIdoom()])
   schedule()
 })
 onUnmounted(() => clearTimeout(timer))
