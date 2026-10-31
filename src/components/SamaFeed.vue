@@ -18,8 +18,11 @@
         <span v-else class="tiny muted">لم تُغذَّ من المخزون بعد</span>
       </span>
       <!-- Owner 2026-10-31: one list of the values in stock and one button, instead of a button per value -->
+      <!-- 0129 (owner 2026-10-31): an unavailable SIM (computer or phone off, SIM out) takes no card; the reason and since when
+           instead of the button, which comes back by itself once the obstacle is gone -->
+      <span v-if="!running(s.feed) && s.ready && s.ready.ok === false" class="tiny text-grey-8 unready">{{ unreadyText(s) }}</span>
       <!-- 0127: a program that cannot feed yet: no card moves, the button says which update it needs -->
-      <q-btn v-if="!running(s.feed) && s.capable === false" dense outline no-caps disable color="grey-7"
+      <q-btn v-else-if="!running(s.feed) && s.capable === false" dense outline no-caps disable color="grey-7"
         :label="s.phone ? 'يحتاج تحديث تطبيق الهاتف (0.8.3)' : 'يحتاج تحديث برنامج المحطة (0.9.10)'" />
       <span v-else-if="!running(s.feed) && faces.length" class="row no-wrap items-center q-gutter-xs">
         <q-select v-model="chosen[s.sim_uuid]" :options="faceOptions" emit-value map-options dense outlined options-dense class="face" />
@@ -113,6 +116,10 @@ const ERRORS = {
   FEED_FACE_INVALID: 'قيمة البطاقة غير صحيحة.',
   MIGRATION_0126: 'طبّق 0126 أولًا من «ينتظر تطبيقك» (قيم غير 1000).',
   FEED_STATION_OLD: 'برنامج هذه الشريحة لا يعرف التغذية بعد: حدّثه أولًا. لم تُسحب أي بطاقة.',
+  FEED_STATION_OFFLINE: 'كمبيوتر أو هاتف هذه الشريحة غير متصل الآن. لم تُسحب أي بطاقة.',
+  FEED_MODEM_OFFLINE: 'مودم هذه الشريحة غير متصل الآن. لم تُسحب أي بطاقة.',
+  FEED_SIM_OFFLINE: 'هذه الشريحة غير متصلة الآن. لم تُسحب أي بطاقة.',
+  FEED_STATION_NOT_APPROVED: 'محطة هذه الشريحة غير معتمدة. لم تُسحب أي بطاقة.',
   FEED_BUSY: 'تعبئة جارية على هذه الشريحة.',
   FEED_SIM_NOT_SAMA: 'هذه ليست شريحة سما.',
   FEED_SIM_NOT_FOUND: 'الشريحة غير موجودة.',
@@ -181,6 +188,17 @@ function stateText (f) {
     case 'review': return `تحتاج حكمك: ${REASON[reasonKey(f.reason)] || f.reason}`
     case 'not_sent': return `لم تُرسل · ${REASON[reasonKey(f.reason)] || f.reason} · ${when(f.decided_at)}`
     default: return f.status
+  }
+}
+// 0129: why this SIM cannot be fed now, and since when
+function unreadyText (s) {
+  const since = s.ready.since ? ` ${ago(s.ready.since)}` : ''
+  switch (s.ready.reason) {
+    case 'STATION_OFFLINE': return (s.phone ? 'الهاتف غير متصل' : 'الكمبيوتر مطفأ أو غير متصل') + since
+    case 'MODEM_OFFLINE': return 'المودم غير متصل' + since
+    case 'SIM_OFFLINE': return 'الشريحة غير متصلة (منزوعة أو لا ترد)' + since
+    case 'STATION_NOT_APPROVED': return 'المحطة غير معتمدة'
+    default: return 'غير متاحة الآن'
   }
 }
 const tone = (f) => (f.status === 'success' ? 'text-positive' : f.status === 'refused' ? 'text-negative' : f.status === 'review' ? 'text-deep-orange-9' : 'muted')
