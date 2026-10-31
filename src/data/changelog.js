@@ -3,6 +3,16 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-10-31-h',
+    date: '2026-10-31',
+    title: 'لوحة سما الجديدة',
+    items: [
+      { text: 'عروض موبيليس في تبويبات مغلقة أولًا (Sama Mix، Sama Net، عروض أخرى)، والصفوف ثابتة لا تُعتَّم ولا تتغير وحدها', to: '/flexy/send', pr: 'card-store' },
+      { text: 'الضغطة تُرسل مباشرة؛ إن لم يكن العرض لخط الزبون: «لا يوجد عرض متاح لهذا الرقم» ويختفي ذلك الصف وحده', to: '/flexy/send', pr: 'card-store' },
+      { text: 'لا كلمة «أوتوميكس» ولا «عُرف الخط» على الشاشة: العرض التلقائي اسمه Sama Mix للجميع', to: '/flexy/send', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-10-31-g',
     date: '2026-10-31',
     title: 'الألعاب من رصيد المنصة',

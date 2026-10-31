@@ -7,20 +7,18 @@
       ⚠ هذا الرقم رفض من قبل: <b>{{ refusals.map((r) => (r.offer || (r.amount + ' دج')) + ' (' + new Date(r.at).toLocaleDateString('ar-DZ', { day: '2-digit', month: '2-digit' }) + ')').join('، ') }}</b>
       — الأرجح أن خطه لا يقبله: جرّب عرضًا آخر.
     </div>
-    <!-- No spinner while the automix shows (owner 2026-10-29): the discovery goes on behind it -->
-    <div v-else-if="loading && !showAutomix" class="card column items-center q-gutter-sm q-pa-lg">
+    <!-- No spinner while the Sama board shows (owner 2026-10-29): the discovery goes on behind it -->
+    <div v-else-if="loading && !boardOn" class="card column items-center q-gutter-sm q-pa-lg">
       <q-spinner color="primary" size="32px" />
       <div class="small muted">جارٍ معرفة نوع خط الزبون… قد يأخذ حتى دقيقة.</div>
     </div>
-    <div v-else-if="error && !showAutomix" class="card column items-center q-gutter-sm q-pa-lg">
+    <div v-else-if="error && !boardOn" class="card column items-center q-gutter-sm q-pa-lg">
       <div class="small text-negative text-center">{{ error }}</div>
       <q-btn flat no-caps color="primary" icon="refresh" label="أعد المحاولة" @click="load({ retry: true })" />
     </div>
     <!-- Sections come from the offers themselves (owner 2026-10-28): each offer's category (bundle /
          internet); no category = bundle, so an operator without categories (Sama) looks as before. -->
     <template v-else-if="!boardOn && !holding && (families.length || internet.length)">
-      <!-- Known now, before any press: a short line and a brief colour, so the seller sees the screen changed -->
-      <div v-if="justKnown && group" class="card small text-weight-bold known">عُرف الخط: {{ group }}</div>
       <div v-if="families.length" class="card q-pa-none">
         <q-expansion-item v-for="f in families" :key="f.name" :label="f.name" :default-opened="families.length === 1"
           group="families" header-class="family" expand-separator>
@@ -71,32 +69,35 @@
       <div class="small muted">«صيغة جديدة» تنشئ {{ shape.word || shape.candidates[0]?.label }} أخرى لهذا النوع من الخطوط، وتستكشفها الآن للإدارة. لا مال في أي خيار.</div>
     </div>
     <!-- Only the network's own «no offers» says so (owner rule): the automix is gone, ordinary credit stays -->
-    <div v-else-if="looked && noOffers" class="card text-center q-pa-lg">لا توجد عروض لهذا الرقم. أرسل له رصيدًا عاديًا.</div>
+    <div v-else-if="looked && noOffers && !boardOn" class="card text-center q-pa-lg">لا توجد عروض لهذا الرقم. أرسل له رصيدًا عاديًا.</div>
     <div v-else-if="looked && !boardOn && !newGroup && !blocked.length" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
-    <!-- Owner 2026-10-31 («أوتوميكس بنفس شكل سما العادية… تتغيّر فقط الكتابة ويبقى كل شيء ثابتًا»; OWNER-UX-RULES §7):
-         one board for every Mobilis number, the same rows before and after the line is known. Before: each row sends the
-         automix offer (it stops before any money if the line has no such offer). After: the same row names the line's own
-         offer at that price, or says the line has none, in its place; the line's other offers are added under. -->
+    <!-- The Sama board (owner 2026-10-31, «نفذ»): one look for every Mobilis number, the owner's page too. Tabs closed
+         at first; fixed rows «Sama Mix N» / «Sama Net N» that never change by themselves. A press sends at once: the line's
+         own offer when known (the discovery gets up to 5 s, shown as the send's own wait), else the automatic one (it
+         stops before any money). A row the known line lacks says «لا يوجد عرض متاح لهذا الرقم» when pressed and goes.
+         No word on the screen tells how it works (no «أوتوميكس», no «عُرف الخط»). -->
     <div v-if="boardOn" class="card q-pa-none board">
-      <div class="board-status small" :class="{ 'text-primary': holding }">
-        <q-spinner v-if="holding || (loading && !looked) || automix.small === null" size="14px" class="q-mr-xs" />{{ boardStatus }}
-      </div>
-      <template v-for="sec in board" :key="sec.title">
-        <div class="board-head" :class="{ net: sec.net }">{{ sec.title }}</div>
-        <div v-for="r in sec.rows" :key="r.key" class="offer-row" :class="{ busy: busy || holding || !r.offer, net: sec.net }" role="button"
-          tabindex="0" :aria-disabled="busy || holding || !r.offer" @click="pick(r)" @keyup.enter="pick(r)">
+      <div v-if="boardStatus" class="board-status small text-primary"><q-spinner size="14px" class="q-mr-xs" />{{ boardStatus }}</div>
+      <q-expansion-item v-for="sec in board" :key="sec.key" :label="sec.title" group="board" expand-separator
+        :header-class="sec.net ? 'family net-tab' : 'family'">
+        <div v-if="sec.note" class="small muted text-center q-pa-md">
+          <q-spinner v-if="sec.spin" size="16px" class="q-mr-xs" />{{ sec.note }}
+        </div>
+        <div v-for="r in sec.rows" :key="r.key" class="offer-row" :class="{ busy: busy || holding || Boolean(waiting) || !r.ok, net: r.net }"
+          role="button" tabindex="0" :aria-disabled="busy || holding || Boolean(waiting) || !r.ok" @click="pick(r)" @keyup.enter="pick(r)">
           <span class="column">
-            <span class="text-weight-bold" :class="{ 'text-grey-6': !r.offer }"><bdi dir="auto">{{ r.text }}</bdi><q-badge v-if="r.offer?.review" class="q-ml-xs" color="purple-6" label="جديد" /><q-badge v-else-if="r.offer?.visibility === 'admin'" class="q-ml-xs" color="amber-8" label="للإدارة" /></span>
+            <span class="text-weight-bold"><bdi dir="auto">{{ r.text }}</bdi><template v-if="r.real"><q-badge v-if="r.real.review" class="q-ml-xs" color="purple-6" label="جديد" /><q-badge v-else-if="r.real.visibility === 'admin'" class="q-ml-xs" color="amber-8" label="للإدارة" /></template></span>
             <span v-if="r.sub" class="small muted">{{ r.sub }}</span>
           </span>
           <span class="row items-center no-wrap q-gutter-xs">
-            <q-btn v-if="r.real && detailOf(r.real)" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل" @click.stop="details(r.real)" />
+            <q-spinner v-if="waiting === r.key" size="16px" color="primary" />
+            <q-btn v-if="r.info" flat round dense size="sm" icon="info_outline" aria-label="التفاصيل" @click.stop="details(r.info)" />
             <q-btn v-if="r.real && session.isAdmin && r.real.probe_ok && r.real.visibility === 'admin' && r.real.id" dense flat no-caps size="sm" color="primary"
               label="افتحه للمحلات" :loading="approving === r.real.id" @click.stop="openToShops(r.real)" />
-            <span class="price" :class="{ 'net-price': sec.net }">{{ money(r.amount) }}</span>
+            <span class="price" :class="{ 'net-price': r.net }">{{ money(r.amount) }}</span>
           </span>
         </div>
-      </template>
+      </q-expansion-item>
     </div>
     <!-- Offers the index guard stops (Ooredoo, Flexy Core 0065): a code the menu shows twice. Never sold from here;
          «اكشف» asks the network which offer that code gives (its price, before the PIN; no money). -->
@@ -121,39 +122,8 @@
         بعد «اعتمد» يُباع هذا العرض، ولا يُرسل الـPIN إلا إذا قالت الشبكة نفس السعر. الآخر بنفس الرمز يبقى موقوفًا.{{ newGroup ? ' (اعتمد المجموعة في شاشة العروض أولًا.)' : '' }}
       </div>
     </div>
-    <!-- «أوتوميكس» (owner 2026-10-29): a Mobilis number whose line is not known yet sells at once, without waiting
-         for the discovery. 100 goes by Arsselli first (the network gives the line's own offer at that price); «مختلط»
-         and «إنترنت» open a Sama session that buys only when the line has that offer, else stops before any money and
-         the line's offers show. Each row only while a SIM can take it; otherwise «حاول بعد دقيقة» (the owner is told). -->
-    <div v-if="showAutomix && !boardOn" class="card column q-gutter-sm automix">
-      <div class="text-weight-bold">اختر مباشرة دون انتظار</div>
-      <div v-if="!holding && loading" class="small muted">عروض الخط تظهر هنا حين تُعرف.</div>
-      <div v-if="holding" class="row items-center q-gutter-sm small text-primary"><q-spinner size="16px" /><span>جارٍ تنفيذ العرض… النتيجة في «آخر العمليات». لا تُرسل غيره حتى ينتهي.</span></div>
-      <div v-if="automix.small === null" class="row items-center q-gutter-sm small muted"><q-spinner size="16px" /><span>جارٍ التحقق من الشرائح…</span></div>
-      <div v-else-if="!automix.small && !automix.big" class="small text-negative">لا توجد عروض الآن، حاول بعد دقيقة.</div>
-      <template v-else>
-        <div v-if="automix.small" class="column q-gutter-xs">
-          <div class="small muted">عرض الخط بهذا المبلغ</div>
-          <div class="amounts">
-            <q-btn v-for="o in AUTO.small.filter(fits)" :key="o.label" unelevated no-caps color="primary" :label="money(o.amount)" :disable="busy || holding" @click="confirm(o, true)" />
-          </div>
-        </div>
-        <div v-else class="small text-deep-orange-9">عروض 50 و100 غير متاحة الآن، حاول بعد دقيقة.</div>
-        <template v-if="automix.big">
-          <div class="small muted">مختلط (مكالمات ورسائل وإنترنت)</div>
-          <div class="amounts">
-            <q-btn v-for="o in AUTO.mix.filter(fits)" :key="o.label" outline no-caps color="primary" :label="money(o.amount)" :disable="busy || holding" @click="confirm(o, true)" />
-          </div>
-          <div class="small muted">إنترنت</div>
-          <div class="amounts">
-            <q-btn v-for="o in AUTO.net.filter(fits)" :key="o.label" outline no-caps color="cyan-9" :label="money(o.amount)" :disable="busy || holding" @click="confirm(o, true)" />
-          </div>
-        </template>
-        <div v-else class="small text-deep-orange-9">العروض الأخرى غير متاحة الآن، حاول بعد دقيقة.</div>
-      </template>
-    </div>
     <!-- Djezzy (Flexy Core 0075): the number's «Offres Internet» pages read once, no money; then its offers show -->
-    <q-btn v-if="internetMenu && explore && looked && !loading && !holding" outline no-caps color="cyan-9" icon="travel_explore"
+    <q-btn v-if="internetMenu && explore && looked && !loading && !holding && !boardOn" outline no-caps color="cyan-9" icon="travel_explore"
       :label="exploring ? 'جارٍ قراءة عروض الإنترنت…' : 'اقرأ عروض الإنترنت'" :loading="exploring" @click="readInternet" />
     <div v-if="exploreError" class="small text-negative">{{ exploreError }}</div>
     <!-- A group none of whose offers is decided yet (Ooredoo, Flexy Core 0060): its offers show above, sellable by the
@@ -202,14 +172,15 @@ const emit = defineEmits(['sent'])
 // The lab, only for the owner's live session on a new group (never loaded on a shop's page)
 const ModemPanel = defineAsyncComponent(() => import('src/components/ModemPanel.vue'))
 const newGroup = ref(null)
-// «أوتوميكس»: the quick offers by their catalog names (Flexy Core sends each by its known route)
+// The automatic offers by their catalog names (Flexy Core sends each by its known route). Shown as «Sama Mix N» /
+// «Sama Net N» to everybody (owner 2026-10-31: the screen never says how it works).
 const autoOffer = (family, amount, display, category = 'bundle') => ({ label: `${family} ${amount}`, amount, display, category })
 const AUTO = {
   // 50 back (owner 2026-10-29): tried by Arsselli, a Sama line got «Sama Mix 50 500Mo + Bonus 50DA»
-  small: [50, 100].map((a) => autoOffer('Mixed', a, `عرض ${a} دج (حسب خط الزبون)`)),
+  small: [50, 100].map((a) => autoOffer('Mixed', a, `Sama Mix ${a}`)),
   // «Mixed N» (Flexy Core): the line's own offer of kind «مختلط» and that amount, whatever its group
-  mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Mixed', a, `مختلط ${a} دج`)),
-  net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `إنترنت ${a} دج`, 'internet'))
+  mix: [500, 1000, 1500, 2000].map((a) => autoOffer('Mixed', a, `Sama Mix ${a}`)),
+  net: [500, 1000, 1500, 2000].map((a) => autoOffer('Sama Net', a, `Sama Net ${a}`, 'internet'))
 }
 const fits = (o) => o.amount <= props.maxAmount
 // The owner's page only for now (the shops' page reads through the store)
@@ -364,7 +335,6 @@ const detailOf = (o) => DETAILS[o.label] || o.details || ''
 const autoSent = ref('')
 // Until its row shows in «آخر العمليات» (a few seconds), the send counts as running
 const justSent = ref(false)
-const justKnown = ref(false)
 // The network said this number takes no offers (its own reply, never a silence)
 const noOffers = ref(false)
 const internetMenu = ref(false)
@@ -404,8 +374,6 @@ function retryLater (p) {
   }, wait)
 }
 const holding = computed(() => autoSent.value !== '' && autoSent.value === props.phone && (props.running || justSent.value))
-const showAutomix = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
-  (loading.value || Boolean(error.value) || holding.value))
 watch(() => props.running, (now, before) => {
   if (before && !now && autoSent.value && autoSent.value === props.phone) { autoSent.value = ''; load() }
 })
@@ -439,8 +407,6 @@ async function load ({ retry = false } = {}) {
     ordered.value = r?.ordered === true
     blocked.value = Array.isArray(r?.blocked) ? r.blocked : []
     if (r?.status === 'ready') {
-      // Replacing the automix buttons: mark it for a moment
-      if (automix.value.for === p && !holding.value) { justKnown.value = true; setTimeout(() => { justKnown.value = false }, 2500) }
       loadedFor = p
       offers.value = r.offers || []
       looked.value = true
@@ -504,71 +470,127 @@ function details (o) {
   Dialog.create({ title: o.label, message: detailOf(o), ok: 'حسنًا', position: 'bottom' })
 }
 
-// ---- The Sama board (owner 2026-10-31): fixed rows; only their text changes when the line is known ----
-// The owner tries it first on his own send page (untested live, it is the shops' money screen); the shops get it
-// when he says so: BOARD_FOR_SHOPS = true (owner 2026-10-31).
-const BOARD_FOR_SHOPS = true // owner 2026-10-31: «افتح اللوحة للمحلات»
-const boardOn = computed(() => (session.isAdmin || BOARD_FOR_SHOPS) && props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
-  (showAutomix.value || (looked.value && !shape.value && !newGroup.value && !noOffers.value && (families.value.length || internet.value.length))))
-const lineKnown = computed(() => looked.value && !holding.value && (families.value.length > 0 || internet.value.length > 0))
-// The line's own offer for one automix row: same price, and Mix before other families for the mixed rows
+// ---- The Sama board (owner 2026-10-31, «نفذ»): fixed rows, tabs closed at first; nothing changes before a press ----
+const boardOn = computed(() => props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone && !shape.value && !newGroup.value)
+// Rows the known line lacks, removed once pressed (this number only)
+const gone = ref(new Set())
+watch(() => props.phone, () => { gone.value = new Set() })
+// The line's own offer for one row: same price; Mix before other families for the mixed rows (unavailable ones too)
 function realFor (kind, amount) {
-  if (kind === 'net') return internet.value.find((o) => o.amount === amount) || null
-  const bundles = shown.value.filter((o) => o.category !== 'internet' && o.amount === amount)
+  const list = offers.value.filter((o) => o.amount === amount)
+  if (kind === 'net') return list.find((o) => o.category === 'internet') || null
+  const bundles = list.filter((o) => o.category !== 'internet')
   return bundles.find((o) => /mix/i.test(o.family || o.label)) || bundles[0] || null
 }
+// What the line surely has for a row: its offer, null = surely none, undefined = not known (send the automatic one)
+const certain = computed(() => looked.value && !holding.value && !shape.value && !newGroup.value && loadedFor === props.phone)
+function lineHas (kind, amount) {
+  if (!certain.value) return undefined
+  if (noOffers.value) return null
+  const real = realFor(kind, amount)
+  if (real) return real
+  // Its internet menu not read yet: no «none» from a list never read
+  if (kind === 'net' && internetMenu.value && !internet.value.length) return undefined
+  return offers.value.length ? null : undefined
+}
 const board = computed(() => {
-  const known = lineKnown.value
-  const used = new Set()
+  const checking = automix.value.small === null
   const avail = (kind) => (kind === 'small' ? automix.value.small : automix.value.big) !== false
-  const rows = (kind, list) => list.filter(fits).map((a) => {
-    const real = known ? realFor(kind, a.amount) : null
+  const used = new Set()
+  const rows = (kind, list) => list.filter(fits).filter((a) => !gone.value.has(kind + a.amount)).map((a) => {
+    const real = lineHas(kind, a.amount)
     if (real) used.add(real)
-    if (known) {
-      return real
-        ? { key: kind + a.amount, amount: a.amount, text: real.label, sub: detailOf(real), offer: real, real, auto: false }
-        : { key: kind + a.amount, amount: a.amount, text: 'لا يوجد لهذا الخط', sub: '', offer: null, real: null, auto: false }
-    }
-    // Still checking the SIMs: the row waits (the status line says so); then available or «حاول بعد دقيقة»
-    const checking = automix.value.small === null
     const ok = !checking && avail(kind)
-    return { key: kind + a.amount, amount: a.amount, text: a.display, sub: ok || checking ? '' : 'غير متاح الآن، حاول بعد دقيقة', offer: ok ? a : null, real: null, auto: true }
-  })
-  const out = [
-    { title: 'عرض الخط', rows: rows('small', AUTO.small) },
-    { title: 'مختلط (مكالمات ورسائل وإنترنت)', rows: rows('mix', AUTO.mix) },
-    { title: 'إنترنت فقط', net: true, rows: rows('net', AUTO.net) }
-  ]
-  if (known) {
-    // What the line has besides: added under, never in between
-    const rest = shown.value.filter((o) => !used.has(o)).sort((a, b) => (a.category === 'internet') - (b.category === 'internet') || byPrice(a, b))
-    if (rest.length) {
-      out.push({
-        title: 'عروض أخرى لهذا الخط',
-        rows: rest.map((o) => ({ key: 'x' + o.label, amount: o.amount, text: o.label, sub: [o.family, detailOf(o)].filter(Boolean).join(' · '), offer: o, real: o, auto: false }))
-      })
+    const info = DETAILS[a.display] ? { label: a.display } : null
+    return {
+      key: kind + a.amount, kind, amount: a.amount, text: a.display, auto: a, net: kind === 'net', ok, info, real: null,
+      sub: ok || checking ? (DETAILS[a.display] || '') : 'غير متاح الآن، حاول بعد دقيقة'
     }
+  })
+  const mix = [...rows('small', AUTO.small), ...rows('mix', AUTO.mix)]
+  const net = rows('net', AUTO.net)
+  const other = { key: 'other', title: 'عروض أخرى', rows: [] }
+  if (certain.value) {
+    other.rows = shown.value.filter((o) => !used.has(o))
+      .sort((a, b) => (a.category === 'internet') - (b.category === 'internet') || byPrice(a, b))
+      .map((o) => ({ key: 'x' + o.label, amount: o.amount, text: o.label, sub: [o.family, detailOf(o)].filter(Boolean).join(' · '),
+        offer: o, real: o, other: true, ok: true, net: o.category === 'internet', info: detailOf(o) ? o : null }))
+    if (!other.rows.length) other.note = 'لا توجد عروض أخرى لهذا الرقم.'
+  } else if (error.value && !loading.value) {
+    other.note = 'تعذّر التحميل الآن، حاول بعد قليل.'
+  } else {
+    other.note = 'جارٍ التحميل…'
+    other.spin = true
   }
-  return out
+  return [
+    { key: 'mix', title: 'Sama Mix', rows: mix },
+    { key: 'net', title: 'Sama Net (إنترنت)', net: true, rows: net },
+    other
+  ]
 })
+const waiting = ref('')
 const boardStatus = computed(() => {
   if (holding.value) return 'جارٍ تنفيذ العرض… النتيجة في «آخر العمليات». لا تُرسل غيره حتى ينتهي.'
-  if (lineKnown.value) return 'خط الزبون: ' + (group.value || 'معروف') + ' — الأسعار والأسماء لخطه'
-  if (automix.value.small === null) return 'جارٍ التحقق من الشرائح…'
-  if (error.value) return 'اختر مباشرة: خط الزبون لم يُعرف بعد (نحاول وحدنا)'
-  return 'اختر مباشرة دون انتظار — أسماء عروض خطه تظهر في مكانها حين تُعرف'
+  if (waiting.value) return 'جارٍ الإرسال…'
+  return ''
 })
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 function pick (r) {
-  if (!r.offer || holding.value) return
-  confirm(r.offer, r.auto)
+  if (r.other) return confirm(r.offer)
+  if (!r.ok || holding.value || busy.value || waiting.value || asking) return
+  const p = props.phone
+  const known = lineHas(r.kind, r.amount)
+  const last = props.repeatOf(p, { offer: r.auto.label }) || (known ? props.repeatOf(p, { offer: known.label }) : null)
+  asking = true
+  // The price only (owner 2026-10-31): no network name that could differ from the row pressed
+  Dialog.create({
+    title: last ? 'نفس آخر عملية' : 'تأكيد العرض',
+    html: true,
+    message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
+      ${r.net ? '<div style="text-align:center;margin:4px 0"><span style="background:#ECFEFF;color:#0E7490;border-radius:6px;padding:2px 8px;font-weight:700">إنترنت</span></div>' : ''}
+      <div style="text-align:center">عرض <b>${money(r.amount)}</b></div>
+      <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${last
+        ? `<div style="margin-top:8px;padding:8px;border-radius:8px;background:#FFF3E0;color:#BF360C;text-align:center">
+            آخر عملية كانت نفس العرض لنفس الرقم (${last.badge.label}).<br><b>أرسل مرة ثانية؟</b></div>`
+        : ''}`,
+    cancel: 'رجوع',
+    ok: last ? 'نعم، أرسل مرة ثانية' : 'نعم، أرسل'
+  }).onDismiss(() => { asking = false }).onOk(() => sendRow(p, r))
+}
+async function sendRow (p, r) {
+  waiting.value = r.key
+  try {
+    // The discovery still running: up to 5 s more, as the send's own wait (owner 2026-10-31)
+    for (const end = Date.now() + 5000; loading.value && Date.now() < end && props.phone === p;) await sleep(250)
+    if (props.phone !== p) return
+    const has = lineHas(r.kind, r.amount)
+    if (has === null) {
+      gone.value = new Set([...gone.value, r.key])
+      Notify.create({ message: 'لا يوجد عرض متاح لهذا الرقم', position: 'top', timeout: 3000, color: 'deep-orange' })
+      return
+    }
+    if (has && has.available === false) {
+      Notify.create({ message: 'غير متاح الآن، حاول بعد دقيقة.', position: 'top', timeout: 3000, color: 'deep-orange' })
+      return
+    }
+    const o = has || r.auto
+    const res = await run(() => props.send(p, o.label))
+    if (res) {
+      const auto = !has
+      if (auto) { autoSent.value = p; justSent.value = true; setTimeout(() => { justSent.value = false }, 10000) }
+      emit('sent', { phone: p, offer: o, result: res, auto })
+    }
+  } finally {
+    waiting.value = ''
+  }
 }
 
 // One offer at a time: a tap while one is being sent opens nothing
 let asking = false
-function confirm (o, auto = false) {
+function confirm (o) {
   const p = props.phone
   if (busy.value || asking) return
-  if (!auto && p !== loadedFor) { load(); return }
+  if (p !== loadedFor) { load(); return }
   const last = props.repeatOf(p, { offer: o.label })
   asking = true
   Dialog.create({
@@ -576,8 +598,7 @@ function confirm (o, auto = false) {
     html: true,
     message: `<div dir="ltr" style="font-size:1.6rem;font-weight:700;text-align:center">${spaced(p)}</div>
       ${o.category === 'internet' ? '<div style="text-align:center;margin:4px 0"><span style="background:#ECFEFF;color:#0E7490;border-radius:6px;padding:2px 8px;font-weight:700">إنترنت فقط</span></div>' : ''}
-      <div style="text-align:center${o.category === 'internet' ? ';color:#0E7490' : ''}"><b>${o.display || o.label}</b>${!o.display && detailOf(o) ? ' — ' + detailOf(o) : ''}</div>${o.display
-        ? '<div style="font-size:12px;color:#5B6170;text-align:center">إن لم يكن لخط الزبون هذا العرض يتوقف قبل أي خصم، وتظهر عروض خطه.</div>' : ''}
+      <div style="text-align:center${o.category === 'internet' ? ';color:#0E7490' : ''}"><b>${o.label}</b>${detailOf(o) ? ' — ' + detailOf(o) : ''}</div>
       <div style="text-align:center">السعر: <b>${money(o.amount)}</b></div>
       <div style="font-size:12px;color:#5B6170;text-align:center">تأكد من الرقم. بعد الإرسال لا يمكن الإلغاء.</div>${last
         ? `<div style="margin-top:8px;padding:8px;border-radius:8px;background:#FFF3E0;color:#BF360C;text-align:center">
@@ -587,10 +608,7 @@ function confirm (o, auto = false) {
     ok: last ? 'نعم، أرسل مرة ثانية' : 'نعم، أرسل'
   }).onDismiss(() => { asking = false }).onOk(async () => {
     const r = await run(() => props.send(p, o.label))
-    if (r) {
-      if (auto) { autoSent.value = p; justSent.value = true; setTimeout(() => { justSent.value = false }, 10000) }
-      emit('sent', { phone: p, offer: o, result: r, auto })
-    }
+    if (r) emit('sent', { phone: p, offer: o, result: r, auto: false })
   })
 }
 </script>
@@ -609,13 +627,10 @@ function confirm (o, auto = false) {
 .ask { border: 2px solid var(--brand-accent, #C2410C); padding: 12px; }
 .menu-lines { background: #F6F6F6; border-radius: 8px; padding: 8px 10px; font-family: monospace; font-size: 12px; max-height: 180px; overflow: auto; }
 .live { border: 2px solid #0E7490; padding: 12px; }
-.automix { border: 2px solid #1D4ED8; padding: 12px; }
 .board-status { padding: 10px 14px; min-height: 40px; display: flex; align-items: center; color: #5B6170; }
 .board .offer-row { min-height: 60px; }
-.board-head { padding: 8px 14px 4px; font-size: 12px; font-weight: 700; color: #7A8194; border-top: 1px solid #ECEEF3; }
-.board-head.net { color: #0E7490; }
+:deep(.net-tab) { color: #0E7490; }
 .offer-row.net { border-inline-start: 4px solid #0E7490; }
-.known { background: #FEF3C7; color: #92400E; padding: 8px 12px; }
 .link { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
 .amounts { display: flex; flex-wrap: wrap; gap: 8px; }
 .amounts .q-btn { min-width: 72px; min-height: 44px; }
