@@ -13,12 +13,15 @@
 
     <div v-for="s in sims" :key="s.sim_uuid" class="feed-row">
       <span class="column">
-        <b>{{ s.label || 'شريحة سما' }}</b>
+        <b>{{ s.label || 'شريحة سما' }}<span v-if="s.phone" class="tiny muted"> · هاتف الإدارة</span></b>
         <span v-if="s.feed" class="tiny" :class="tone(s.feed)">{{ stateText(s.feed) }}</span>
         <span v-else class="tiny muted">لم تُغذَّ من المخزون بعد</span>
       </span>
       <!-- Owner 2026-10-31: one list of the values in stock and one button, instead of a button per value -->
-      <span v-if="!running(s.feed) && faces.length" class="row no-wrap items-center q-gutter-xs">
+      <!-- 0127: a program that cannot feed yet: no card moves, the button says which update it needs -->
+      <q-btn v-if="!running(s.feed) && s.capable === false" dense outline no-caps disable color="grey-7"
+        :label="s.phone ? 'يحتاج تحديث تطبيق الهاتف (0.8.3)' : 'يحتاج تحديث برنامج المحطة (0.9.10)'" />
+      <span v-else-if="!running(s.feed) && faces.length" class="row no-wrap items-center q-gutter-xs">
         <q-select v-model="chosen[s.sim_uuid]" :options="faceOptions" emit-value map-options dense outlined options-dense class="face" />
         <q-btn dense unelevated no-caps color="primary" label="اشحنها" :loading="starting === s.sim_uuid" @click="ask(s)" />
       </span>
@@ -109,6 +112,7 @@ const ERRORS = {
   FEED_NO_CARD: 'لا بطاقة Mobilis بهذه القيمة متاحة في المخزون.',
   FEED_FACE_INVALID: 'قيمة البطاقة غير صحيحة.',
   MIGRATION_0126: 'طبّق 0126 أولًا من «ينتظر تطبيقك» (قيم غير 1000).',
+  FEED_STATION_OLD: 'برنامج هذه الشريحة لا يعرف التغذية بعد: حدّثه أولًا. لم تُسحب أي بطاقة.',
   FEED_BUSY: 'تعبئة جارية على هذه الشريحة.',
   FEED_SIM_NOT_SAMA: 'هذه ليست شريحة سما.',
   FEED_SIM_NOT_FOUND: 'الشريحة غير موجودة.',
