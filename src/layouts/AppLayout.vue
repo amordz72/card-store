@@ -1,8 +1,7 @@
 <template>
   <q-layout view="hHh LpR lFf" :class="{ 'look-new': lookNew }">
     <q-header class="bg-white text-dark" bordered>
-      <!-- «الشكل الجديد» preview (owner 2026-10-31): admin only, from a link with ?look=1, until «الشكل القديم» -->
-      <div v-if="lookNew" class="look-preview-strip">معاينة الشكل الجديد (لك وحدك)<a @click="lookOff">ارجع للقديم</a></div>
+
       <!-- Weak internet: started from the home page (startup.js); one press back to where he was going -->
       <div v-if="weakFrom" class="monitor-bar bg-grey-8">
         <q-icon name="network_check" size="18px" />
@@ -249,16 +248,8 @@ import { useFlexyAccess } from 'src/composables/useFlexyAccess'
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
-// «الشكل الجديد» (owner 2026-10-31): the admin previews it page by page from a link (?look=1, kept for this tab; ?look=0
-// or «ارجع للقديم» ends it). Customers never get it until the owner approves the whole look.
-const LOOK_KEY = 'cs_look_preview'
-const lookPreview = ref((() => { try { return sessionStorage.getItem(LOOK_KEY) === '1' } catch { return false } })())
-watch(() => route.query.look, (v) => {
-  if (v === undefined) return
-  lookPreview.value = v === '1'
-  try { lookPreview.value ? sessionStorage.setItem(LOOK_KEY, '1') : sessionStorage.removeItem(LOOK_KEY) } catch { /* private mode */ }
-}, { immediate: true })
-const lookNew = computed(() => session.isAdmin && lookPreview.value)
+// Owner 2026-10-31 «عمّم الشكل»: the new look for everyone (the old one stays in main history at 1f74987)
+const lookNew = computed(() => true)
 const onHome = computed(() => route.path === '/')
 // The red bar's fold, kept on this device across visits (owner 2026-10-31)
 const RED_FOLD_KEY = 'cs_red_bar_folded'
@@ -268,11 +259,6 @@ function toggleRed () {
   try { localStorage.setItem(RED_FOLD_KEY, redFolded.value ? '1' : '0') } catch { /* private mode */ }
 }
 const avatarLetter = computed(() => (session.isAdmin ? 'م' : (customer.profile?.name || '؟').trim().charAt(0)))
-function lookOff () {
-  lookPreview.value = false
-  try { sessionStorage.removeItem(LOOK_KEY) } catch { /* private mode */ }
-  if (route.query.look) router.replace({ query: { ...route.query, look: undefined } })
-}
 const customer = useCustomerStore()
 const admin = useAdminStore()
 const buyer = useBuyer()
