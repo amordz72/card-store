@@ -97,7 +97,7 @@
               <td>{{ stName(r.st) || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
               <td><q-badge :color="r.old ? 'grey-6' : STATE[simState(r)]?.color || LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : STATE[simState(r)]?.label || LEVEL[r.m.level].label" />
-                <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim)" size="12px" class="q-mr-xs" />{{ statusText(r) }}
+                <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim) && !modemGone(r)" size="12px" class="q-mr-xs" />{{ statusText(r) }}
                   <!-- A warning can always be sent to Claude (owner 2026-10-30: «لا زر نسخ، ولا أستطيع تحديد النص») -->
                   <q-btn v-if="simState(r) !== 'ready' || onboardingOf(r.m.sim)?.stage === 'alert'" flat round dense size="sm" icon="smart_toy" aria-label="نسخ لـClaude" @click.stop="copySimForClaude(r)" /></div></td>
             </tr>
@@ -671,8 +671,13 @@ const summary = computed(() => [
   { label: 'كمبيوتر', n: presentCount.value },
   ...SUMMARY_TYPES.map(([type, label]) => ({ type, label, n: everySim.value.filter((r) => !r.old && simState(r) === 'ready' && r.m.sim.sim_type === type).length }))
 ])
+// «إصلاح الغائبة» (owner 2026-10-31): the computer is on but this SIM's modem is not seen: said as it is, never «يُقرأ»
+const ABSENT_MS = 3 * 60_000
+const modemGone = (r) => !isAbsent(r.st) && !isPhone(r.st) && !r.old && r.m.last_seen_at && Date.now() - Date.parse(r.m.last_seen_at) >= ABSENT_MS
+const goneText = (r) => 'غائبة منذ ' + clock(r.m.last_seen_at) + ': المودم' + (r.m.model ? ' ' + r.m.model : '') + ' لا يظهر على ' + stName(r.st) + ' (أعد وصله بالـUSB)'
 // The SIM's own problem first; «كمبيوترها مطفأ» beside it when that is also true
 function statusText (r) {
+  if (modemGone(r)) return goneText(r)
   if (onboardingText(r.m.sim)) return onboardingText(r.m.sim)
   if (r.old) return ''
   const own = r.m.reasons.find((x) => x.code !== 'STATION_ABSENT')?.text
@@ -680,7 +685,7 @@ function statusText (r) {
   if (simState(r) === 'station_off') return off
   return [own, off].filter(Boolean).join(' · ')
 }
-const statusClass = (r) => onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : simState(r) === 'station_off' ? 'muted' : r.m.level === 'down' || simState(r) === 'needs_action' ? 'text-negative' : 'text-deep-orange'
+const statusClass = (r) => modemGone(r) ? 'text-negative' : onboardingText(r.m.sim) ? onboardingClass(r.m.sim) : simState(r) === 'station_off' ? 'muted' : r.m.level === 'down' || simState(r) === 'needs_action' ? 'text-negative' : 'text-deep-orange'
 // Balance: one total the SIM can execute now, with how old the reading is. Old = past the
 // core's refresh window (6 h), when a send would first ask for a fresh 632.
 const BALANCE_FRESH_MS = 6 * 3600 * 1000
