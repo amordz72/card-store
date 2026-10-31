@@ -1,28 +1,28 @@
 <template>
   <q-layout view="hHh LpR lFf">
     <q-header class="bg-white text-dark" bordered>
-      <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it -->
-      <!-- One line each, naming its section (owner idea #6: «و شيء آخر» hid what and where) -->
-      <!-- Small (owner 2026-10-30: «الشريط يأخذ نصف الشاشة»): one short line each, and ⌃ folds it into one line
-           until something new comes -->
+      <!-- «مطلوب منك» (owner 2026-10-30): only what waits for his press, the SQL first; above the red bar, never instead of it.
+           Owner 2026-10-31 («مزعج جدًا وينزل الشاشة»): one thin line always, never more; the count of new ones and of all.
+           A press opens the stacked list: the new ones first with «جديد», the old ones stay under them. -->
       <template v-if="session.isAdmin && needsYou.length">
-        <button v-if="needsFolded" type="button" class="monitor-bar compact bg-indigo-8 more" @click="unfoldNeeds">
-          <q-icon name="build" size="16px" /> {{ needsYou.length }} {{ needsYou.length === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك' }} <q-icon name="expand_more" size="18px" />
+        <button type="button" class="monitor-bar compact bg-indigo-8 more needs-line" aria-label="ما ينتظرك">
+          <q-icon name="build" size="16px" />
+          <span class="col ellipsis">
+            <b v-if="needsNew">{{ needsNew }} {{ needsNew === 1 ? 'جديد' : 'جديدة' }} · </b>{{ needsYou.length }} {{ needsYou.length === 1 ? 'شيء ينتظرك' : 'أشياء تنتظرك' }}
+          </span>
+          <q-icon name="expand_more" size="18px" />
+          <q-menu fit anchor="bottom middle" self="top middle" @before-show="snapNeeds" @show="markNeedsSeen">
+            <q-list dense separator class="needs-list">
+              <q-item v-for="it in needsList" :key="it.text" v-close-popup clickable :to="it.to">
+                <q-item-section>
+                  <q-item-label>{{ it.text }} <q-badge v-if="it.isNew" color="purple-6" label="جديد" /></q-item-label>
+                  <q-item-label caption>{{ it.where }}</q-item-label>
+                </q-item-section>
+                <q-item-section side><q-icon name="chevron_left" /></q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
         </button>
-        <template v-else>
-          <router-link v-for="it in shownNeeds" :key="it.text" :to="it.to" class="monitor-bar compact bg-indigo-8">
-            <span class="col ellipsis">{{ it.text }}<span class="where"> · {{ it.where }}</span></span>
-            <q-icon name="chevron_left" size="18px" />
-          </router-link>
-          <div class="row bg-indigo-8">
-            <button v-if="needsYou.length > shownNeeds.length" type="button" class="monitor-bar compact bg-indigo-8 more col" @click="needsAll = true">
-              و{{ needsYou.length - shownNeeds.length }} أخرى
-            </button>
-            <button type="button" class="monitor-bar compact bg-indigo-8 more col" aria-label="اطوِ الشريط" @click="foldNeeds">
-              اطوِه <q-icon name="expand_less" size="18px" />
-            </button>
-          </div>
-        </template>
       </template>
       <!-- Weak internet: started from the home page (startup.js); one press back to where he was going -->
       <div v-if="weakFrom" class="monitor-bar bg-grey-8">
@@ -419,16 +419,21 @@ const needsYou = computed(() => {
     agentUpdates.value && { to: '/flexy/devices', where: 'الأجهزة', text: `تحديث ${agentUpdateVersion.value} متاح لـ${agentUpdates.value} ${agentUpdates.value === 1 ? 'كمبيوتر' : 'كمبيوترات'}` }
   ].filter(Boolean)
 })
-// Three lines at most, the rest behind «اعرضها»
-const needsAll = ref(false)
-// Folded until the list changes (a new item unfolds it), kept for this visit
-const NEEDS_FOLD_KEY = 'cs_needs_folded'
-const needsSig = computed(() => needsYou.value.map((x) => x.text).join('|'))
-const foldedSig = ref((() => { try { return sessionStorage.getItem(NEEDS_FOLD_KEY) || '' } catch { return '' } })())
-const needsFolded = computed(() => !!needsSig.value && foldedSig.value === needsSig.value)
-function foldNeeds () { foldedSig.value = needsSig.value; try { sessionStorage.setItem(NEEDS_FOLD_KEY, foldedSig.value) } catch { /* private mode */ } }
-function unfoldNeeds () { foldedSig.value = ''; try { sessionStorage.removeItem(NEEDS_FOLD_KEY) } catch { /* private mode */ } }
-const shownNeeds = computed(() => (needsAll.value ? needsYou.value : needsYou.value.slice(0, 3)))
+// Owner 2026-10-31: the line says how many are new; «new» = not seen in the list on this device yet (an item whose
+// text changed, e.g. its count, is new again). The badges stay as they were while the list is open.
+const NEEDS_SEEN_KEY = 'cs_needs_seen'
+const needsSeen = ref((() => { try { return JSON.parse(localStorage.getItem(NEEDS_SEEN_KEY) || '[]') } catch { return [] } })())
+const needsNew = computed(() => needsYou.value.filter((x) => !needsSeen.value.includes(x.text)).length)
+const openNew = ref([])
+function snapNeeds () { openNew.value = needsYou.value.filter((x) => !needsSeen.value.includes(x.text)).map((x) => x.text) }
+function markNeedsSeen () {
+  needsSeen.value = [...new Set([...needsYou.value.map((x) => x.text), ...needsSeen.value])].slice(0, 200)
+  try { localStorage.setItem(NEEDS_SEEN_KEY, JSON.stringify(needsSeen.value)) } catch { /* private mode */ }
+}
+const needsList = computed(() => {
+  const list = needsYou.value.map((x) => ({ ...x, isNew: openNew.value.includes(x.text) }))
+  return [...list.filter((x) => x.isNew), ...list.filter((x) => !x.isNew)]
+})
 // Not while the page is hidden (2026-10-30, the database's load): a phone in a pocket asks nothing
 // The one official link (owner setting «الرابط الرسمي», else the built-in one), by the phone's share sheet or copied
 async function shareSite () {
@@ -508,4 +513,6 @@ async function logout () {
 .monitor-bar .where { font-weight: 400; font-size: 12px; opacity: 0.85; }
 .monitor-bar.more { width: 100%; border: 0; font: inherit; font-size: 13px; cursor: pointer; justify-content: center; }
 .monitor-bar .text-underline { text-decoration: underline; font-size: 13px; }
+.needs-line { justify-content: flex-start; text-align: start; }
+.needs-list { max-height: 60vh; overflow-y: auto; }
 </style>
