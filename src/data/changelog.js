@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-ze',
+    date: '2026-11-01',
+    title: 'حاسبة المنصة: جدول واحد',
+    items: [
+      { text: '«منصة topup-dz» ← «الحاسبة»: لكل منتج عندنا سعر بيعنا، وسعر شرائه من المنصة بالدينار، والفرق؛ غيّر سعر الدولار فيتغير الجدول فورًا', to: '/game', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zd',
     date: '2026-11-01',
     title: '«اربطه»: منتجنا بمنتج المنصة (بعد تطبيق s180)',

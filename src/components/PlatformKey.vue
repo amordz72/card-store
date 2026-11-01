@@ -36,6 +36,22 @@
       <div v-if="fetchedAt" class="small muted">منتجات المنصة محفوظة: {{ products.length }} · حُدّثت {{ dateTime(fetchedAt) }} (لا طلب للمنصة إلا بزر «حدّث»)</div>
 
       <template v-if="products.length">
+        <!-- «الحاسبة» (owner 2026-11-01): one table — for each of our products, our price beside the platform's cost in dinars
+             at the dollar price typed above (try 270 or 170 without saving: the table changes at once) -->
+        <div class="calc q-mt-sm">
+          <div class="text-weight-bold">الحاسبة · 1$ = {{ rate > 0 ? rate : '؟' }} دج</div>
+          <div class="small muted">غيّر سعر الدولار في الحقل أعلاه (دون «احفظ») لترى التكلفة بأي سعر.</div>
+          <div class="calc-row calc-head small muted"><span>منتجنا</span><span>سعر بيعنا</span><span>شراء من المنصة</span><span>الفرق</span></div>
+          <div v-for="r in calcRows" :key="r.o.product_id" class="calc-row">
+            <span>{{ r.o.brand }} · {{ r.o.name }}<span v-if="r.linked"> 🔗</span></span>
+            <span>{{ money(r.o.base_price) }}</span>
+            <span>{{ r.p && rate > 0 ? dzd(r.p.price) : '—' }}</span>
+            <span :class="r.gap === null ? 'muted' : r.gap >= 0 ? 'text-positive text-weight-bold' : 'text-negative text-weight-bold'">
+              {{ r.gap === null ? 'لا مقابل' : (r.gap >= 0 ? '+' : '') + r.gap.toLocaleString('en-US') }}</span>
+          </div>
+          <div class="small muted">«شراء من المنصة» = المنتج المربوط 🔗، وإلا أقرب مقابل متاح. أخضر ربح، أحمر خسارة.</div>
+        </div>
+
         <!-- Our own game products first (owner 2026-11-01): a tap shows the platform's matching products, cheapest first -->
         <div class="text-weight-bold q-mt-sm">منتجاتنا</div>
         <div v-for="b in ours" :key="b.brand" class="column q-gutter-xs">
@@ -243,8 +259,8 @@ const pickedIn = (b) => b.items.some((o) => o.product_id === picked.value)
 const flat = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, '')
 const firstNumber = (t) => (String(t || '').match(/\d+/) || [null])[0]
 // The platform's products of the same game (its brand's letters in the name or category), the same number first, then by price
-const matches = computed(() => {
-  const o = ourProducts.value.find((x) => x.product_id === picked.value)
+const matches = computed(() => matchesFor(ourProducts.value.find((x) => x.product_id === picked.value)))
+function matchesFor (o) {
   if (!o) return []
   const brand = flat(o.brand)
   const n = firstNumber(o.name)
@@ -253,7 +269,15 @@ const matches = computed(() => {
     .map((p) => ({ p, same: n !== null && new RegExp('(^|\\D)' + n + '(\\D|$)').test(p.name) }))
     .sort((a, b) => (b.same - a.same) || ((a.p.price ?? 0) - (b.p.price ?? 0)))
     .slice(0, 20).map((x) => x.p)
-})
+}
+// The calculator's rows: the tied platform product, else the closest available match
+const calcRows = computed(() => ourProducts.value.map((o) => {
+  const id = links.value[o.product_id]?.platform_product_id
+  const tied = id ? products.value.find((p) => p.id === id) : null
+  const p = tied || matchesFor(o)[0] || null
+  const gap = p && rate.value > 0 ? Math.round(Number(o.base_price || 0) - Number(p.price || 0) * Number(rate.value)) : null
+  return { o, p, linked: !!tied, gap }
+}).sort((a, b) => a.o.brand.localeCompare(b.o.brand) || (a.o.base_price ?? 0) - (b.o.base_price ?? 0)))
 async function loadOurs () {
   try {
     const stock = await api.stock()
@@ -268,4 +292,7 @@ onMounted(() => { load(); loadRate(); loadSaved(); loadOurs(); loadLinks() })
 .prod { border-top: 1px solid #EEF0F4; padding: 6px 12px; }
 .cat { border: 1px solid #E3E6EC; border-radius: 10px; overflow: hidden; }
 .match { background: #F7F8FB; border-radius: 10px; padding: 6px 0; }
+.calc { border: 1px solid #E3E6EC; border-radius: 10px; padding: 8px; }
+.calc-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr 0.9fr; gap: 6px; padding: 5px 0; border-top: 1px solid #EEF0F4; align-items: center; font-size: 13px; }
+.calc-head { border-top: 0; }
 </style>
