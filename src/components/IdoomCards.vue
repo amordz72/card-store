@@ -95,9 +95,9 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.idoom-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border: 1px solid #E3E6EC; border-radius: 10px;
+.idoom-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 12px; border: 1px solid #E3E6EC; border-radius: 10px;
   background: #fff; font: inherit; color: inherit; text-align: right; cursor: pointer; }
 .idoom-row:disabled { opacity: 0.5; cursor: default; }
-.idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 6px 10px; font-weight: 700; white-space: nowrap;
-  min-width: 88px; text-align: center; }
+.idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap;
+  min-width: 76px; text-align: center; }
 </style>

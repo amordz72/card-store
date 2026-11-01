@@ -657,11 +657,11 @@ function confirm (o) {
 
 <style scoped>
 .warn { background: #fff3e0; color: #8a4b00; border: 1px solid #ffb74d; }
-.offer-row { border-top: 1px solid #ECEEF3; padding: 10px 14px; cursor: pointer;
+.offer-row { border-top: 1px solid #ECEEF3; padding: 6px 12px; min-height: 46px; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
 :deep(.family) { font-weight: 700; }
-.price { font-weight: 700; white-space: nowrap; background: var(--q-primary); color: #fff; border-radius: 8px; padding: 6px 10px;
-  min-width: 88px; text-align: center; display: inline-block; }
+.price { font-weight: 700; white-space: nowrap; background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px;
+  min-width: 76px; text-align: center; display: inline-block; font-size: 0.95rem; }
 .price.text-grey-7 { background: #E5E7EB; color: #4B5563 !important; }
 .offer-row.busy { opacity: 0.5; cursor: default; }
 .net-card { border-inline-start: 4px solid #0E7490; }
@@ -672,9 +672,9 @@ function confirm (o) {
 .menu-lines { background: #F6F6F6; border-radius: 8px; padding: 8px 10px; font-family: monospace; font-size: 12px; max-height: 180px; overflow: auto; }
 .live { border: 2px solid #0E7490; padding: 12px; }
 .board-status { padding: 10px 14px; min-height: 40px; display: flex; align-items: center; color: #5B6170; }
-.board .offer-row { min-height: 60px; }
+.board .offer-row { min-height: 46px; }
 .tab-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(30, 41, 59, 0.08); overflow: hidden; }
-:deep(.tab-head) { min-height: 64px; }
+:deep(.tab-head) { min-height: 48px; }
 :deep(.tab-head .q-item__label) { text-align: center; font-size: 1.15rem; font-weight: 600; color: #475569; }
 .board { background: transparent; box-shadow: none; }
 .offer-row.net { border-inline-start: 4px solid #0E7490; }
