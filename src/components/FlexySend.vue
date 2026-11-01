@@ -11,7 +11,7 @@
       <q-input :model-value="phone" class="col" dense outlined label="الرقم" inputmode="tel" maxlength="16" @focus="(e) => e.target.select()"
         input-class="ltr text-center phone" @update:model-value="typed" />
       <!-- The network's badge beside the field, never over the number (owner 2026-11-01: it hid «06») -->
-      <span v-if="carrier" class="carrier" :class="carrier.cls">{{ carrier.name }}</span>
+      <img v-if="carrier" :src="carrier.logo" :alt="carrier.name" class="carrier-logo">
     </div>
     <!-- After a send the number stays 15 s (owner 2026-11-01: time to send again or fix it), then goes by itself -->
     <div v-if="clearIn > 0" class="small muted text-center">يُمسح الرقم بعد {{ clearIn }} ث ·
@@ -21,9 +21,10 @@
 
     <!-- Only the number until it is whole (owner 2026-10-31, as the other app); then «رصيد عادي» first, and a Mobilis
          line is read behind it so «عروض» finds it known -->
-    <q-tabs v-if="phoneFull" v-model="tab" dense class="tabs" active-color="primary" indicator-color="primary" no-caps>
-      <q-tab name="630" label="رصيد عادي" />
-      <q-tab name="offer" label="عروض" />
+    <q-tabs v-if="phoneFull" v-model="tab" dense class="tabs" active-color="white" active-bg-color="primary" indicator-color="transparent" no-caps>
+      <!-- With an icon, the chosen one filled (owner 2026-11-01, as the other app) -->
+      <q-tab name="630" icon="payments" label="رصيد عادي" />
+      <q-tab name="offer" icon="local_offer" label="عروض" />
     </q-tabs>
 
     <template v-if="phoneFull && tab === '630'">
@@ -220,11 +221,13 @@ const phoneOk = computed(() => phoneFull.value && props.offerPrefixes.includes(d
 // No whole number: back to «رصيد عادي» (owner 2026-10-31)
 watch(phoneFull, (full) => { if (!full) tab.value = '630' })
 const creditOk = computed(() => phoneFull.value && props.creditPrefixes.includes(digits.value.slice(0, 2)))
-const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
+// The network's own logo beside the field (owner 2026-11-01, as the other app): the site's brand images
+const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo', logo: 'brands/ooredoo.png' }, 6: { name: 'Mobilis', cls: 'mobilis', logo: 'brands/mobilis.png' },
+  7: { name: 'Djezzy', cls: 'djezzy', logo: 'brands/djezzy.png' } }
 // An Idoom line shows its own badge too (owner 2026-11-01): fixed 01–04, or 4G 213 not followed by 5–7
 const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]]
-  : /^0[1-4]/.test(rawDigits.value) ? { name: 'Idoom', cls: 'idoom' }
-    : /^213[0-489]/.test(rawDigits.value) ? { name: 'Idoom 4G', cls: 'idoom' } : null))
+  : /^0[1-4]/.test(rawDigits.value) ? { name: 'Idoom', cls: 'idoom', logo: 'brands/idoom-adsl.png' }
+    : /^213[0-489]/.test(rawDigits.value) ? { name: 'Idoom 4G', cls: 'idoom', logo: 'brands/idoom-4g.png' } : null))
 // The smallest credit: Ooredoo takes 10 DA (owner 2026-10-29, Flexy Core 0066), Djezzy 100 (owner 2026-10-29), Mobilis 40
 const minAmount = computed(() => (digits.value.startsWith('05') ? 10 : digits.value.startsWith('07') ? 100 : 40))
 const amounts = computed(() => [...new Set([minAmount.value, 50, 100, 200, 500, 1000, 2000, 5000])]
@@ -370,9 +373,11 @@ function sentOffer (e) {
 </script>
 
 <style scoped>
-.tabs { background: #E4E6EC; border-radius: 12px; }
+.tabs { background: #E4E6EC; border-radius: 12px; overflow: hidden; }
+.tabs :deep(.q-tab--active) { border-radius: 12px; }
 .amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .chip { min-height: 40px; font-weight: 700; border-radius: 10px; }
+.carrier-logo { width: 48px; height: 48px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid #ECEEF3; flex-shrink: 0; }
 .carrier { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; color: #fff; }
 .carrier.mobilis { background: #4CAF50; }
 .carrier.djezzy { background: #E53935; }
