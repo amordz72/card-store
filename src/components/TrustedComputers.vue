@@ -67,7 +67,7 @@ const waiting = computed(() => data.value.browsers.filter((b) => b.state === 'wa
 const trusted = computed(() => data.value.browsers.filter((b) => b.state === 'trusted'))
 const installs = computed(() => (data.value.installs || []).slice(0, 5))
 const newUrl = location.origin + location.pathname + '#/new'
-const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '')
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' }) : '')
 const ERRORS = { MIGRATION: 'طبّق 0117 من «ينتظر تطبيقك» أولًا.', NOT_WAITING: 'انتهى الطلب (15 دقيقة): اطلبه من جديد على الكمبيوتر.', LINKS_INVALID: 'رابط غير صحيح: كل سطر «الاسم | https://…».', COMMANDS_INVALID: 'أمر غير صحيح.' }
 
 function take (b, edit) {

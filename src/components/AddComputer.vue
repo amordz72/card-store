@@ -154,7 +154,7 @@ const live = computed(() => pairings.value.filter((p) => p.state === 'waiting' |
 const done = computed(() => pairings.value.filter((p) => p.state !== 'waiting' && p.state !== 'blocked'))
 const moving = computed(() => pairings.value.some((p) => ['waiting', 'confirmed', 'installing', 'bound'].includes(p.state)))
 
-const day = (t) => (t ? new Date(t).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'short', day: 'numeric' }) : '—')
+const day = (t) => (t ? new Date(t).toLocaleDateString('ar-DZ', { timeZone: 'Africa/Algiers', year: 'numeric', month: 'short', day: 'numeric' }) : '—')
 const keyLine = computed(() => {
   const k = repoKey.value
   if (k.level === 'expiring') return `مفتاح GitHub ينتهي بعد ${k.days_left} يومًا (${day(k.expires_at)}).`
@@ -162,7 +162,7 @@ const keyLine = computed(() => {
   if (k.expires_at && new Date(k.expires_at) <= new Date()) return `مفتاح GitHub انتهى في ${day(k.expires_at)}.`
   return `مفتاح GitHub ميت: GitHub رفضه على كل الكمبيوترات (${k.stations_refused}).`
 })
-const clock = (t) => (t ? new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }) : '—')
+const clock = (t) => (t ? new Date(t).toLocaleTimeString('ar-DZ', { timeZone: 'Africa/Algiers', hour: '2-digit', minute: '2-digit' }) : '—')
 function say (text, bad = false) { message.value = text; messageBad.value = bad }
 const reason = (res) => ERRORS[res.body?.error] || res.body?.error || 'FLEXY_CORE'
 

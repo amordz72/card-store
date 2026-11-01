@@ -44,7 +44,7 @@ const BRAND = { '05': 'Ooredoo', '06': 'Mobilis', '07': 'Djezzy' }
 const coreFailed = ref(false)
 function coreSource () {
   const { from, to } = rangeDates(f.value)
-  const day = (t) => new Date(t).toLocaleDateString('en-CA')
+  const day = (t) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'Africa/Algiers' })
   const q = (f.value.query || '').trim()
   const keep = (o) => (!f.value.type || f.value.type === o.category) && (!to || day(o.created_at) <= to) &&
     (!q || (o.phone || '').includes(q) || (o.offer_label || '').toLowerCase().includes(q.toLowerCase()))

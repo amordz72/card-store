@@ -530,7 +530,7 @@ function downloadFix () {
   // line when the folder is known, else the searching one; then a line so the paste runs the first
   const lines = (_title, direct, search) => crlf([known ? direct : search, 'echo FIN'])
   const readme = '\uFEFF' + crlf([
-    'حزمة إصلاح برنامج المحطة (Flexy) — الإصدار ' + FIX_VERSION + ' · ' + new Date().toLocaleString('ar-DZ'),
+    'حزمة إصلاح برنامج المحطة (Flexy) — الإصدار ' + FIX_VERSION + ' · ' + new Date().toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' }),
     '',
     'الطريقة 1: اضغط مرتين على 1-run-me.bat ، وانتظر حتى يظهر DONE.',
     'الطريقة 2: إن لم ينجح، اضغط مرتين على 2-run-as-admin.bat ثم اختر «نعم».',
@@ -573,7 +573,7 @@ async function copyFix (sh) {
   await copyToClipboard(text)
   Notify.create({ type: 'positive', message: 'نُسخ السطر', position: 'top', timeout: 1200 })
 }
-const clock = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
+const clock = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' })
 
 // The phone is apart (owner 2026-10-28): computers only in the counts, the tables and the SIMs.
 const computers = computed(() => (tree.value?.stations || []).filter((s) => !s.phone && !isPhone(s)))

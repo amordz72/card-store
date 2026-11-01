@@ -124,7 +124,7 @@ async function load () {
 async function ask () {
   busy.value = true
   try {
-    const label = (navigator.userAgentData?.platform || navigator.platform || 'كمبيوتر') + ' · ' + new Date().toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
+    const label = (navigator.userAgentData?.platform || navigator.platform || 'كمبيوتر') + ' · ' + new Date().toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' })
     const r = await call('open', { label })
     state.value = r.state
     number.value = r.number || ''
@@ -182,7 +182,7 @@ async function copy (text, n) {
   copied.value = n
   setTimeout(() => { if (copied.value === n) copied.value = null }, 1500)
 }
-const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'medium' }) : '')
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'medium' }) : '')
 onMounted(() => {
   load()
   timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 4000)

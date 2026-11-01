@@ -227,7 +227,7 @@ async function toPlan (i) {
   }
 }
 const mark = (i, action) => call((action === 'approve' ? 'a' : 'h') + i.id, () => flexy.markIdea(i.id, action))
-const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '')
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' }) : '')
 onMounted(() => call('load', () => flexy.ownerIdeas()))
 </script>
 

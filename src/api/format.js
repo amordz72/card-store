@@ -9,10 +9,15 @@ export function signed (n) {
   return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toLocaleString('en-US')
 }
 
+// Always Algeria's time (owner 2026-11-01: «ليس توقيت الجزائر»), whatever the device's own time zone
+const ALGIERS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Africa/Algiers', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+})
 export function dateTime (iso) {
   const d = new Date(iso)
-  const p = (x) => String(x).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  if (Number.isNaN(d.getTime())) return ''
+  const v = Object.fromEntries(ALGIERS.formatToParts(d).map((x) => [x.type, x.value]))
+  return `${v.year}-${v.month}-${v.day} ${v.hour === '24' ? '00' : v.hour}:${v.minute}`
 }
 
 export const CATEGORIES = [

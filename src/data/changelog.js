@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-o',
+    date: '2026-11-01',
+    title: 'توقيت الجزائر في كل الصفحات',
+    items: [
+      { text: 'كل تاريخ ووقت يُعرض بتوقيت الجزائر، مهما كان توقيت الهاتف (كان يتبع إعداد الجهاز)', to: '/', pr: 'card-store' },
+      { text: '«الدفعات»: فلترة بتاريخ الإضافة (اليوم، أمس، 7 أيام، 30 يومًا)', to: '/stock', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-n',
     date: '2026-11-01',
     title: 'المخزون المشكوك فيه 1ب (بعد تطبيق s170 و0133)',

@@ -4,7 +4,7 @@
     <div v-if="!phoneOk" class="card text-center muted q-pa-lg">اكتب رقم الزبون لتظهر عروضه.</div>
     <!-- Learned (Flexy Core 0093): what this number refused before, said before sending it again -->
     <div v-if="phoneOk && refusals.length" class="card warn small">
-      ⚠ هذا الرقم رفض من قبل: <b>{{ refusals.map((r) => (r.offer || (r.amount + ' دج')) + ' (' + new Date(r.at).toLocaleDateString('ar-DZ', { day: '2-digit', month: '2-digit' }) + ')').join('، ') }}</b>
+      ⚠ هذا الرقم رفض من قبل: <b>{{ refusals.map((r) => (r.offer || (r.amount + ' دج')) + ' (' + new Date(r.at).toLocaleDateString('ar-DZ', { timeZone: 'Africa/Algiers', day: '2-digit', month: '2-digit' }) + ')').join('، ') }}</b>
       — الأرجح أن خطه لا يقبله: جرّب عرضًا آخر.
     </div>
     <!-- No spinner while the Sama board shows (owner 2026-10-29): the discovery goes on behind it -->

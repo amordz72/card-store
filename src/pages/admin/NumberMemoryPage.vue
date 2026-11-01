@@ -64,7 +64,7 @@ const mem = ref(null)
 const busy = ref(null)
 const error = ref('')
 
-const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '')
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' }) : '')
 
 const known = computed(() => {
   const m = mem.value

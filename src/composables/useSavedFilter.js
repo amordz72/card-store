@@ -21,10 +21,12 @@ export function useSavedFilter (key, defaults, { skip = [] } = {}) {
 }
 
 // The quick dates: «اليوم»، «أمس»، «7 أيام»، «الكل»، or the two days chosen («تاريخ محدد»).
-const day = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+// Algeria's day, whatever the device's time zone (owner 2026-11-01)
+const ALGIERS_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Algiers', year: 'numeric', month: '2-digit', day: '2-digit' })
+export const algeriaDay = (d) => ALGIERS_DAY.format(d)
 export function rangeDates (f) {
-  const now = new Date()
-  const ago = (n) => day(new Date(now.getFullYear(), now.getMonth(), now.getDate() - n))
+  const now = Date.now()
+  const ago = (n) => algeriaDay(new Date(now - n * 86400000))
   if (f.range === 'today') return { from: ago(0), to: ago(0) }
   if (f.range === 'yesterday') return { from: ago(1), to: ago(1) }
   if (f.range === '7d') return { from: ago(6), to: ago(0) }
