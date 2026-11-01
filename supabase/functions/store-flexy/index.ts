@@ -307,10 +307,13 @@ async function handleShop(req: Request, route: string): Promise<Response> {
       const res = await fetch(`${FLEXY_API}/offers/lookup`, {
         method: "POST",
         headers: { authorization: `Bearer ${FLEXY_KEY}`, "content-type": "application/json" },
-        body: JSON.stringify({ phone: String(body.phone ?? "") }),
+        // «دُفع» (owner 2026-11-01): the shop says the number's SABBAQLI debt was paid elsewhere
+        body: JSON.stringify({ phone: String(body.phone ?? ""), ...(body.debt_paid === true ? { debt_paid: true } : {}) }),
         signal: AbortSignal.timeout(25_000),
       });
       const b = await res.json().catch(() => ({}));
+      // An Ooredoo number that owes a SABBAQLI loan (Flexy Core 0145): no offer until it is paid in full
+      if (b?.status === "debt") return json(req, 200, { ok: true, status: "debt", debt: Number(b.debt) || 0, group: null, offers: [] });
       // A paid offer waits for a Sama SIM: the discovery comes after it (Flexy Core, owner 2026-10-27); the shop keeps asking.
       if (res.status === 409 && b?.error === "DISCOVERY_DEFERRED") return json(req, 200, { ok: true, status: "discovering", group: null, offers: [] });
       if (!res.ok) return json(req, 422, { ok: false, error: String(b?.error ?? "FLEXY_REFUSED") });

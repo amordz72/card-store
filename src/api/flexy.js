@@ -59,7 +59,8 @@ export const ownerOfferExplore760 = (phone) => owner('760/offers/explore', { met
 export const ownerOfferSend760 = (phone, offer, idempotencyKey, extra = {}) => owner('760/offer/send', { method: 'POST', body: { phone, offer, idempotency_key: idempotencyKey, ...extra } })
 export const ownerOfferStatus760 = (idempotencyKey) => owner('760/offer/' + encodeURIComponent(idempotencyKey), { method: 'GET' })
 // Ooredoo offers (*585*, Flexy Core 0059): the catalog narrowed to the number's last menu; no USSD to look
-export const ownerOffers585 = (phone, retry = false) => owner('585/offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}) } })
+// debtPaid (0145): «دُفع», the number's SABBAQLI debt was paid elsewhere
+export const ownerOffers585 = (phone, retry = false, debtPaid = false) => owner('585/offers/lookup', { method: 'POST', body: { phone, ...(retry ? { retry: true } : {}), ...(debtPaid ? { debt_paid: true } : {}) } })
 // The offers screen (Flexy Core 0062): each group's approved offers and its «جديدة» (draft, negative ids).
 // set: origin mode {active, audience, price} and display mode {name_display, details, category, hidden};
 // arrange: display mode, the shown offers in their new order [{id, category}]

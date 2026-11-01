@@ -130,7 +130,7 @@ export const flexyRefresh = (token) => shop('refresh', { token })
 // Offers: the line's group and its offers (Flexy Core keeps or discovers the group, no money), then one offer
 // by its name; the server takes the price from the name.
 export const flexyOffer = (token, phone, offer, requestId) => shop('send', { token, kind: 'offer', phone, offer, request_id: requestId })
-export const flexyOffers = (token, phone) => shop('offers', { token, phone })
+export const flexyOffers = (token, phone, debtPaid = false) => shop('offers', { token, phone, ...(debtPaid ? { debt_paid: true } : {}) })
 // «أوتوميكس» (owner 2026-10-29): which quick offers a SIM can take now → { name: true | false }
 // «اللوحة التلقائية» (store s166): the owner's switch for the Sama board; before s166 it reads as on
 export const flexyUi = (token) => rpc('store_flexy_ui', { p_token: token })

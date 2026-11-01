@@ -105,6 +105,7 @@ const ERRORS = {
   PHONE_NOT_OOREDOO: 'الرقم ليس Ooredoo (يجب أن يبدأ بـ 05).',
   OFFER_IN_DOUBT: 'هذا العرض موضع شك حتى تراجعه. لم يُرسل شيء.',
   OFFER_CLOSED: 'هذا العرض مغلق في شاشة العروض. لم يُرسل شيء.',
+  NUMBER_HAS_DEBT: 'هذا الرقم عليه دين «سبقلي» لأوريدو: لا عروض حتى يُدفع كاملًا. لم يُرسل شيء.',
   '585_START_NO_RESPONSE': 'المودم لم يردّ على قراءة قائمة الرقم. أعد المحاولة.',
   '585_NEW_REPLY_BEFORE_PIN': 'الشبكة ردّت بغير قائمة العروض (أُبلغت الإدارة). لم يُخصم شيء.',
   '760O_PREVIOUS_OFFER_UNSETTLED_OR_TOO_RECENT': 'لهذا الرقم عرض جيزي غير محسوم أو نفس العرض قبل أقل من دقيقة. لم يُرسل شيء.',
@@ -304,7 +305,7 @@ const phoneAgo = computed(() => {
 })
 let phoneTimer = null
 
-async function lookupOffers (p, { retry = false } = {}) {
+async function lookupOffers (p, { retry = false, debtPaid = false } = {}) {
   // 07 = Djezzy offers: their own route (Flexy Core 0051); the line's family then its catalog
   if (p.startsWith('07')) {
     const r7 = await flexy.ownerOffers760(p, retry)
@@ -313,7 +314,7 @@ async function lookupOffers (p, { retry = false } = {}) {
   }
   // 05 = Ooredoo offers (*585*, Flexy Core 0059): no discovery session, the sale itself reads the menu
   if (p.startsWith('05')) {
-    const r5 = await flexy.ownerOffers585(p, retry)
+    const r5 = await flexy.ownerOffers585(p, retry, debtPaid)
     if (r5.status !== 200) throw new Error(errorText(r5.body))
     return r5.body
   }

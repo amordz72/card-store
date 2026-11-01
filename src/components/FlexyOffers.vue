@@ -68,6 +68,12 @@
       <q-btn unelevated no-caps color="cyan-9" label="صيغة جديدة" :loading="deciding === 'new'" :disable="Boolean(deciding)" @click="decideShape('new')" />
       <div class="small muted">«صيغة جديدة» تنشئ {{ shape.word || shape.candidates[0]?.label }} أخرى لهذا النوع من الخطوط، وتستكشفها الآن للإدارة. لا مال في أي خيار.</div>
     </div>
+    <!-- Ooredoo SABBAQLI debt (Flexy Core 0145, owner 2026-11-01): no offer until it is paid in full -->
+    <div v-else-if="looked && debt && !curtain" class="card column q-gutter-sm q-pa-md debt">
+      <div class="text-center text-weight-bold">هذا الرقم عليه <span class="text-negative">{{ debt.toLocaleString('en-US') }} دج</span> دين «سبقلي» لأوريدو</div>
+      <div class="small text-center">أوريدو لا تقبل له العروض حتى يُدفع دينه كاملًا. بعد دفعه اضغط «دُفع، أعد المحاولة».</div>
+      <q-btn unelevated no-caps color="primary" icon="check" label="دُفع، أعد المحاولة" @click="paidRetry" />
+    </div>
     <!-- Only the network's own «no offers» says so (owner rule): the automix is gone, ordinary credit stays -->
     <div v-else-if="looked && noOffers && !boardOn && !curtain" class="card text-center q-pa-lg">لا توجد عروض لهذا الرقم. أرسل له رصيدًا عاديًا.</div>
     <div v-else-if="looked && !boardOn && !newGroup && !blocked.length && !curtain" class="card text-center muted q-pa-lg">لا توجد عروض متاحة لهذا الرقم الآن.</div>
@@ -348,6 +354,7 @@ const autoSent = ref('')
 const justSent = ref(false)
 // The network said this number takes no offers (its own reply, never a silence)
 const noOffers = ref(false)
+const debt = ref(0)
 const internetMenu = ref(false)
 const exploring = ref(false)
 const exploreError = ref('')
@@ -404,13 +411,16 @@ watch(() => [props.visible, props.phone], ([v], old) => {
 // `retry` («أعد المحاولة») asks the core for a new discovery when the last one ended.
 let loadingFor = ''
 let shownFor = ''
-async function load ({ retry = false } = {}) {
+// «دُفع»: the debt was paid elsewhere; the core forgets it until Ooredoo names one again
+const paidRetry = () => load({ retry: true, debtPaid: true })
+async function load ({ retry = false, debtPaid = false } = {}) {
   const p = props.phone
   const mine = ++runId
   loadingFor = p
   offers.value = []
   error.value = ''
   noOffers.value = false
+  debt.value = 0
   looked.value = false
   newGroup.value = null
   shape.value = null
@@ -420,7 +430,7 @@ async function load ({ retry = false } = {}) {
   loading.value = true
   if (p.startsWith('06') && automix.value.for !== p) checkAutomix(p)
   try {
-    let r = await props.lookup(p, { retry })
+    let r = await props.lookup(p, { retry, debtPaid })
     for (let i = 0; r?.status === 'discovering' && i < 30 && mine === runId; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000))
       r = await props.lookup(p)
@@ -447,6 +457,13 @@ async function load ({ retry = false } = {}) {
       offers.value = []
       group.value = ''
       shape.value = r
+    } else if (r?.status === 'debt') {
+      // Ooredoo SABBAQLI (Flexy Core 0145): no offer until the number's debt is paid in full (owner 2026-11-01)
+      loadedFor = p
+      looked.value = true
+      offers.value = []
+      group.value = ''
+      debt.value = Number(r.debt) || 0
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
       noOffers.value = true
@@ -669,4 +686,5 @@ function confirm (o) {
 .link { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
 .amounts { display: flex; flex-wrap: wrap; gap: 8px; }
 .amounts .q-btn { min-width: 72px; min-height: 44px; }
+.debt { background: #FEF2F2; border: 1px solid #FCA5A5; }
 </style>
