@@ -65,7 +65,8 @@
             <img v-if="logoOf(j)" :src="logoOf(j)" alt="" class="row-logo">
             <div class="col column">
               <bdi dir="ltr" class="text-weight-bold row-number">{{ numberOf(j) }}</bdi>
-              <span class="small muted">{{ kindOf(j) }} · {{ j.title }} · <bdi dir="ltr">{{ shortTime(j.at) }}</bdi></span>
+              <span class="small muted">{{ kindOf(j) }} · {{ j.title }} · <bdi dir="ltr">{{ shortTime(j.at) }}</bdi>
+                <q-badge v-if="j.tag" :color="j.tag.suspect ? 'deep-orange' : 'blue-grey-6'" class="q-ml-xs"><bdi dir="ltr">{{ j.tag.code }}</bdi></q-badge></span>
             </div>
             <span v-if="j.running" class="row items-center no-wrap q-gutter-xs text-primary small">
               <q-spinner size="18px" /><span>جارية</span>

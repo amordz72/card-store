@@ -12,13 +12,13 @@
         <bdi class="col ltr text-right text-weight-bold">{{ c.shown_code }}</bdi>
         <q-badge :color="codeWord(c).color" :label="codeWord(c).label" />
       </div>
-      <div class="small muted">{{ c.product_name }} · دفعة <b>#{{ c.batch_id }}</b> · {{ c.supplier }}
+      <div class="small muted">{{ c.product_name }} · دفعة <b><bdi dir="ltr">{{ codes[c.batch_id] || '#' + c.batch_id }}</bdi></b> · {{ c.supplier }}
         <span v-if="c.customer_name"> · بيع لـ<b>{{ c.customer_name }}</b> (طلب {{ c.order_id }}) · {{ dateTime(c.sold_at) }}</span>
         <span v-if="c.void_reason && c.status === 'void'"> · {{ c.void_reason }}</span></div>
       <div class="row q-gutter-xs">
         <q-btn v-for="s in CODE_STATES" :key="s.state" dense outline no-caps size="sm" :color="s.color" :label="s.label" :disable="busy"
           @click="setState(c, s.state)" />
-        <q-btn dense flat no-caps size="sm" color="primary" icon="inventory_2" :label="'الدفعة #' + c.batch_id" @click="emit('batch', c.batch_id)" />
+        <q-btn dense flat no-caps size="sm" color="primary" icon="inventory_2" :label="'الدفعة ' + (codes[c.batch_id] || '#' + c.batch_id)" @click="emit('batch', c.batch_id)" />
       </div>
     </div>
   </div>
@@ -36,12 +36,17 @@ const { busy, run } = useRun()
 const text = ref('')
 const results = ref([])
 const searched = ref(false)
+const codes = ref({})
 const clean = computed(() => String(text.value || '').replace(/[\s-]/g, ''))
 
 async function find () {
   if (clean.value.length < 4) return
   const r = await run(() => api.codeFind(text.value))
-  if (r) { results.value = r; searched.value = true }
+  if (r) {
+    results.value = r
+    searched.value = true
+    codes.value = await api.batchCodeMap([...new Set(r.map((x) => x.batch_id))])
+  }
 }
 async function setState (c, state) {
   const n = await run(() => api.codesState([c.code_id], state), { success: (n) => (n ? 'تغيّرت الحالة.' : 'لم يتغيّر شيء.') })

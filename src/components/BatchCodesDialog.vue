@@ -4,7 +4,7 @@
     <q-card class="codes-card">
       <q-card-section class="row items-center no-wrap q-pb-sm">
         <div class="col">
-          <div class="text-weight-bold">{{ batch?.product_name }} <span class="small muted">#{{ batch?.batch_id }}</span></div>
+          <div class="text-weight-bold"><bdi v-if="batch?.code" dir="ltr" class="text-primary">{{ batch.code }}</bdi> {{ batch?.product_name }} <span class="small muted">#{{ batch?.batch_id }}</span></div>
           <div class="small muted">{{ batch?.supplier }}</div>
         </div>
         <q-btn flat round dense icon="close" aria-label="إغلاق" @click="emit('update:modelValue', false)" />

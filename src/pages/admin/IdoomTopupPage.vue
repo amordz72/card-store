@@ -54,6 +54,9 @@
               {{ j.kind === 'lookup' ? 'تحقق' : (isLte(j.line) ? '4G' : 'ADSL') }}
             </span>
             <span v-if="j.kind !== 'lookup' && amount(j.product_name)" class="op-amount">{{ amount(j.product_name) }}</span>
+            <!-- s171: the card's batch code; orange when the card came from the suspect stock -->
+            <q-badge v-if="jobBatch[j.id]" :color="jobBatch[j.id].suspect ? 'deep-orange' : 'blue-grey-6'" class="q-ml-xs">
+              <bdi dir="ltr">{{ jobBatch[j.id].code }}</bdi><span v-if="jobBatch[j.id].suspect">&nbsp;· مشكوك فيها</span></q-badge>
           </div>
         </div>
         <div class="op-details small muted">
@@ -156,9 +159,14 @@ const phone = computed(() => {
 
 const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' })
 
+const jobBatch = ref({})
 async function load () {
   const [j, p] = await Promise.all([run(() => api.idoomJobs(30)), run(() => api.executors())])
-  if (j) jobs.value = j
+  if (j) {
+    jobs.value = j
+    const ids = j.filter((x) => x.kind !== 'lookup').map((x) => x.id)
+    if (ids.length) api.idoomJobBatches(ids).then((m) => { jobBatch.value = m || {} })
+  }
   if (p) phones.value = p
   loaded.value = true
 }

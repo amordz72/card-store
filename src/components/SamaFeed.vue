@@ -50,7 +50,7 @@
       <div class="text-weight-bold q-mt-sm text-negative">رفضتها الشبكة ({{ refused.length }})</div>
       <div v-for="c in refused" :key="c.card_id" class="attention column q-gutter-xs">
         <div class="small"><b>{{ c.product }}</b> · ينتهي بـ {{ c.code_end }} · {{ c.sim || '' }} · {{ when(c.state_at) }}</div>
-        <div class="tiny muted">المورّد: {{ c.supplier || '—' }}<template v-if="c.batch_at"> · دفعة {{ when(c.batch_at) }}</template><template v-if="c.cost"> · بسعر {{ money(c.cost) }}</template><template v-if="c.tries > 1"> · جُرّبت {{ c.tries }} مرات</template></div>
+        <div class="tiny muted">المورّد: {{ c.supplier || '—' }}<template v-if="batchCodes[c.batch_id]"> · <bdi dir="ltr" class="text-weight-bold">{{ batchCodes[c.batch_id] }}</bdi></template><template v-if="c.batch_at"> · دفعة {{ when(c.batch_at) }}</template><template v-if="c.cost"> · بسعر {{ money(c.cost) }}</template><template v-if="c.tries > 1"> · جُرّبت {{ c.tries }} مرات</template></div>
         <div v-if="replyOf(c.card_id)" class="reply small">«{{ replyOf(c.card_id) }}»</div>
         <div class="row q-gutter-xs">
           <q-btn dense unelevated no-caps color="primary" label="صحّح الرمز" @click="openFix(c)" />
@@ -154,6 +154,8 @@ const targetFace = computed(() => (target.value ? chosen.value[target.value.sim_
 const target = ref(null)
 // s170: suspect cards of each value ({ "1000": 3 }); empty before s170
 const suspectFaces = ref({})
+// s171: the batch code of each card shown
+const batchCodes = ref({})
 const fromSuspect = ref(false)
 const suspectOf = (face) => Number(suspectFaces.value?.[String(face)] || 0)
 const loadSuspect = () => admin.feedSuspectFaces().then((v) => { suspectFaces.value = v || {} }).catch(() => { suspectFaces.value = {} })
@@ -236,7 +238,11 @@ async function load () {
     } else {
       error.value = say(res)
     }
-    if (Array.isArray(list)) cards.value = list
+    if (Array.isArray(list)) {
+      cards.value = list
+      const ids = [...new Set(list.map((c) => c.batch_id).filter(Boolean))]
+      if (ids.length) admin.batchCodeMap(ids).then((m) => { batchCodes.value = m || {} })
+    }
     loaded.value = true
   } finally {
     busy.value = false

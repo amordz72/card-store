@@ -377,13 +377,19 @@ const BADGES = {
 const rows = ref([])
 // The owner's own Idoom top-ups in the same list (the customers' stay on «تعبئة إيدوم»)
 const idoomRows = ref([])
+// s171: each Idoom row's batch code (orange when from the suspect stock)
+const idoomTags = ref({})
 const loadIdoom = () => (phoneMode ? Promise.resolve()
-  : api.idoomJobs(30).then((l) => { idoomRows.value = (l || []).filter((j) => !j.customer_name && j.kind !== 'lookup') }).catch(() => null))
+  : api.idoomJobs(30).then((l) => {
+    idoomRows.value = (l || []).filter((j) => !j.customer_name && j.kind !== 'lookup')
+    const ids = idoomRows.value.map((j) => j.id)
+    if (ids.length) api.idoomJobBatches(ids).then((m) => { idoomTags.value = m || {} })
+  }).catch(() => null))
 const idoomRunning = computed(() => idoomRows.value.some((j) => ['queued', 'claimed'].includes(j.status)))
 const allOps = computed(() => [...ops.value, ...idoomRows.value.map((j) => ({
   id: 'idoom:' + j.id, title: j.product_name, phone: j.line, kind: 'idoom', amount: null,
   badge: idoomView(j), at: j.created_at, reply: j.status === 'looked_up' ? null : j.reply,
-  running: ['queued', 'claimed'].includes(j.status)
+  running: ['queued', 'claimed'].includes(j.status), tag: idoomTags.value[j.id] || null
 }))].sort((a, b) => String(b.at).localeCompare(String(a.at))))
 async function afterIdoom () {
   await loadIdoom()

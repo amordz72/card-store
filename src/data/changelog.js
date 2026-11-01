@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-q',
+    date: '2026-11-01',
+    title: 'رمز لكل دفعة بتاريخها (بعد تطبيق s171)',
+    items: [
+      { text: 'كل دفعة لها رمز: حرف مورّدها ورقمها عنده (M أنا، H هنى روحك، A علاء الدين، W وفرلي، T tuoupdz، Q مخزون قديم)؛ تغيير المورّد يضيف مقطعًا: Q4-H50-W70', to: '/stock', pr: 'card-store، s171' },
+      { text: 'الرمز في بطاقة الدفعة و«عرض» و«الصق كودًا»، وفي كل تعبئة إيدوم (برتقالي إن كانت من المشكوك فيها) وفي بطاقات التغذية؛ و«رمز الدفعة» يبحث بأي مقطع', to: '/stock', pr: 'card-store، s171' }
+    ]
+  },
+  {
     id: '2026-11-01-p',
     date: '2026-11-01',
     title: '«تعبئة إيدوم» بشكل «تعبئة»',
