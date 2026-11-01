@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-za',
+    date: '2026-11-01',
+    title: 'مفتاح منصة topup-dz من صفحتك (بعد تطبيق s178)',
+    items: [
+      { text: '«الألعاب» ← «منصة topup-dz»: الصق المفتاح واحفظه؛ يُحفظ مشفّرًا ولا يظهر بعدها إلا «آخره ….»', to: '/game', pr: 'card-store، s178' }
+    ]
+  },
+  {
     id: '2026-11-01-z',
     date: '2026-11-01',
     title: 'موبيليس: Sama Mix وTalk وNet فقط',

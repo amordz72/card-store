@@ -400,3 +400,8 @@ export async function codeReplies (ids) {
     return Object.fromEntries((rows || []).map((r) => [r.code_id, r]))
   } catch { return {} }
 }
+
+// s178: a platform's API key (topup-dz), kept in Vault, never read back: { [platform]: { last4, saved_at } }
+export const platformKeys = () => rpc('store_admin_platform_keys')
+export const platformKeySet = (platform, key) => rpc('store_admin_platform_key_set', { p_platform: platform, p_key: key })
+export const platformKeyClear = (platform) => rpc('store_admin_platform_key_clear', { p_platform: platform })

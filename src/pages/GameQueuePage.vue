@@ -47,6 +47,11 @@
       </div>
     </q-expansion-item>
 
+    <!-- s178 (owner 2026-11-01): the distributor platform's API key -->
+    <q-expansion-item v-if="session.isAdmin" class="card q-pa-none" icon="vpn_key" label="منصة topup-dz" header-class="text-primary text-weight-bold">
+      <PlatformKey />
+    </q-expansion-item>
+
     <q-expansion-item v-if="session.isAdmin" class="card q-pa-none" icon="settings" label="إعدادات الشحن بالمعرّف" @show="loadSettings">
       <div class="column q-gutter-sm q-pa-md">
         <div class="text-weight-bold">البطاقات التي تُشحن بالمعرّف</div>
@@ -157,6 +162,7 @@ import { useBell } from 'src/composables/useBell'
 import { copyText } from 'src/composables/useCopy'
 import * as api from 'src/api/customer'
 import * as adminApi from 'src/api/admin'
+import PlatformKey from 'components/PlatformKey.vue'
 import { newRequestId } from 'src/api/rpc'
 import { money } from 'src/api/format'
 import LoadMoreBar from 'components/LoadMoreBar.vue'
