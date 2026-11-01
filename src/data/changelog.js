@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-k',
+    date: '2026-11-01',
+    title: '«تعبئة»: أزرار المبلغ',
+    items: [
+      { text: 'أزرار المبلغ مستطيلة في سطر واحد يُسحب يمينًا ويسارًا؛ حقل «المبلغ» قصير، والحدود تحته', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'زر «إرسال» مستطيل؛ والرقم يُقسّم دائمًا حتى إذا لُصق (+213، شرطات…)', to: '/flexy/shop', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-j',
     date: '2026-11-01',
     title: '«تعبئة»: شكل أوضح',

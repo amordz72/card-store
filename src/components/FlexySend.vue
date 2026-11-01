@@ -33,14 +33,15 @@
       <!-- The amounts are this operator's own (Ooredoo from 10, Mobilis 40, Djezzy 100) and do not change under the hand -->
       <div class="card column q-gutter-sm">
         <div class="amounts">
+          <!-- One row, slid sideways (owner 2026-11-01, as the other app); the smallest first -->
           <q-btn v-for="a in amounts" :key="a" dense unelevated no-caps class="chip"
-            :outline="amount !== a" :color="amount === a ? 'primary' : 'grey-7'" :label="money(a)" @click="pick(a)" />
+            :outline="amount !== a" color="primary" :label="money(a)" @click="pick(a)" />
         </div>
-        <q-input v-model.number="other" dense outlined type="number" inputmode="numeric"
-          :label="`أو اكتب مبلغًا (${minAmount} إلى ${money(maxAmount)})`" @update:model-value="amount = null" />
+        <q-input v-model.number="other" class="amount-in" dense outlined type="number" inputmode="numeric" label="المبلغ" suffix="دج"
+          :hint="`${minAmount} إلى ${money(maxAmount)}`" @update:model-value="amount = null" />
       </div>
       <div v-if="note" class="small muted">{{ note }}</div>
-      <q-btn unelevated color="primary" size="lg" icon="send" label="إرسال" :loading="busy"
+      <q-btn unelevated color="primary" icon="send" label="إرسال" class="send-btn" :loading="busy"
         :disable="!canSend" @click="pressSend" />
       <div v-if="waiting" class="small muted text-center">{{ waiting }}</div>
     </template>
@@ -282,8 +283,9 @@ function typed (v) {
   stopClear()
   const s = String(v || '')
   // 213… (Idoom 4G, or a mobile in international form) keeps its 12 digits (owner 2026-11-01)
+  // Digits only, whatever was pasted («+213 …», dashes, dots): always split in pairs (owner 2026-11-01)
   const d = s.replace(/\D/g, '')
-  phone.value = /^[\d\s]*$/.test(s) ? (d.startsWith('213') ? d.slice(0, 12) : d.slice(0, 10).replace(/(\d{2})(?=\d)/g, '$1 ')) : s
+  phone.value = d.startsWith('213') ? d.slice(0, 12) : d.slice(0, 10).replace(/(\d{2})(?=\d)/g, '$1 ')
 }
 
 // The key of a press whose answer was lost, per request: the same request pressed again reuses it
@@ -377,8 +379,11 @@ function sentOffer (e) {
 <style scoped>
 .tabs { background: #E4E6EC; border-radius: 12px; overflow: hidden; }
 .tabs :deep(.q-tab--active) { border-radius: 12px; }
-.amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.chip { min-height: 40px; font-weight: 700; border-radius: 10px; }
+.amounts { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none; }
+.amounts::-webkit-scrollbar { display: none; }
+.chip { flex: 0 0 auto; min-width: 96px; min-height: 44px; font-weight: 700; border-radius: 8px; scroll-snap-align: start; }
+.amount-in { max-width: 240px; }
+.send-btn { border-radius: 10px; min-height: 48px; font-size: 1.05rem; }
 .logo-line { height: 40px; display: flex; justify-content: center; align-items: center; }
 .carrier-logo { width: 40px; height: 40px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid #ECEEF3; flex-shrink: 0; }
 .carrier { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; color: #fff; }
