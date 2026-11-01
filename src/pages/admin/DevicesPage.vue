@@ -109,41 +109,70 @@
       </div>
       <div v-if="simTab !== 'missing'" class="table-wrap">
         <table class="sims">
-          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th><th v-if="audiences">لمن</th></tr></thead>
+          <thead><tr><th>الشريحة</th><th>الرقم</th><th>الرصيد</th><th>الحالة</th><th v-if="audiences">لمن</th></tr></thead>
           <tbody>
-            <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" :class="{ 'sim-down': simState(r) !== 'ready' }" @click="open(r.st, r.m)">
-              <td>
-                <!-- «💻1 / USB-1 / sama-1» (owner 2026-11-01): the broken part struck through with ✗ -->
-                <div class="place ltr text-left">
-                  <span :class="{ struck: placeDown(r) === 'pc' }">{{ isPhone(r.st) || r.st.phone ? '📱' : '💻' }}{{ stNo(r.st) }}<b v-if="placeDown(r) === 'pc'"> ✗</b></span> /
-                  <span :class="{ struck: placeDown(r) === 'usb' }">USB-{{ usbOf(r.m) ?? '?' }}<b v-if="placeDown(r) === 'usb'"> ✗</b></span> /
-                  <span :class="{ struck: placeDown(r) === 'sim' }">{{ r.m.sim.code || 'sim' }}<b v-if="placeDown(r) === 'sim'"> ✗</b></span>
-                </div>
-                <span v-if="isPreferred(r.m.sim)" class="text-amber-8" title="مفضّلة: يرسل منها أولًا">⭐ </span><span class="text-weight-bold">{{ simName(r.m.sim, r.st) || 'جديدة' }}</span><span v-if="adminName(r.m.sim)" class="small muted"> · {{ r.m.sim.code }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
-              <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
-              <td>{{ stName(r.st) || '—' }}</td>
-              <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
-              <td><q-badge :color="r.old ? 'grey-6' : STATE[simState(r)]?.color || LEVEL[r.m.level].color" :label="r.old ? 'قديمة' : STATE[simState(r)]?.label || LEVEL[r.m.level].label" />
-                <div v-if="statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim) && !modemGone(r)" size="12px" class="q-mr-xs" />{{ statusText(r) }}
-                  <!-- A warning can always be sent to Claude (owner 2026-10-30: «لا زر نسخ، ولا أستطيع تحديد النص») -->
-                  <q-btn v-if="simState(r) !== 'ready' || onboardingOf(r.m.sim)?.stage === 'alert'" flat round dense size="sm" icon="smart_toy" aria-label="نسخ لـClaude" @click.stop="copySimForClaude(r)" /></div></td>
-              <!-- للكل / للإدارة / موقوفة (owner 2026-11-01, Flexy Core 0130), like the offers -->
-              <td v-if="audiences" @click.stop>
-                <q-btn-toggle :model-value="audienceOf(r.m.sim)" dense unelevated no-caps size="sm" color="grey-3" text-color="dark"
-                  :toggle-color="AUDIENCES.find((a) => a.value === audienceOf(r.m.sim))?.color || 'primary'" :disable="!!audienceBusy"
-                  :options="AUDIENCES.map((a) => ({ label: a.label, value: a.value }))" @update:model-value="(v) => setAudience([r.m.sim], v)" />
-                <!-- «الشريحة المفضّلة» (owner 2026-11-01, Flexy Core 0131): sent from first, to empty it -->
-                <q-btn v-if="preferredMap" flat dense no-caps size="sm" :icon="isPreferred(r.m.sim) ? 'star' : 'star_outline'"
-                  :color="isPreferred(r.m.sim) ? 'amber-8' : 'grey-6'" :label="isPreferred(r.m.sim) ? 'مفضّلة' : 'اجعلها مفضّلة'"
-                  :loading="preferBusy === r.m.sim.sim_uuid" :disable="!!preferBusy" @click="setPreferred(r.m.sim, !isPreferred(r.m.sim))" />
-              </td>
-            </tr>
+            <!-- By computer (owner 2026-11-01): a big «💻 1» heading, then its SIMs «USB-9 / djezzy-1» -->
+            <template v-for="g in simGroups" :key="g.st.station_uuid">
+              <tr class="pc-head static" :class="{ 'sim-down': g.down }">
+                <td :colspan="audiences ? 5 : 4">
+                  <span class="pc-icon">{{ isPhone(g.st) || g.st.phone ? '📱' : '💻' }}</span>
+                  <span class="pc-no" :class="{ struck: g.down }">{{ stNo(g.st) }}</span><b v-if="g.down" class="text-negative"> ✗</b>
+                  <span class="small muted q-ml-sm">{{ g.rows.length }} {{ g.rows.length === 1 ? 'شريحة' : 'شرائح' }}<template v-if="g.down"> · مطفأ</template></span>
+                </td>
+              </tr>
+              <template v-for="r in g.rows" :key="r.m.sim.sim_uuid">
+                <tr :class="{ 'sim-down': simState(r) !== 'ready' }" @click="open(r.st, r.m)">
+                  <td>
+                    <!-- «USB-9 / djezzy-1», the broken part struck through with ✗; one name, not twice -->
+                    <div class="place ltr text-left">
+                      <span class="dot" :class="simState(r) === 'ready' ? 'on' : 'off'" :title="simState(r) === 'ready' ? 'جاهزة' : (STATE[simState(r)]?.label || '')"></span>
+                      <span :class="{ struck: placeDown(r) === 'usb' }">USB-{{ usbOf(r.m) ?? '?' }}<b v-if="placeDown(r) === 'usb'"> ✗</b></span> /
+                      <span :class="{ struck: placeDown(r) === 'sim' }">{{ r.m.sim.code || 'sim' }}<b v-if="placeDown(r) === 'sim'"> ✗</b></span>
+                      <span v-if="isPreferred(r.m.sim)" class="text-amber-8" title="مفضّلة: يرسل منها أولًا"> ⭐</span>
+                    </div>
+                    <div v-if="r.m.sim.label" class="small muted">{{ r.m.sim.label }}</div>
+                  </td>
+                  <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
+                  <!-- The balance as a badge (owner 2026-11-01): red at or under the minimum, green above, orange unread -->
+                  <td><q-badge class="bal" :color="r.m.sim.balance == null ? 'orange-8' : r.m.sim.balance <= MIN_BALANCE ? 'negative' : 'positive'"
+                    :label="r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance)" /></td>
+                  <td @click.stop>
+                    <!-- Only a problem is written; a ready SIM is its green dot -->
+                    <div v-if="simState(r) !== 'ready' && statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim) && !modemGone(r)" size="12px" class="q-mr-xs" />{{ statusText(r) }}
+                      <q-btn flat round dense size="sm" icon="smart_toy" aria-label="نسخ لـClaude" @click.stop="copySimForClaude(r)" /></div>
+                    <!-- In the card (owner 2026-11-01): «الرصيد» and a USSD field, without opening the window -->
+                    <div class="row q-gutter-xs no-wrap">
+                      <q-btn dense outline no-caps size="sm" color="primary" :label="isPhone(r.st) ? 'اكتشاف الرصيد' : 'الرصيد'"
+                        :loading="rowReading === r.m.sim.sim_uuid" :disable="!!rowReading" @click.stop="readRowBalance(r.m.sim)" />
+                      <q-btn dense :outline="ussdOpen !== r.m.sim.sim_uuid" :unelevated="ussdOpen === r.m.sim.sim_uuid" no-caps size="sm" color="primary" label="USSD"
+                        @click.stop="ussdOpen = ussdOpen === r.m.sim.sim_uuid ? null : r.m.sim.sim_uuid" />
+                    </div>
+                    <div v-if="rowRead[r.m.sim.sim_uuid]" class="small muted">{{ rowRead[r.m.sim.sim_uuid] }}</div>
+                  </td>
+                  <!-- للكل / للإدارة / موقوفة (owner 2026-11-01, Flexy Core 0130), like the offers -->
+                  <td v-if="audiences" @click.stop>
+                    <q-btn-toggle :model-value="audienceOf(r.m.sim)" dense unelevated no-caps size="sm" color="grey-3" text-color="dark"
+                      :toggle-color="AUDIENCES.find((a) => a.value === audienceOf(r.m.sim))?.color || 'primary'" :disable="!!audienceBusy"
+                      :options="AUDIENCES.map((a) => ({ label: a.label, value: a.value }))" @update:model-value="(v) => setAudience([r.m.sim], v)" />
+                    <!-- «الشريحة المفضّلة» (owner 2026-11-01, Flexy Core 0131): sent from first, to empty it -->
+                    <q-btn v-if="preferredMap" flat dense no-caps size="sm" :icon="isPreferred(r.m.sim) ? 'star' : 'star_outline'"
+                      :color="isPreferred(r.m.sim) ? 'amber-8' : 'grey-6'" round :title="isPreferred(r.m.sim) ? 'مفضّلة: يرسل منها أولًا' : 'اجعلها مفضّلة'"
+                      :loading="preferBusy === r.m.sim.sim_uuid" :disable="!!preferBusy" @click="setPreferred(r.m.sim, !isPreferred(r.m.sim))" />
+                  </td>
+                </tr>
+                <tr v-if="ussdOpen === r.m.sim.sim_uuid" class="static">
+                  <td :colspan="audiences ? 5 : 4" @click.stop>
+                    <ModemPanel ussd-only :sim-uuid="r.m.sim.sim_uuid" :sim-type="r.m.sim.sim_type" :phone="isPhone(r.st)" :sim-name="r.m.sim.code || ''" />
+                  </td>
+                </tr>
+              </template>
+            </template>
             <tr v-if="!shownSims.length">
-              <td :colspan="audiences ? 6 : 5" class="text-center muted">لا شرائح بهذا الفلتر
+              <td :colspan="audiences ? 5 : 4" class="text-center muted">لا شرائح بهذا الفلتر
                 <q-btn v-if="typeFilter || simStation !== 'all'" flat dense no-caps size="sm" color="primary" label="إلغاء الفلاتر" @click="clearFilters" /></td>
             </tr>
             <tr v-if="simTab === 'station_off' && simRows.old.length" class="static">
-              <td :colspan="audiences ? 6 : 5"><button type="button" class="link" @click="showOldSims = !showOldSims">قديمة ({{ simRows.old.length }}) {{ showOldSims ? '▴' : '▾' }}</button></td>
+              <td :colspan="audiences ? 5 : 4"><button type="button" class="link" @click="showOldSims = !showOldSims">قديمة ({{ simRows.old.length }}) {{ showOldSims ? '▴' : '▾' }}</button></td>
             </tr>
           </tbody>
         </table>
@@ -658,6 +687,36 @@ const STATE = {
 const stNo = (st) => Number((String(st?.code || '').match(/\d+/) || [])[0] ?? 999)
 const byPlace = (a, b) => stNo(a.st) - stNo(b.st) || (Number(usbOf(a.m)) || 999) - (Number(usbOf(b.m)) || 999)
 // The part that is down: the computer off, the modem gone from its USB, else the SIM itself
+// Grouped by computer: the computers on first (by number), then the ones off; in each, the ready SIMs first
+const simGroups = computed(() => {
+  const m = new Map()
+  for (const r of shownSims.value) {
+    if (!m.has(r.st.station_uuid)) m.set(r.st.station_uuid, { st: r.st, rows: [], down: isAbsent(r.st) })
+    m.get(r.st.station_uuid).rows.push(r)
+  }
+  const ready = (r) => (simState(r) === 'ready' ? 0 : 1)
+  return [...m.values()].map((g) => ({ ...g, rows: g.rows.sort((a, b) => ready(a) - ready(b) || byPlace(a, b)) }))
+    .sort((a, b) => (a.down - b.down) || stNo(a.st) - stNo(b.st))
+})
+// «الرصيد» / «USSD» in the card itself
+// The minimum before a SIM's balance turns red (owner 2026-11-01: «إذا وصل إلى الحد الأدنى»)
+const MIN_BALANCE = 1000
+const ussdOpen = ref(null)
+const rowReading = ref(null)
+const rowRead = ref({})
+async function readRowBalance (sim) {
+  rowReading.value = sim.sim_uuid
+  try {
+    const res = await flexy.readSimBalance(sim.sim_uuid)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error || 'FLEXY_CORE')
+    rowRead.value[sim.sim_uuid] = res.body.sent ? 'أُرسل كود الرصيد، والرد يظهر خلال دقيقة' : 'سيُرسل عند اتصال الشريحة'
+    setTimeout(load, 20000)
+  } catch (e) {
+    rowRead.value[sim.sim_uuid] = 'لم يُرسل: ' + (READ_ERRORS[e.message] || e.message || 'FLEXY_CORE')
+  } finally {
+    rowReading.value = null
+  }
+}
 const placeDown = (r) => (simState(r) === 'ready' ? null : isAbsent(r.st) ? 'pc' : modemGone(r) ? 'usb' : 'sim')
 const simRows = computed(() => {
   const rows = everySim.value.filter((r) =>
@@ -1254,4 +1313,12 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
 .sim-down { opacity: 0.55; }
 .place { font-weight: 700; white-space: nowrap; }
 .place .struck { text-decoration: line-through; color: #C62828; }
+.pc-head td { background: #F3F5FA; padding: 8px 12px; }
+.pc-icon { font-size: 26px; vertical-align: middle; }
+.pc-no { font-size: 22px; font-weight: 800; margin-inline-start: 4px; vertical-align: middle; }
+.pc-no.struck { text-decoration: line-through; color: #C62828; }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-inline-end: 6px; vertical-align: middle; }
+.dot.on { background: #2FAE1E; box-shadow: 0 0 6px #2FAE1E; }
+.dot.off { background: #D32F2F; }
+.bal { font-size: 13px; padding: 4px 8px; }
 </style>

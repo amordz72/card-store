@@ -3,6 +3,17 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zl',
+    date: '2026-11-01',
+    title: 'الشرائح تحت كمبيوترها · أزرار في البطاقة',
+    items: [
+      { text: '«المحطات والشرائح»: عنوان كبير لكل كمبيوتر (💻 1) وتحته شرائحه «USB-9 / djezzy-1»؛ الاسم لا يتكرر', to: '/flexy/devices', pr: 'card-store' },
+      { text: 'نقطة 🟢 للجاهزة و🔴 لغيرها بدل كلمة «جاهز»؛ السبب يُكتب فقط عند المشكلة', to: '/flexy/devices', pr: 'card-store' },
+      { text: 'زرا «الرصيد» و«USSD» في بطاقة الشريحة نفسها، بلا فتح النافذة', to: '/flexy/devices', pr: 'card-store' },
+      { text: 'الرصيد شارة: أحمر عند 1000 دج أو أقل، أخضر فوقه، برتقالي غير مقروء؛ المفضّلة نجمة فقط ⭐ في الطرف', to: '/flexy/devices', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zk',
     date: '2026-11-01',
     title: 'الشرائح مرتبة حسب الكمبيوتر · الدفعات الأحدث أولًا',
