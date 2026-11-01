@@ -3,15 +3,17 @@
     <!-- The page's own line (the shop's «الخدمة متاحة» or the owner's money switch) -->
     <slot />
 
-    <div class="card row items-center no-wrap q-gutter-x-sm">
-      <!-- «امسح» outside the field, on its right (owner 2026-10-31); its place stays so the field never moves -->
-      <q-btn round unelevated size="sm" color="grey-3" text-color="grey-9" icon="close" aria-label="امسح الرقم"
-        :style="{ visibility: phone ? 'visible' : 'hidden' }" @click="clearNow" />
-      <!-- No «0X…» hint (owner 2026-11-01): a number may start with 213, or be an Idoom line -->
-      <q-input :model-value="phone" class="col" dense outlined label="الرقم" inputmode="tel" maxlength="16" @focus="(e) => e.target.select()"
-        input-class="ltr text-center phone" @update:model-value="typed" />
-      <!-- The network's badge beside the field, never over the number (owner 2026-11-01: it hid «06») -->
-      <img v-if="carrier" :src="carrier.logo" :alt="carrier.name" class="carrier-logo">
+    <div class="card column q-gutter-y-xs">
+      <!-- The network's logo above the field (owner 2026-11-01): the field keeps its whole width, every digit shows -->
+      <div class="logo-line"><img v-if="carrier" :src="carrier.logo" :alt="carrier.name" class="carrier-logo"></div>
+      <div class="row items-center no-wrap q-gutter-x-sm">
+        <!-- «امسح» outside the field, on its right (owner 2026-10-31); its place stays so the field never moves -->
+        <q-btn round unelevated size="sm" color="grey-3" text-color="grey-9" icon="close" aria-label="امسح الرقم"
+          :style="{ visibility: phone ? 'visible' : 'hidden' }" @click="clearNow" />
+        <!-- No «0X…» hint (owner 2026-11-01): a number may start with 213, or be an Idoom line -->
+        <q-input :model-value="phone" class="col" dense outlined label="الرقم" inputmode="tel" maxlength="16" @focus="(e) => e.target.select()"
+          input-class="ltr text-center phone" @update:model-value="typed" />
+      </div>
     </div>
     <!-- After a send the number stays 15 s (owner 2026-11-01: time to send again or fix it), then goes by itself -->
     <div v-if="clearIn > 0" class="small muted text-center">يُمسح الرقم بعد {{ clearIn }} ث ·
@@ -377,7 +379,8 @@ function sentOffer (e) {
 .tabs :deep(.q-tab--active) { border-radius: 12px; }
 .amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .chip { min-height: 40px; font-weight: 700; border-radius: 10px; }
-.carrier-logo { width: 48px; height: 48px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid #ECEEF3; flex-shrink: 0; }
+.logo-line { height: 40px; display: flex; justify-content: center; align-items: center; }
+.carrier-logo { width: 40px; height: 40px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid #ECEEF3; flex-shrink: 0; }
 .carrier { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; color: #fff; }
 .carrier.mobilis { background: #4CAF50; }
 .carrier.djezzy { background: #E53935; }
