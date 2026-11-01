@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-z',
+    date: '2026-11-01',
+    title: 'موبيليس: Sama Mix وTalk وNet فقط',
+    items: [
+      { text: 'أُزيل قسم «عروض أخرى» من «عروض» موبيليس', to: '/flexy/send', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-y',
     date: '2026-11-01',
     title: 'العروض مغلقة في البداية',

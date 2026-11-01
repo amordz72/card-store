@@ -540,24 +540,11 @@ const board = computed(() => {
   const mix = [...rows('small', AUTO.small), ...rows('mix', AUTO.mix)]
   const talk = rows('talk', AUTO.talk)
   const net = rows('net', AUTO.net)
-  const other = { key: 'other', title: 'عروض أخرى', rows: [] }
-  if (certain.value) {
-    other.rows = shown.value.filter((o) => !used.has(o))
-      .sort((a, b) => (a.category === 'internet') - (b.category === 'internet') || byPrice(a, b))
-      .map((o) => ({ key: 'x' + o.label, amount: o.amount, text: o.label, sub: [o.family, detailOf(o)].filter(Boolean).join(' · '),
-        offer: o, real: o, other: true, ok: true, net: o.category === 'internet', info: detailOf(o) ? o : null }))
-    if (!other.rows.length) other.note = 'لا توجد عروض أخرى لهذا الرقم.'
-  } else if (error.value && !loading.value) {
-    other.note = 'تعذّر التحميل الآن، حاول بعد قليل.'
-  } else {
-    other.note = 'جارٍ التحميل…'
-    other.spin = true
-  }
+  // «عروض أخرى» removed (owner 2026-11-01): Mobilis is Sama Mix, Sama Talk and Sama Net only
   return [
     { key: 'mix', title: 'Sama Mix', rows: mix },
     { key: 'talk', title: 'Sama Talk', rows: talk },
-    { key: 'net', title: 'Sama Net', net: true, rows: net },
-    other
+    { key: 'net', title: 'Sama Net', net: true, rows: net }
   ]
 })
 const waiting = ref('')
