@@ -67,6 +67,9 @@
         <q-card-section class="column q-gutter-sm">
           <div class="text-weight-bold">اشحن {{ target.label }} ببطاقة {{ money(targetFace) }}؟</div>
           <div class="small">تخرج أقدم بطاقة Mobilis {{ targetFace }} من المخزون (لا تُباع بعدها)، وتُرسل إلى الشريحة في أول لحظة هادئة.</div>
+          <!-- s170 (owner 2026-11-01): from the suspect stock, on his choice; Mobilis' answer judges the card -->
+          <q-toggle v-if="suspectOf(targetFace)" v-model="fromSuspect" color="deep-orange" :label="'من المشكوك فيها (' + suspectOf(targetFace) + ')'" />
+          <div v-if="fromSuspect" class="tiny text-deep-orange">إن رفضتها الشبكة تُحسب خاطئة في دفعتها؛ بطاقتان خاطئتان تجعلان الدفعة مشكوكًا فيها.</div>
         </q-card-section>
         <q-card-actions align="left">
           <q-btn unelevated no-caps color="primary" label="نعم، اشحنها" @click="start" />
@@ -113,6 +116,8 @@ const REASON = {
 }
 const ERRORS = {
   FEED_NO_CARD: 'لا بطاقة Mobilis بهذه القيمة متاحة في المخزون.',
+  FEED_NO_SUSPECT_CARD: 'لا بطاقة مشكوك فيها بهذه القيمة.',
+  MIGRATION_0133: 'طبّق 0133 وs170 من «ينتظر تطبيقك» أولًا.',
   FEED_FACE_INVALID: 'قيمة البطاقة غير صحيحة.',
   MIGRATION_0126: 'طبّق 0126 أولًا من «ينتظر تطبيقك» (قيم غير 1000).',
   FEED_STATION_OLD: 'برنامج هذه الشريحة لا يعرف التغذية بعد: حدّثه أولًا. لم تُسحب أي بطاقة.',
@@ -147,6 +152,11 @@ const chosen = ref({})
 const faceOptions = computed(() => faces.value.map((f) => ({ value: f.face, label: f.available + f.ready > 0 ? `${f.face} (${f.available + f.ready} بطاقة)` : String(f.face) })))
 const targetFace = computed(() => (target.value ? chosen.value[target.value.sim_uuid] : null))
 const target = ref(null)
+// s170: suspect cards of each value ({ "1000": 3 }); empty before s170
+const suspectFaces = ref({})
+const fromSuspect = ref(false)
+const suspectOf = (face) => Number(suspectFaces.value?.[String(face)] || 0)
+const loadSuspect = () => admin.feedSuspectFaces().then((v) => { suspectFaces.value = v || {} }).catch(() => { suspectFaces.value = {} })
 const fixOpen = ref(false)
 const fixing = ref(null)
 const fixCode = ref('')
@@ -235,6 +245,8 @@ async function load () {
 }
 
 function ask (s) {
+  fromSuspect.value = false
+  loadSuspect()
   target.value = s
   confirmOpen.value = true
 }
@@ -243,7 +255,7 @@ async function start () {
   confirmOpen.value = false
   starting.value = s.sim_uuid
   try {
-    const res = await flexy.ownerFeedStart(s.sim_uuid, chosen.value[s.sim_uuid] || 1000)
+    const res = await flexy.ownerFeedStart(s.sim_uuid, chosen.value[s.sim_uuid] || 1000, fromSuspect.value)
     if (res.status === 200 && res.body?.ok) {
       view.value = res.body
       Notify.create({ type: 'positive', message: res.body.started?.quiet ? `تُرسل بطاقة إلى ${s.label} الآن` : `${s.label} مشغولة: تُرسل حين تهدأ` })

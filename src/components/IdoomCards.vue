@@ -9,11 +9,13 @@
     </div>
     <div v-if="!access.enabled.value" class="muted text-center q-pa-sm">تعبئة إيدوم غير مفعّلة لحسابك. اطلب من المحل تفعيلها.</div>
     <template v-else>
-      <button v-for="c in cards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !access.phoneOnline.value" @click="confirmCharge(c)">
-        <span class="col">{{ c.name }}</span>
+      <!-- s170 (owner 2026-11-01): the owner may top up from a suspect card; the line's answer judges it -->
+      <q-toggle v-if="owner && suspectTotal" v-model="fromSuspect" color="deep-orange" :label="'من المشكوك فيها (' + suspectTotal + ')'" />
+      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !access.phoneOnline.value" @click="confirmCharge(c)">
+        <span class="col">{{ c.name }}<span v-if="fromSuspect" class="small text-deep-orange"> · مشكوك فيها {{ suspectOf(c) }}</span></span>
         <span class="price">{{ money(c.base_price) }}</span>
       </button>
-      <div v-if="!cards.length" class="muted text-center q-pa-sm">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
+      <div v-if="!shownCards.length" class="muted text-center q-pa-sm">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
       <div class="small muted">يُخصم ثمن البطاقة من رصيدك. إن لم تتم التعبئة يُعاد المبلغ تلقائيًا.</div>
     </template>
   </div>
@@ -59,6 +61,15 @@ const catalog = ref([])
 const cards = computed(() => catalog.value.filter((p) => p.category === 'net' && p.available &&
   /idoom/i.test(p.brand) && /4g|lte/i.test(p.brand + ' ' + p.name) === is4g.value))
 
+// s170: suspect cards per Idoom product (the owner only); empty before s170
+const suspectCounts = ref({})
+const fromSuspect = ref(false)
+const suspectOf = (c) => Number(suspectCounts.value?.[String(c.product_id)] || 0)
+const idoomAll = computed(() => catalog.value.filter((p) => p.category === 'net' &&
+  /idoom/i.test(p.brand) && /4g|lte/i.test(p.brand + ' ' + p.name) === is4g.value))
+const suspectTotal = computed(() => idoomAll.value.reduce((n, c) => n + suspectOf(c), 0))
+const shownCards = computed(() => (fromSuspect.value ? idoomAll.value.filter((c) => suspectOf(c) > 0) : cards.value))
+
 const known = ref(null)
 watch(() => props.raw, async (want) => {
   known.value = null
@@ -67,17 +78,21 @@ watch(() => props.raw, async (want) => {
   if (want === props.raw) known.value = r
 })
 
+function loadSuspect () { adminApi.suspectCounts().then((v) => { suspectCounts.value = v || {} }).catch(() => { suspectCounts.value = {} }) }
 function confirmCharge (c) {
   const line = props.raw
   Dialog.create({
     title: 'تأكيد التعبئة',
     html: true,
-    message: `تعبئة الخط <b dir="ltr">${spaced(line)}</b><br>البطاقة: <b>${c.name}</b><br>يُخصم من رصيدك ثمن هذه البطاقة.`,
+    message: `تعبئة الخط <b dir="ltr">${spaced(line)}</b><br>البطاقة: <b>${c.name}</b>${fromSuspect.value ? ' <b style="color:#E65100">من المشكوك فيها</b><br>إن كانت مستعملة تُحسب خاطئة في دفعتها.' : '<br>يُخصم من رصيدك ثمن هذه البطاقة.'}`,
     cancel: 'إلغاء',
     ok: 'نعم، عبّئ'
   }).onOk(async () => {
-    const r = await run(() => (props.owner ? adminApi.idoomCreate(c.product_id, line, crypto.randomUUID())
-      : api.idoomCreate(customer.token, c.product_id, line, crypto.randomUUID())))
+    const suspect = props.owner && fromSuspect.value
+    const r = await run(() => (suspect ? adminApi.idoomCreateSuspect(c.product_id, line, crypto.randomUUID())
+      : props.owner ? adminApi.idoomCreate(c.product_id, line, crypto.randomUUID())
+        : api.idoomCreate(customer.token, c.product_id, line, crypto.randomUUID())))
+    if (r && suspect) loadSuspect()
     if (r) {
       if (!props.owner) buyer.refresh()
       Notify.create({ type: 'positive', message: 'أُرسل الطلب. تابع حالته في «آخر العمليات».', position: 'top' })
@@ -91,6 +106,7 @@ onMounted(async () => {
   if (!access.enabled.value) return
   const data = await (props.owner ? adminApi.shopCatalog() : buyer.catalog()).catch(() => null)
   if (data) catalog.value = data
+  if (props.owner) loadSuspect()
 })
 </script>
 
