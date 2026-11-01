@@ -3,6 +3,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import * as flexy from 'src/api/flexy'
 import * as admin from 'src/api/admin'
+import { supabase } from 'boot/supabase'
 
 export const MIN_BALANCE = 1000
 const SNOOZE_KEY = 'watch.snooze'
@@ -20,7 +21,21 @@ export function useWatch (every = 20000) {
   const at = ref(null)
   const snooze = ref(readSnooze())
 
+  // «🐢» (owner 2026-11-01: «هل هو ثقل من الإنترنت أو من السيرفر؟ لماذا لا يذكره البرنامج؟»): a tiny database call against a
+  // tiny file of the site, both timed; only the database slow = the server, both slow = the internet
+  const speed = ref(null)
+  async function probe () {
+    const t = (f) => { const a = performance.now(); return f().then(() => performance.now() - a, () => Infinity) }
+    const [db, web] = await Promise.all([
+      t(() => supabase.rpc('store_site_links').then((r) => { if (r.error) throw r.error })),
+      t(() => fetch(location.href.split('#')[0] + (location.href.includes('?') ? '&' : '?') + 'ping=' + Date.now(), { method: 'HEAD', cache: 'no-store' }))
+    ])
+    const level = db > 3000 && web < 1500 ? 'server' : db > 2500 && web > 2000 ? 'internet' : db > 3000 ? 'server' : null
+    speed.value = { db: Math.round(db), web: Math.round(web), level }
+  }
+
   async function load () {
+    probe()
     if (loading.value) return
     loading.value = true
     try {
@@ -84,5 +99,5 @@ export function useWatch (every = 20000) {
   let timer = null
   onMounted(() => { load(); timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, every) })
   onBeforeUnmount(() => clearInterval(timer))
-  return { tree, low, error, loading, at, load, stations, sims, lowItems, problems, counts, hide, minOf }
+  return { tree, low, error, loading, at, load, stations, sims, lowItems, problems, counts, hide, minOf, speed }
 }
