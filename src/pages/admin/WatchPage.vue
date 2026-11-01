@@ -55,10 +55,18 @@
 
       <!-- What needs him, and the stock -->
       <div class="side column q-gutter-sm">
+        <!-- 2. Operations that need him (owner 2026-11-01: «فصل ما يحتاج المراقبة عن الاستعمال») -->
         <div class="panel">
-          <div class="panel-title">يحتاجك الآن ({{ w.problems.value.length }})</div>
-          <div v-if="!w.problems.value.length" class="text-positive small q-pa-sm">✓ كل شيء يعمل</div>
-          <div v-for="p in w.problems.value" :key="p.key" class="prob row items-center no-wrap">
+          <div class="panel-title">عمليات تحتاجك ({{ opsTotal }})</div>
+          <div v-if="!opsTotal" class="text-positive small q-pa-sm">✓ لا عملية تنتظرك</div>
+          <router-link v-for="o in ops.filter((x) => x.n)" :key="o.label" :to="o.to" class="prob row items-center no-wrap op">
+            <span class="col">{{ o.label }}</span><b class="text-negative">{{ o.n }}</b>
+          </router-link>
+        </div>
+        <div class="panel">
+          <div class="panel-title">الأجهزة والشرائح: يحتاجك ({{ w.problems.value.filter((p) => !p.key.startsWith('stock:')).length }})</div>
+          <div v-if="!w.problems.value.filter((p) => !p.key.startsWith('stock:')).length" class="text-positive small q-pa-sm">✓ كل شيء يعمل</div>
+          <div v-for="p in w.problems.value.filter((x) => !x.key.startsWith('stock:'))" :key="p.key" class="prob row items-center no-wrap">
             <router-link :to="p.to" class="col" :class="p.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ p.text }}</router-link>
             <q-btn flat dense no-caps size="sm" color="grey-7" label="أخفِ">
               <q-menu auto-close><q-list dense>
@@ -71,6 +79,16 @@
         </div>
         <!-- «تغذية سما» here too (owner 2026-11-01: «لا أدري أين التغذية»): manual «اشحنها» and the automatic feeding -->
         <div id="feed" class="panel"><SamaFeed :active="true" /></div>
+        <!-- 3. The card stock: healthy / suspect per card (s181), the ones running out first -->
+        <div class="panel">
+          <div class="panel-title row items-center">مخزون البطاقات<q-space /><router-link to="/stock?tab=ledger" class="small">الدفتر</router-link></div>
+          <div v-for="r in ledger" :key="r.product_id" class="prob row items-center no-wrap">
+            <span class="col ellipsis">{{ r.brand }} · {{ r.name }}</span>
+            <b :class="r.low ? 'text-negative' : 'text-positive'">{{ r.healthy }}</b>
+            <span v-if="r.suspect" class="tiny text-deep-orange q-ml-xs">+{{ r.suspect }} مشكوك</span>
+          </div>
+          <div v-if="!ledger.length" class="small muted q-pa-sm">طبّق s181 لترى المخزون هنا.</div>
+        </div>
         <div class="panel">
           <div class="panel-title row items-center">البطاقات التي تنفد ({{ w.lowItems.value.length }})<q-space /><router-link to="/stock?tab=low" class="small">المخزن</router-link></div>
           <div v-if="!w.lowItems.value.length" class="text-positive small q-pa-sm">✓ المخزون كافٍ</div>
@@ -86,13 +104,38 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useBell } from 'src/composables/useBell'
+import { stockLedger } from 'src/api/admin'
 import { useWatch, stNo } from 'src/composables/useWatch'
 import * as flexy from 'src/api/flexy'
 import ModemPanel from 'src/components/ModemPanel.vue'
 import SamaFeed from 'src/components/SamaFeed.vue'
 
 const w = useWatch(20000)
+const bell = useBell()
+// What waits for his decision, each to its page
+const ops = computed(() => [
+  { label: 'فليكسي المحلات: حكمك', n: Number(bell.flexyReview.value) || 0, to: '/flexy/shops' },
+  { label: 'فشل لم يُرجع مبلغه', n: Number(bell.flexyUnrefunded.value) || 0, to: '/flexy/shops' },
+  { label: 'مراجعة وفشل (المراقبة)', n: (Number(bell.reviewWaiting.value) || 0) + (Number(bell.failuresOpen.value) || 0), to: '/flexy/monitor?tab=judge' },
+  { label: 'تعبئة إيدوم: مراجعة', n: Number(bell.idoomReview.value) || 0, to: '/idoom' },
+  { label: 'شحن الألعاب ينتظر', n: Number(bell.gameWaiting.value) || 0, to: '/game' },
+  { label: 'الخدمات تنتظر', n: Number(bell.serviceWaiting.value) || 0, to: '/services' },
+  { label: 'بلاغات البطاقات', n: Number(bell.openReports.value) || 0, to: '/reports' },
+  { label: 'SQL ينتظر تطبيقك', n: Number(bell.sqlPending.value) || 0, to: '/flexy/monitor?tab=db' }
+])
+const opsTotal = computed(() => ops.value.reduce((a, o) => a + o.n, 0))
+// The stock per card, the fewest healthy first (s181)
+const ledger = ref([])
+const lowIds = computed(() => new Set(w.lowItems.value.map((x) => x.product_id)))
+async function loadLedger () {
+  const rows = await stockLedger().catch(() => null)
+  if (rows) ledger.value = rows.filter((r) => Number(r.healthy) + Number(r.suspect) > 0 || lowIds.value.has(r.product_id))
+    .map((r) => ({ ...r, healthy: Number(r.healthy), suspect: Number(r.suspect), low: lowIds.value.has(r.product_id) }))
+    .sort((a, b) => (b.low - a.low) || a.healthy - b.healthy)
+}
+onMounted(() => { loadLedger(); bell.refreshBell?.() })
 const clock = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Africa/Algiers' })
 const picked = ref(null)
 const ussd = ref(false)
@@ -157,5 +200,6 @@ function myNumber (sim) {
 .panel-title { font-weight: 700; padding: 2px 4px 6px; }
 .prob { font-size: 13px; border-top: 1px solid #EEF0F4; padding: 3px 4px; gap: 4px; }
 .prob a { text-decoration: none; }
+.op { text-decoration: none; color: inherit; }
 .tiny { font-size: 11px; }
 </style>
