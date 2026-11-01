@@ -7,7 +7,15 @@ import { normPhone } from './format'
 
 export const isAdmin = () => rpc('store_admin_is_admin')
 
-export const customers = () => rpc('store_admin_customers')
+// s169 (owner 2026-11-01): a hidden customer (e.g. DEMO) is left out of every list; customersAll() keeps him. Before s169 nobody is hidden.
+export const hiddenCustomers = () => rpc('store_admin_hidden_customers').then((x) => x || []).catch(() => [])
+export const customersAll = () => rpc('store_admin_customers')
+export const customers = async () => {
+  const [list, hidden] = await Promise.all([customersAll(), hiddenCustomers()])
+  const out = new Set((hidden || []).map(Number))
+  return (list || []).filter((c) => !out.has(Number(c.customer_id ?? c.id)))
+}
+export const customerHide = (customerId, hidden) => rpc('store_admin_customer_hide', { p_customer_id: customerId, p_hidden: hidden })
 export const createCustomer = (name, phone, password) => createCustomerRaw(name, normPhone(phone), password)
 const createCustomerRaw = (name, phone, password) =>
   rpc('store_admin_create_customer', { p_name: name, p_phone: phone, p_password: password })

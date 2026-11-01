@@ -5,8 +5,7 @@
       <q-badge :color="is4g ? 'indigo' : 'purple'" class="q-pa-xs">{{ is4g ? 'إيدوم · 4G LTE' : 'إيدوم · ADSL / FTTH' }}</q-badge>
       <q-badge v-if="known" color="primary" class="q-pa-xs"><bdi dir="ltr">{{ known.offer }}</bdi></q-badge>
       <q-space />
-      <span v-if="access.enabled.value" class="small" :class="access.phoneOnline.value ? 'text-positive' : 'text-negative'">
-        {{ access.phoneOnline.value ? '🟢 متاحة' : '🔴 متوقفة الآن' }}</span>
+      <span v-if="access.enabled.value && !access.phoneOnline.value" class="small text-negative">🔴 متوقفة الآن</span>
     </div>
     <div v-if="!access.enabled.value" class="muted text-center q-pa-sm">تعبئة إيدوم غير مفعّلة لحسابك. اطلب من المحل تفعيلها.</div>
     <template v-else>

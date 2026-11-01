@@ -6,12 +6,16 @@
     <div class="card row items-center no-wrap q-gutter-x-sm">
       <!-- «امسح» outside the field, on its right (owner 2026-10-31); its place stays so the field never moves -->
       <q-btn round unelevated size="sm" color="grey-3" text-color="grey-9" icon="close" aria-label="امسح الرقم"
-        :style="{ visibility: phone ? 'visible' : 'hidden' }" @click="phone = ''" />
-      <q-input :model-value="phone" class="col" dense outlined label="رقم الزبون" inputmode="tel" maxlength="16" @focus="(e) => e.target.select()"
-        placeholder="0X XX XX XX XX" input-class="ltr text-center phone" @update:model-value="typed">
-        <template v-if="carrier" #append><span class="carrier" :class="carrier.cls">{{ carrier.name }}</span></template>
-      </q-input>
+        :style="{ visibility: phone ? 'visible' : 'hidden' }" @click="clearNow" />
+      <!-- No «0X…» hint (owner 2026-11-01): a number may start with 213, or be an Idoom line -->
+      <q-input :model-value="phone" class="col" dense outlined label="الرقم" inputmode="tel" maxlength="16" @focus="(e) => e.target.select()"
+        input-class="ltr text-center phone" @update:model-value="typed" />
+      <!-- The network's badge beside the field, never over the number (owner 2026-11-01: it hid «06») -->
+      <span v-if="carrier" class="carrier" :class="carrier.cls">{{ carrier.name }}</span>
     </div>
+    <!-- After a send the number stays 15 s (owner 2026-11-01: time to send again or fix it), then goes by itself -->
+    <div v-if="clearIn > 0" class="small muted text-center">يُمسح الرقم بعد {{ clearIn }} ث ·
+      <button type="button" class="link" @click="keepNumber">أبقِه</button></div>
     <!-- Another service for the same field (owner 2026-11-01: «تعبئة» = Flexy and Idoom): the page puts it here -->
     <slot v-if="!phoneFull" name="other" :raw="rawDigits" />
 
@@ -60,6 +64,8 @@
               <q-spinner size="20px" /><span>جارٍ…</span>
             </span>
             <q-badge v-else :color="j.badge.color" class="q-pa-xs">{{ j.badge.label }}</q-badge>
+            <!-- «أعد الرقم» (owner 2026-11-01): the number only, back in the field -->
+            <q-btn flat round dense size="sm" icon="replay" color="primary" aria-label="أعد الرقم" @click.stop="reuse(j)" />
           </div>
           <div v-if="opened === j.id" class="details column q-gutter-xs">
             <div class="small text-weight-bold">{{ j.explain || j.badge.label }}</div>
@@ -134,7 +140,7 @@
 //     second send. A definite answer (sent or refused) frees it.
 //   * the last operation of this shop (or of the owner) to the same number with the same amount or offer
 //     asks «أرسل مرة ثانية؟» first. Nothing is blocked.
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { money } from 'src/api/format'
@@ -215,7 +221,10 @@ const phoneOk = computed(() => phoneFull.value && props.offerPrefixes.includes(d
 watch(phoneFull, (full) => { if (!full) tab.value = '630' })
 const creditOk = computed(() => phoneFull.value && props.creditPrefixes.includes(digits.value.slice(0, 2)))
 const CARRIERS = { 5: { name: 'Ooredoo', cls: 'ooredoo' }, 6: { name: 'Mobilis', cls: 'mobilis' }, 7: { name: 'Djezzy', cls: 'djezzy' } }
-const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]] : null))
+// An Idoom line shows its own badge too (owner 2026-11-01): fixed 01–04, or 4G 213 not followed by 5–7
+const carrier = computed(() => (/^0[567]/.test(digits.value) ? CARRIERS[digits.value[1]]
+  : /^0[1-4]/.test(rawDigits.value) ? { name: 'Idoom', cls: 'idoom' }
+    : /^213[0-489]/.test(rawDigits.value) ? { name: 'Idoom 4G', cls: 'idoom' } : null))
 // The smallest credit: Ooredoo takes 10 DA (owner 2026-10-29, Flexy Core 0066), Djezzy 100 (owner 2026-10-29), Mobilis 40
 const minAmount = computed(() => (digits.value.startsWith('05') ? 10 : digits.value.startsWith('07') ? 100 : 40))
 const amounts = computed(() => [...new Set([minAmount.value, 50, 100, 200, 500, 1000, 2000, 5000])]
@@ -265,6 +274,7 @@ watch(() => props.rows, async (list) => {
 
 // Shown in pairs while typing (06 67 06 89 43): a wrong digit is seen before sending
 function typed (v) {
+  stopClear()
   const s = String(v || '')
   // 213… (Idoom 4G, or a mobile in international form) keeps its 12 digits (owner 2026-11-01)
   const d = s.replace(/\D/g, '')
@@ -323,9 +333,27 @@ function pressSend () {
     const r = await run(() => keyed('630:' + p + ':' + v, (key) => props.send(p, v, { wait: (text) => { waiting.value = text }, key })))
     waiting.value = ''
     if (!r) return
-    phone.value = ''
+    clearSoon()
     emit('sent', r)
   })
+}
+
+// The number after a send: 15 s, then cleared; ✕ clears at once, typing or «أبقِه» keeps it
+const CLEAR_SECONDS = 15
+const clearIn = ref(0)
+let clearTimer = null
+function stopClear () { clearInterval(clearTimer); clearTimer = null; clearIn.value = 0 }
+function clearNow () { stopClear(); phone.value = '' }
+function keepNumber () { stopClear() }
+function clearSoon () {
+  stopClear()
+  clearIn.value = CLEAR_SECONDS
+  clearTimer = setInterval(() => { if (--clearIn.value <= 0) clearNow() }, 1000)
+}
+onBeforeUnmount(stopClear)
+function reuse (j) {
+  typed(String(j.phone || '').replace(/\D/g, ''))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const sendOffer = (p, label) => keyed('offer:' + p + ':' + label, (key) => props.sendOffer(p, label, key))
@@ -334,7 +362,7 @@ const offerRunning = computed(() => (props.rows || []).some((j) => j.kind === 'o
 function sentOffer (e) {
   // The automix keeps the number and the offers tab while it runs (owner 2026-10-29): its result decides
   if (e.auto) { emit('sent', e); return }
-  phone.value = ''
+  clearSoon()
   // Back to ordinary credit, ready for the next customer (owner 2026-10-26)
   tab.value = '630'
   emit('sent', e)
@@ -349,6 +377,8 @@ function sentOffer (e) {
 .carrier.mobilis { background: #4CAF50; }
 .carrier.djezzy { background: #E53935; }
 .carrier.ooredoo { background: #E30613; }
+.carrier.idoom { background: #6A1B9A; }
+.link { border: 0; background: transparent; padding: 0; font: inherit; color: var(--q-primary); cursor: pointer; text-decoration: underline; }
 .op-row { width: 100%; border: 0; background: transparent; text-align: right; padding: 10px 14px; border-bottom: 1px solid #ECEEF3;
   display: flex; flex-direction: column; gap: 4px; font: inherit; color: inherit; cursor: pointer; }
 .op-row:last-child { border-bottom: 0; }

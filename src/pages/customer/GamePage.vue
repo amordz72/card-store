@@ -1,8 +1,6 @@
 <template>
   <q-page class="page">
-    <q-badge :color="game.isOpen.value ? 'positive' : 'negative'" class="q-pa-sm self-start">
-      {{ game.isOpen.value ? '🟢 الشحن بالمعرّف متاح الآن' : '🔴 الشحن بالمعرّف متوقف الآن' }}
-    </q-badge>
+    <q-badge v-if="!game.isOpen.value" color="negative" class="q-pa-sm self-start">🔴 الشحن بالمعرّف متوقف الآن</q-badge>
 
     <!-- Closed: the same cards are still for sale in the store (owner decision) -->
     <div v-if="!game.isOpen.value" class="card column q-gutter-sm">

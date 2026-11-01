@@ -3,6 +3,18 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-i',
+    date: '2026-11-01',
+    title: '«تعبئة»: أسهل وأنظف',
+    items: [
+      { text: 'زر ↻ على كل عملية يعيد الرقم إلى الحقل', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'بعد الإرسال يبقى الرقم 15 ثانية ثم يُمسح وحده؛ ✕ يمسحه فورًا، و«أبقِه» يبقيه', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'شارة الشبكة بجانب الحقل لا فوق الرقم؛ و«Idoom» / «Idoom 4G» للخطوط الثابتة و213؛ والحقل بلا «0X…»', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'لا «الخدمة متاحة» بعد اليوم: يظهر فقط «متوقفة» حين تتوقف (فليكسي، إيدوم، الألعاب)', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'إخفاء زبون من القوائم (مثل DEMO) دون حذفه، من صفحته؛ و«أظهر المخفيين» في «الزبائن» (بعد تطبيق s169)', to: '/customers', pr: 'card-store، s169' }
+    ]
+  },
+  {
     id: '2026-11-01-h',
     date: '2026-11-01',
     title: '«العمليات»: تعبئة إيدوم وشحن الألعاب بأسمائها (بعد تطبيق s168)',

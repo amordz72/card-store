@@ -21,9 +21,8 @@
       :rows="allOps" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <template #other="{ raw }"><IdoomCards :raw="raw" @sent="afterIdoom" /></template>
-      <q-badge :color="access.open.value ? 'positive' : 'negative'" class="q-pa-sm self-start">
-        {{ access.open.value ? 'الخدمة متاحة الآن' : 'الخدمة متوقفة الآن — حاول بعد قليل' }}
-      </q-badge>
+      <!-- Only when stopped (owner 2026-11-01: «إزالة كلمة متاح») -->
+      <q-badge v-if="!access.open.value" color="negative" class="q-pa-sm self-start">الخدمة متوقفة الآن — حاول بعد قليل</q-badge>
     </FlexySend>
   </q-page>
 </template>

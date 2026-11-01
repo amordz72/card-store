@@ -35,6 +35,8 @@
         <div class="card column q-gutter-sm">
           <q-toggle :model-value="c.active" label="الحساب مفعّل" color="positive"
             @update:model-value="(v) => save({ active: v }, v ? 'فُعّل الحساب' : 'أُوقف الحساب وأُخرج من كل الأجهزة')" />
+          <!-- s169 (owner 2026-11-01): out of the lists, never deleted (orders and money stay) -->
+          <q-toggle v-if="hiddenKnown" :model-value="hidden" label="مخفي من القوائم" color="grey-8" @update:model-value="setHidden" />
           <div class="row q-gutter-sm items-start">
             <q-input v-model="newPw" class="col" dense outlined label="كلمة سر جديدة (8 أحرف على الأقل)" input-class="ltr text-right" />
             <q-btn outline color="primary" label="تعيين" :disable="newPw.length < 8" @click="setPw" />
@@ -165,8 +167,10 @@ const limitDraft = ref(0)
 const infoDraft = ref({ name: '', phone: '' })
 
 async function loadCustomer () {
-  const list = await run(() => api.customers())
+  // all customers: a hidden one (s169) still opens here
+  const list = await run(() => api.customersAll())
   c.value = list?.find((x) => Number(x.customer_id) === cid.value) || null
+  if (c.value) loadHidden(cid.value)
   if (c.value) {
     limitDraft.value = Number(c.value.debt_limit)
     infoDraft.value = { name: c.value.name, phone: c.value.phone }
@@ -331,6 +335,20 @@ async function doReverse () {
 }
 
 // --- settings
+const hidden = ref(false)
+const hiddenKnown = ref(false)
+async function loadHidden (id) {
+  try {
+    const ids = await api.hiddenCustomers()
+    hidden.value = (ids || []).map(Number).includes(Number(id))
+    // the function exists once s169 is applied: probe it by asking for the list
+    hiddenKnown.value = await api.customerHide(-1, false).then(() => true, (e) => !/Could not find the function|does not exist/.test(String(e?.raw?.message || e?.message || '')))
+  } catch { hiddenKnown.value = false }
+}
+async function setHidden (v) {
+  const r = await run(() => api.customerHide(c.value.customer_id ?? c.value.id, v), { success: v ? 'أُخفي من القوائم.' : 'رجع إلى القوائم.' })
+  if (r !== undefined) hidden.value = v
+}
 async function save (patch, msg) {
   const ok = await run(() => api.updateCustomer(cid.value, patch).then(() => true), { success: msg })
   if (ok) loadCustomer()
