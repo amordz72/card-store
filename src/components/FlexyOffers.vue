@@ -71,6 +71,7 @@
     <!-- Ooredoo SABBAQLI debt (Flexy Core 0145, owner 2026-11-01): no offer until it is paid in full -->
     <div v-else-if="looked && debt && !curtain" class="card column q-gutter-sm q-pa-md debt">
       <div class="text-center text-weight-bold">هذا الرقم عليه <span class="text-negative">{{ debt.toLocaleString('en-US') }} دج</span> دين «سبقلي» لأوريدو</div>
+      <div v-if="debtAgo" class="small text-center muted">حسب ردّ أوريدو {{ debtAgo }}</div>
       <div class="small text-center">أوريدو لا تقبل له العروض حتى يُدفع دينه كاملًا. بعد دفعه اضغط «دُفع، أعد المحاولة».</div>
       <q-btn unelevated no-caps color="primary" icon="check" label="دُفع، أعد المحاولة" @click="paidRetry" />
     </div>
@@ -355,6 +356,13 @@ const justSent = ref(false)
 // The network said this number takes no offers (its own reply, never a silence)
 const noOffers = ref(false)
 const debt = ref(0)
+// When Ooredoo named it (0147: only the last 10 minutes are ever shown), «منذ N دقيقة» (owner 2026-11-01)
+const debtAt = ref(null)
+const debtAgo = computed(() => {
+  if (!debtAt.value) return ''
+  const m = Math.max(0, Math.round((Date.now() - debtAt.value) / 60000))
+  return m < 1 ? 'الآن' : m === 1 ? 'منذ دقيقة' : m === 2 ? 'منذ دقيقتين' : 'منذ ' + m + ' دقائق'
+})
 const internetMenu = ref(false)
 const exploring = ref(false)
 const exploreError = ref('')
@@ -464,6 +472,7 @@ async function load ({ retry = false, debtPaid = false } = {}) {
       offers.value = []
       group.value = ''
       debt.value = Number(r.debt) || 0
+      debtAt.value = r.debt_seen_at ? Date.parse(r.debt_seen_at) : null
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
       noOffers.value = true

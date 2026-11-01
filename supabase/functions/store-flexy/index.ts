@@ -313,7 +313,7 @@ async function handleShop(req: Request, route: string): Promise<Response> {
       });
       const b = await res.json().catch(() => ({}));
       // An Ooredoo number that owes a SABBAQLI loan (Flexy Core 0145): no offer until it is paid in full
-      if (b?.status === "debt") return json(req, 200, { ok: true, status: "debt", debt: Number(b.debt) || 0, group: null, offers: [] });
+      if (b?.status === "debt") return json(req, 200, { ok: true, status: "debt", debt: Number(b.debt) || 0, debt_seen_at: b.debt_seen_at ?? null, group: null, offers: [] });
       // A paid offer waits for a Sama SIM: the discovery comes after it (Flexy Core, owner 2026-10-27); the shop keeps asking.
       if (res.status === 409 && b?.error === "DISCOVERY_DEFERRED") return json(req, 200, { ok: true, status: "discovering", group: null, offers: [] });
       if (!res.ok) return json(req, 422, { ok: false, error: String(b?.error ?? "FLEXY_REFUSED") });
