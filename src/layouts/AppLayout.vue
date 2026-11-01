@@ -187,7 +187,8 @@
            buttons and outside the page: the content ends above them. On the home page only (owner, same day); the bell still counts them everywhere. Customers have neither. -->
         <!-- «المراقبة» (owner 2026-10-29): admin only, on every page, until solved or «تم» -->
       <!-- Folds like the blue one (owner 2026-10-31): one thin line when folded, the fold kept on this device (localStorage) -->
-      <div v-if="session.isAdmin && onHome && monitorBar" class="monitor-bar compact" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
+      <!-- Moved into the home's «المراقبة» card (owner 2026-11-01): no longer stuck above the bottom buttons -->
+      <div v-if="false && session.isAdmin && onHome && monitorBar" class="monitor-bar compact" :class="monitorBar.level === 'down' ? 'bg-negative' : 'bg-orange-9'">
         <q-icon name="warning" size="16px" />
         <router-link to="/flexy/monitor?tab=now" class="col ellipsis text-white" style="text-decoration:none">
           {{ redFolded ? (monitorBar.level === 'down' ? 'المراقبة: عطل يحتاجك' : 'المراقبة: تنبيه') : monitorBar.text }}
@@ -235,7 +236,7 @@
         </button>
       </template>
       <!-- «ما الجديد» (owner 2026-10-31): a fixed line while something is new on this device; the page marks it seen -->
-      <router-link v-if="session.isAdmin && onHome && newsCount" to="/news" class="monitor-bar compact bg-purple-7 news-line">
+      <router-link v-if="false && session.isAdmin && onHome && newsCount" to="/news" class="monitor-bar compact bg-purple-7 news-line">
         <q-icon name="new_releases" size="16px" /><span class="col ellipsis">🆕 {{ newsCount }} {{ newsCount === 1 ? 'جديد' : 'جديدة' }} في البرنامج: ما الجديد</span>
         <q-icon name="chevron_left" size="18px" />
       </router-link>
