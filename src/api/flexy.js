@@ -201,7 +201,8 @@ export const ownerMonitor = () => owner('monitor', { method: 'GET' })
 // «اشحنها» (Flexy Core 0125, 0126): feeding a Sama SIM from the stock with a card of the chosen value; a review judged success | refused
 export const ownerFeed = () => owner('feed', { method: 'GET' })
 // s170/0133: suspect = from the suspect stock (the owner's choice)
-export const ownerFeedStart = (simUuid, face, suspect = false) => owner('feed', { method: 'POST', body: { sim_uuid: simUuid, face, ...(suspect ? { suspect: true } : {}) } })
+export const ownerFeedStart = (simUuid, face, suspect = false, batchId = null) => owner('feed', { method: 'POST',
+  body: { sim_uuid: simUuid, face, ...(suspect ? { suspect: true } : {}), ...(batchId ? { batch_id: batchId } : {}) } })
 export const ownerFeedJudge = (feedId, verdict) => owner('feed/judge', { method: 'POST', body: { feed_id: feedId, verdict } })
 // The connection log (Flexy Core 0070): what was offline at that minute, and the changes 15 min around it
 export const ownerPresence = (at) => owner('presence?at=' + encodeURIComponent(at), { method: 'GET' })

@@ -79,8 +79,14 @@ watch(() => props.raw, async (want) => {
 })
 
 function loadSuspect () { adminApi.suspectCounts().then((v) => { suspectCounts.value = v || {} }).catch(() => { suspectCounts.value = {} }) }
-function confirmCharge (c) {
+async function confirmCharge (c) {
   const line = props.raw
+  // s172: the owner picks the batch (or the oldest)
+  let pick = { batch: null }
+  if (props.owner) {
+    pick = await adminApi.pickBatch(Dialog, 'من أي دفعة؟ ' + c.name, await adminApi.batchesForProduct(c.product_id, fromSuspect.value))
+    if (!pick) return
+  }
   Dialog.create({
     title: 'تأكيد التعبئة',
     html: true,
@@ -89,7 +95,8 @@ function confirmCharge (c) {
     ok: 'نعم، عبّئ'
   }).onOk(async () => {
     const suspect = props.owner && fromSuspect.value
-    const r = await run(() => (suspect ? adminApi.idoomCreateSuspect(c.product_id, line, crypto.randomUUID())
+    const r = await run(() => (pick.batch ? adminApi.idoomCreateFromBatch(c.product_id, line, crypto.randomUUID(), pick.batch, suspect)
+      : suspect ? adminApi.idoomCreateSuspect(c.product_id, line, crypto.randomUUID())
       : props.owner ? adminApi.idoomCreate(c.product_id, line, crypto.randomUUID())
         : api.idoomCreate(customer.token, c.product_id, line, crypto.randomUUID())))
     if (r && suspect) loadSuspect()
