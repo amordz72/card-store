@@ -81,7 +81,8 @@
     <div v-if="curtain" class="card column items-center q-pa-xl"><q-spinner-dots color="primary" size="40px" /></div>
     <div v-else-if="boardOn" class="card column q-gutter-sm q-pa-md board">
       <div v-if="boardStatus" class="board-status small text-primary"><q-spinner size="14px" class="q-mr-xs" />{{ boardStatus }}</div>
-      <q-expansion-item v-for="sec in board" :key="sec.key" :label="sec.title" group="board" :default-opened="sec.key === 'mix'"
+      <!-- all closed at first (owner 2026-11-01): a tap opens one; the board loads meanwhile -->
+      <q-expansion-item v-for="sec in board" :key="sec.key" :label="sec.title" group="board" :default-opened="false"
         class="tab-card" header-class="tab-head">
         <div v-if="sec.note" class="small muted text-center q-pa-md">
           <q-spinner v-if="sec.spin" size="16px" class="q-mr-xs" />{{ sec.note }}
