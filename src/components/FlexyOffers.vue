@@ -657,11 +657,13 @@ function confirm (o) {
 .offer-row { border-top: 1px solid #ECEEF3; padding: 10px 14px; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: right; }
 :deep(.family) { font-weight: 700; }
-.price { font-weight: 700; white-space: nowrap; }
+.price { font-weight: 700; white-space: nowrap; background: var(--q-primary); color: #fff; border-radius: 8px; padding: 6px 10px;
+  min-width: 88px; text-align: center; display: inline-block; }
+.price.text-grey-7 { background: #E5E7EB; color: #4B5563 !important; }
 .offer-row.busy { opacity: 0.5; cursor: default; }
 .net-card { border-inline-start: 4px solid #0E7490; }
 .net-head { display: flex; align-items: center; gap: 6px; padding: 10px 14px; font-weight: 700; color: #0E7490; }
-.net-price { color: #0E7490; }
+.net-price { background: #0E7490; color: #fff; }
 .blocked { border-style: dashed; }
 .ask { border: 2px solid var(--brand-accent, #C2410C); padding: 12px; }
 .menu-lines { background: #F6F6F6; border-radius: 8px; padding: 8px 10px; font-family: monospace; font-size: 12px; max-height: 180px; overflow: auto; }

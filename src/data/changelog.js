@@ -3,6 +3,16 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-j',
+    date: '2026-11-01',
+    title: '«تعبئة»: شكل أوضح',
+    items: [
+      { text: 'شعار الشبكة صورة بجانب الحقل (موبيليس، جيزي، أوريدو، إيدوم، إيدوم 4G)', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'تبويبا «رصيد عادي» و«عروض» بأيقونة، والمختار ممتلئ', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'سعر كل عرض وكل بطاقة إيدوم في زر ملوّن بعرض واحد؛ الترتيب والمجموعات والتفاصيل كما هي', to: '/flexy/shop', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-i',
     date: '2026-11-01',
     title: '«تعبئة»: أسهل وأنظف',
