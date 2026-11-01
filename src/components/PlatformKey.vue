@@ -42,10 +42,12 @@
           <div class="small text-weight-bold text-grey-8">{{ b.brand }}</div>
           <div class="row q-gutter-xs">
             <q-btn v-for="o in b.items" :key="o.product_id" no-caps dense :unelevated="picked === o.product_id" :outline="picked !== o.product_id"
-              color="primary" :label="o.name + ' · ' + money(o.base_price)" @click="picked = picked === o.product_id ? null : o.product_id" />
+              color="primary" :label="(links[o.product_id] ? '🔗 ' : '') + o.name + ' · ' + money(o.base_price)" @click="picked = picked === o.product_id ? null : o.product_id" />
           </div>
           <div v-if="pickedIn(b)" class="match column q-gutter-xs">
             <div class="small muted">مقابله في المنصة (المتاح، الأقرب أولًا ثم الأرخص) · سعرنا {{ money(pickedProduct?.base_price) }}:</div>
+            <div v-if="linkedOf(pickedProduct)" class="small text-positive q-px-sm">🔗 مربوط بـ «{{ linkedOf(pickedProduct).name }}» #{{ linkedOf(pickedProduct).id }}
+              <q-btn flat dense no-caps size="sm" color="negative" label="فكّ الربط" :disable="busy" @click="link(pickedProduct, null)" /></div>
             <div v-for="p in matches" :key="p.id" class="prod row items-center no-wrap q-gutter-sm">
               <div class="col">
                 <div class="text-weight-bold">{{ p.name }} <span class="small muted">#{{ p.id }}</span></div>
@@ -56,6 +58,8 @@
                 <div class="small muted ltr">{{ usd(p.price) }}</div>
                 <div v-if="rate > 0 && pickedProduct?.base_price" class="small" :class="gap(p) >= 0 ? 'text-positive' : 'text-negative'">
                   الفرق {{ gap(p) >= 0 ? '+' : '' }}{{ gap(p).toLocaleString('en-US') }} دج</div>
+                <q-badge v-if="links[pickedProduct?.product_id]?.platform_product_id === p.id" color="positive" label="مربوط ✓" />
+                <q-btn v-else dense outline no-caps size="sm" color="primary" label="اربطه" :disable="busy" @click="link(pickedProduct, p)" />
               </div>
             </div>
             <div v-if="!matches.length" class="small muted">لا يوجد مقابل متاح في المنصة.</div>
@@ -221,6 +225,20 @@ const ours = computed(() => {
 const pickedProduct = computed(() => ourProducts.value.find((x) => x.product_id === picked.value) || null)
 // our price minus the platform's cost in dinars (viewing only, at the rate typed above)
 const gap = (p) => Math.round(Number(pickedProduct.value?.base_price || 0) - Number(p.price || 0) * Number(rate.value || 0))
+// s180: the ties ({ product_id: { platform_product_id } }); a tie is only «which platform product», no money
+const links = ref({})
+const linkedOf = (o) => {
+  const id = o ? links.value[o.product_id]?.platform_product_id : null
+  return id ? (products.value.find((p) => p.id === id) || { id, name: '#' + id }) : null
+}
+async function loadLinks () {
+  try { links.value = (await api.platformLinks()) || {} } catch { links.value = {} }
+}
+async function link (o, p) {
+  if (!o) return
+  const r = await run(() => api.platformLink(o.product_id, PLATFORM, p ? p.id : null), { success: p ? 'رُبط.' : 'فُكّ الربط.' })
+  if (r) await loadLinks()
+}
 const pickedIn = (b) => b.items.some((o) => o.product_id === picked.value)
 const flat = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, '')
 const firstNumber = (t) => (String(t || '').match(/\d+/) || [null])[0]
@@ -243,7 +261,7 @@ async function loadOurs () {
   } catch { ourProducts.value = [] }
 }
 
-onMounted(() => { load(); loadRate(); loadSaved(); loadOurs() })
+onMounted(() => { load(); loadRate(); loadSaved(); loadOurs(); loadLinks() })
 </script>
 
 <style scoped>

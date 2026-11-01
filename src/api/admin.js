@@ -411,3 +411,7 @@ export const platformRateSet = (platform, rate) => rpc('store_admin_platform_rat
 // s179: the platform's product list saved once ({ products, n, fetched_at } | null); refreshed only on the owner's press
 export const platformCatalog = (platform) => rpc('store_admin_platform_catalog', { p_platform: platform })
 export const platformCatalogSave = (platform, products) => rpc('store_admin_platform_catalog_save', { p_platform: platform, p_products: products })
+// s180: «اربطه» — our game product tied to one platform product (no money, no switch)
+export const platformLinks = () => rpc('store_admin_platform_links')
+export const platformLink = (productId, platform, platformProductId) =>
+  rpc('store_admin_platform_link', { p_product: productId, p_platform: platform, p_platform_product: platformProductId })
