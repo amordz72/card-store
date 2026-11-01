@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zv',
+    date: '2026-11-01',
+    title: 'العدد حسب كل نوع، والرد الأصلي في «تحتاج حكمك»',
+    items: [
+      { text: 'لوحة المراقبة وبطاقتها: تحت «جاهزة» سطر لكل نوع — سما · أرسلي · أوريدو · جيزي (الجاهزة/الكل و💰 تحت الحد)', to: '/watch', pr: 'card-store' },
+      { text: 'بعد تطبيق s183: «تحتاج حكمك» تعرض ردود الشبكة الأصلية، وتقول إن حسمها Flexy بعدُ «نجحت» برسالة متأخرة', to: '/flexy/shops', pr: 'flexy-core، s183' }
+    ]
+  },
+  {
     id: '2026-11-01-zu',
     date: '2026-11-01',
     title: 'الحكم التلقائي على عملية الهاتف المعلّقة',

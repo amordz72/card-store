@@ -18,6 +18,10 @@
       <div class="kpi" :class="{ bad: w.counts.value.lowBal }"><div class="n">{{ w.counts.value.lowBal }}</div><div>💰 تحت الحد</div></div>
       <div class="kpi" :class="{ bad: w.counts.value.lowStock }"><div class="n">{{ w.counts.value.lowStock }}</div><div>🃏 تنفد</div></div>
     </div>
+    <div v-if="w.counts.value.byType.length" class="bytype">
+      <span v-for="x in w.counts.value.byType" :key="x.t" class="chip" :class="{ bad: x.ready < x.all }">
+        {{ x.name }} <b>{{ x.ready }}/{{ x.all }}</b><template v-if="x.low"> · 💰{{ x.low }}</template></span>
+    </div>
 
     <div class="layout">
       <!-- The devices -->
@@ -177,6 +181,9 @@ function myNumber (sim) {
 .kpi .n { font-size: 22px; font-weight: 800; }
 .kpi .n span { font-size: 14px; color: #6B7280; font-weight: 600; }
 .kpi.bad { background: #FEF2F2; border-color: #FCA5A5; color: #B91C1C; }
+.bytype { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.bytype .chip { background: #fff; border: 1px solid #E3E6EC; border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+.bytype .chip.bad { border-color: #FCA5A5; color: #B91C1C; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 @media (min-width: 1000px) { .layout { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; align-content: start; }

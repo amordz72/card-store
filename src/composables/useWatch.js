@@ -13,6 +13,8 @@ export const stNo = (st) => Number((String(st?.code || '').match(/\d+/) || [])[0
 
 const readSnooze = () => { try { return JSON.parse(localStorage.getItem(SNOOZE_KEY) || '{}') } catch { return {} } }
 
+const BY_TYPE = [['mobilis-sama', 'سما'], ['mobilis-arsselli', 'أرسلي'], ['ooredoo-flexy', 'أوريدو'], ['djezzy-flexy', 'جيزي']]
+
 export function useWatch (every = 20000) {
   const tree = ref(null)
   const low = ref(null)
@@ -89,7 +91,12 @@ export function useWatch (every = 20000) {
     simReady: sims.value.filter((x) => x.ready).length,
     simAll: sims.value.length,
     lowBal: sims.value.filter((x) => x.lowBal).length,
-    lowStock: lowItems.value.length
+    lowStock: lowItems.value.length,
+    // Per kind of SIM (owner 2026-11-01: «ستة متاحة… أين نعرف العدد كل متعامل؟»): ready/all and under its floor
+    byType: BY_TYPE.map(([t, name]) => {
+      const of = sims.value.filter((x) => x.sim.sim_type === t)
+      return { t, name, ready: of.filter((x) => x.ready).length, all: of.length, low: of.filter((x) => x.lowBal).length }
+    }).filter((x) => x.all > 0)
   }))
   function hide (key, minutes) {
     snooze.value = { ...snooze.value, [key]: Date.now() + minutes * 60000 }

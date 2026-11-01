@@ -10,7 +10,8 @@
       <div v-for="j in reviews" :key="j.job_id" class="review column q-gutter-xs">
         <div class="text-weight-bold"><bdi dir="ltr">{{ j.phone }}</bdi> · {{ money(j.amount) }}</div>
         <div class="small muted">{{ j.customer_name }} · خُصم {{ money(j.charged) }} · {{ when(j.created_at) }}</div>
-        <div class="small muted ltr text-right">{{ j.network_reply || 'لا رد مفهوم من الشبكة.' }}</div>
+        <!-- s183: the network's own words from Flexy (owner 2026-11-01: «لماذا لم يعطيني الرد الأصلي؟») -->
+        <div class="small muted" dir="auto" style="white-space:pre-wrap">{{ j.network_reply || 'لم يصل أي رد من الشبكة.' }}</div>
         <div class="grid-2">
           <q-btn unelevated no-caps color="positive" label="تم الإرسال" :loading="busy" @click="resolve(j, true)" />
           <q-btn outline no-caps color="negative" label="فشل، أرجع المبلغ" :loading="busy" @click="resolve(j, false)" />
