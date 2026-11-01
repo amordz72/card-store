@@ -22,8 +22,11 @@
       </div>
       <div class="row q-gutter-xs">
         <q-input v-model.number="autoForm.active_count" class="col" dense outlined type="number" inputmode="numeric" label="الشرائح النشطة (0 = كلها)" />
-        <q-input v-model.number="autoForm.daily_max" class="col" dense outlined type="number" inputmode="numeric" label="بطاقات في اليوم لكل شريحة" />
+        <q-input v-model.number="autoForm.daily_max" class="col" dense outlined type="number" inputmode="numeric" label="حد يومي لكل شريحة (0 = بلا حد)" />
       </div>
+      <!-- A SIM needed a card and the stock had none of a fitting value (owner: «اشعار أنه نفد المخزون حتى أشتري») -->
+      <div v-if="auto.no_card_at && Date.now() - Date.parse(auto.no_card_at) < 6 * 3600000" class="small text-negative text-weight-bold">
+        🔴 نفدت بطاقات Mobilis للتغذية (آخر مرة {{ dateTime(auto.no_card_at) }}): اشترِ بطاقات 1000 أو 2000.</div>
       <div class="tiny muted">بطاقة واحدة في كل مرة لكل شريحة (2000 ثم 1000، دون تجاوز «حتى»)، والتالية بعد قراءة رصيد جديدة. الشرائح «للكل» فقط. بطاقة مرفوضة توقف تغذية شريحتها 24 ساعة.</div>
       <q-btn unelevated dense no-caps color="primary" label="احفظ" :loading="autoBusy" class="self-start" @click="saveAuto" />
     </div>
@@ -119,7 +122,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import * as admin from 'src/api/admin'
-import { money } from 'src/api/format'
+import { dateTime, money } from 'src/api/format'
 
 const props = defineProps({ active: { type: Boolean, default: true } })
 
@@ -244,7 +247,7 @@ const tone = (f) => (f.status === 'success' ? 'text-positive' : f.status === 're
 
 // 0141: the automatic feeding's settings (null before 0141)
 const auto = ref(null)
-const autoForm = ref({ on: false, below: 4000, upto: 5000, active_count: 0, daily_max: 3 })
+const autoForm = ref({ on: false, below: 4000, upto: 5000, active_count: 0, daily_max: 0 })
 const autoBusy = ref(false)
 async function saveAuto () {
   autoBusy.value = true
