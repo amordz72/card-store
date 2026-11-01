@@ -7,6 +7,9 @@
       <q-item-section>
         <q-item-label class="text-weight-medium">{{ title }}</q-item-label>
         <q-item-label v-if="op.phone" caption><bdi dir="ltr">{{ op.phone }}</bdi></q-item-label>
+        <!-- s168: an Idoom top-up shows its line, a game top-up its player -->
+        <q-item-label v-if="op.kind === 'idoom' && op.target" caption>الخط <bdi dir="ltr">{{ op.target }}</bdi></q-item-label>
+        <q-item-label v-if="op.kind === 'game' && op.target" caption>المعرّف <bdi dir="ltr">{{ op.target }}</bdi></q-item-label>
         <q-item-label v-if="lastSim" caption>الشريحة: <bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
         <q-item-label v-if="before" caption>رصيد الشريحة قبل: {{ before }}</q-item-label>
         <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:var(--brand-soft, #FFF1E8);color:var(--brand-deep, #9A3412)">{{ op.customer_name }}</span></q-item-label>
@@ -30,7 +33,7 @@
     </div>
     <!-- A Flexy row opens in place: what happened, the network's reply, and (owner's own) the SIM -->
     <div v-if="opened" class="q-px-md q-pb-sm column q-gutter-xs small">
-      <div class="text-weight-bold">{{ explain(op.outcome_code, op.status) }}</div>
+      <div v-if="op.kind !== 'idoom' && op.kind !== 'game'" class="text-weight-bold">{{ explain(op.outcome_code, op.status) }}</div>
       <template v-if="op.network_reply">
         <div>رد الشبكة:</div>
         <div class="muted ltr text-right" style="white-space:pre-wrap">{{ op.network_reply }}</div>
@@ -53,6 +56,15 @@ const props = defineProps({ op: { type: Object, required: true }, admin: Boolean
 const emit = defineEmits(['open'])
 const mask = (s) => (props.hide ? '••••' : s)
 const isCard = computed(() => (props.op.source || 'card') === 'card')
+// s168: a top-up (Idoom, game) is judged by its own state, not by its card order
+const TOPUP = {
+  success: { label: 'تمت', color: '#15803D' }, done: { label: 'تمت', color: '#15803D' },
+  likely_success: { label: 'تمت على الأرجح', color: '#0F766E' },
+  queued: { label: 'تنتظر', color: '#6B7280' }, claimed: { label: 'جارية', color: '#2563EB' },
+  review: { label: 'مراجعة', color: '#C2410C' },
+  failed: { label: 'لم تتم', color: '#B91C1C' }, used_card: { label: 'لم تتم', color: '#B91C1C' },
+  cancelled: { label: 'أُلغيت', color: '#6B7280' }
+}
 const isShop = computed(() => props.shop || !!props.op.is_shop)
 const signed = (n) => (n < 0 ? '−' : '') + money(Math.abs(n))
 // Shop orders: selling price − purchase cost. Customer orders (admin view): amount charged − purchase cost.
@@ -61,6 +73,8 @@ const profitClass = computed(() => (props.op.profit == null ? '' : props.op.prof
 
 const title = computed(() => {
   const o = props.op
+  if (o.kind === 'idoom') return 'تعبئة إيدوم · ' + o.product_name
+  if (o.kind === 'game') return 'شحن لعبة · ' + o.product_name
   if (isCard.value) return o.product_name + (o.qty > 1 ? ' × ' + o.qty : '')
   return o.category === 'offer' ? 'عرض ' + (o.offer_label || '') : 'فليكسي'
 })
@@ -75,6 +89,7 @@ const FLEXY = {
   review: { label: 'قيد المراجعة', color: '#C2410C' }
 }
 const badge = computed(() => {
+  if ((props.op.kind === 'idoom' || props.op.kind === 'game') && TOPUP[props.op.job_status]) return TOPUP[props.op.job_status]
   if (isCard.value) return props.op.status === 'done' ? { label: 'ناجحة', color: '#15803D' } : { label: 'مسترجعة', color: '#6B7280' }
   return FLEXY[props.op.status] || { label: 'جارية', color: '#2563EB' }
 })
