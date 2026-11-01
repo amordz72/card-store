@@ -142,7 +142,7 @@ const lostAnswer = (e) => {
   throw e
 }
 const send = (p, v, { key }) => api.flexySend(customer.token, p, v, key).catch(lostAnswer)
-const lookupOffers = (p) => api.flexyOffers(customer.token, p)
+const lookupOffers = (p, o = {}) => api.flexyOffers(customer.token, p, o.debtPaid === true)
 const availableOffers = (names) => api.flexyAvailable(customer.token, names)
 const sendOffer = (p, label, key) => api.flexyOffer(customer.token, p, label, key).catch(lostAnswer)
 

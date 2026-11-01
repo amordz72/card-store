@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zx',
+    date: '2026-11-01',
+    title: 'ديون أوريدو «سبقلي»: تُكتشف وتمنع العروض',
+    items: [
+      { text: 'بعد تطبيق 0145: رقم أوريدو ردّت الشبكة أن عليه دين «سبقلي» يُظهر في العروض «هذا الرقم عليه N دج دين» بدل العروض، ولا يُرسل له عرض حتى يُدفع كاملًا', to: '/flexy/send', pr: 'flexy-core، 0145' },
+      { text: 'زر «دُفع، أعد المحاولة» إذا دُفع الدين من مكان آخر؛ ويعود المنع وحده إذا ذكرت الشبكة دينًا من جديد', to: '/flexy/send', pr: 'flexy-core، 0145' }
+    ]
+  },
+  {
     id: '2026-11-01-zw',
     date: '2026-11-01',
     title: 'التقرير اليومي والأرباح',
