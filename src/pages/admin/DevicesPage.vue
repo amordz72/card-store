@@ -134,8 +134,10 @@
                   </td>
                   <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
                   <!-- The balance as a badge (owner 2026-11-01): red at or under the minimum, green above, orange unread -->
-                  <td><q-badge class="bal" :color="r.m.sim.balance == null ? 'orange-8' : r.m.sim.balance <= MIN_BALANCE ? 'negative' : 'positive'"
-                    :label="r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance)" /></td>
+                  <td><q-badge class="bal" :color="r.m.sim.balance == null ? 'orange-8' : r.m.sim.balance <= minOf(r.m.sim) ? 'negative' : 'positive'"
+                    :label="r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance)" />
+                    <div v-if="limitOf(r.m.sim).max_per_day" class="small" :class="limitOf(r.m.sim).today >= limitOf(r.m.sim).max_per_day ? 'text-negative text-weight-bold' : 'muted'">
+                      اليوم {{ limitOf(r.m.sim).today }}/{{ limitOf(r.m.sim).max_per_day }}</div></td>
                   <td @click.stop>
                     <!-- Only a problem is written; a ready SIM is its green dot -->
                     <div v-if="simState(r) !== 'ready' && statusText(r)" class="small" :class="statusClass(r)"><q-spinner v-if="isReading(r.m.sim) && !modemGone(r)" size="12px" class="q-mr-xs" />{{ statusText(r) }}
@@ -145,7 +147,11 @@
                       <q-btn dense outline no-caps size="sm" color="primary" :label="isPhone(r.st) ? 'اكتشاف الرصيد' : 'الرصيد'"
                         :loading="rowReading === r.m.sim.sim_uuid" :disable="!!rowReading" @click.stop="readRowBalance(r.m.sim)" />
                       <q-btn dense :outline="ussdOpen !== r.m.sim.sim_uuid" :unelevated="ussdOpen === r.m.sim.sim_uuid" no-caps size="sm" color="primary" label="USSD"
-                        @click.stop="ussdOpen = ussdOpen === r.m.sim.sim_uuid ? null : r.m.sim.sim_uuid" />
+                        @click.stop="openUssd(r.m.sim, '')" />
+                      <!-- «رقمي» (owner 2026-11-01): one tap, the SIM asks its own number (Sama *222#) -->
+                      <q-btn dense outline no-caps size="sm" color="primary" label="رقمي" @click.stop="myNumber(r.m.sim)" />
+                      <q-btn dense flat round size="sm" icon="settings" :color="setOpen === r.m.sim.sim_uuid ? 'primary' : 'grey-7'" aria-label="إعدادات الشريحة"
+                        @click.stop="openSettings(r)" />
                     </div>
                     <div v-if="rowRead[r.m.sim.sim_uuid]" class="small muted">{{ rowRead[r.m.sim.sim_uuid] }}</div>
                   </td>
@@ -162,7 +168,27 @@
                 </tr>
                 <tr v-if="ussdOpen === r.m.sim.sim_uuid" class="static">
                   <td :colspan="audiences ? 5 : 4" @click.stop>
-                    <ModemPanel ussd-only :sim-uuid="r.m.sim.sim_uuid" :sim-type="r.m.sim.sim_type" :phone="isPhone(r.st)" :sim-name="r.m.sim.code || ''" />
+                    <ModemPanel :key="r.m.sim.sim_uuid + ussdCode" inline :start-code="ussdCode" :sim-uuid="r.m.sim.sim_uuid" :sim-type="r.m.sim.sim_type" :phone="isPhone(r.st)" :sim-name="r.m.sim.code || ''" />
+                  </td>
+                </tr>
+                <!-- ⚙️ the SIM's settings in its card (owner 2026-11-01) -->
+                <tr v-if="setOpen === r.m.sim.sim_uuid" class="static">
+                  <td :colspan="audiences ? 5 : 4" @click.stop>
+                    <div class="sim-set column q-gutter-sm">
+                      <div class="row q-gutter-sm">
+                        <q-input v-model.number="setForm.min" class="col" dense outlined type="number" inputmode="numeric" label="الحد الأدنى للرصيد (دج)" :placeholder="String(MIN_BALANCE)" />
+                        <q-input v-model.number="setForm.max" class="col" dense outlined type="number" inputmode="numeric" label="أقصى عمليات في اليوم" placeholder="بلا حد" />
+                      </div>
+                      <div class="row q-gutter-sm items-center">
+                        <q-input v-model.number="setForm.slot" class="col" dense outlined type="number" inputmode="numeric" :label="isPhone(r.st) ? 'رقم الخانة (SIM)' : 'رقم USB المكتوب على الجهاز'" />
+                        <q-input v-model="setForm.code" class="col" dense outlined class-input="ltr" :label="'كود «رقمي» لـ' + (r.m.sim.sim_type_name || r.m.sim.sim_type)" placeholder="*222#" />
+                      </div>
+                      <div class="small muted">الحد الأقصى يُعرض الآن «اليوم 12/20» ويحمرّ عند بلوغه؛ إيقاف الإرسال عنده خطوة تالية. الاسم والملاحظة والـPIN في نافذة الشريحة (اضغط سطرها).</div>
+                      <div class="row q-gutter-sm">
+                        <q-btn unelevated no-caps color="primary" label="احفظ" :loading="setBusy" @click="saveSimSet(r)" />
+                        <q-btn flat no-caps color="grey-8" label="إغلاق" @click="setOpen = null" />
+                      </div>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -704,6 +730,57 @@ const slotOf = (r) => (isPhone(r.st) || r.st.phone ? 'SIM-' + ((r.m.modem_uuid &
 // The minimum before a SIM's balance turns red (owner 2026-11-01: «إذا وصل إلى الحد الأدنى»)
 const MIN_BALANCE = 1000
 const ussdOpen = ref(null)
+const ussdCode = ref('')
+function openUssd (sim, code) {
+  if (ussdOpen.value === sim.sim_uuid && ussdCode.value === code) { ussdOpen.value = null; return }
+  ussdCode.value = code
+  ussdOpen.value = sim.sim_uuid
+}
+// 0139: per-SIM minimum / daily maximum (today's count) and the «رقمي» codes; Sama's *222# known (owner 2026-11-01)
+const limitsView = computed(() => tree.value?.sim_limits || { limits: {}, number_codes: {} })
+const limitOf = (sim) => limitsView.value.limits?.[sim?.sim_uuid] || {}
+const minOf = (sim) => limitOf(sim).min_balance ?? MIN_BALANCE
+const NUMBER_CODES = { 'mobilis-sama': '*222#' }
+const numberCode = (sim) => limitsView.value.number_codes?.[sim.sim_type] || NUMBER_CODES[sim.sim_type] || ''
+function myNumber (sim) {
+  const c = numberCode(sim)
+  if (!c) return Notify.create({ message: 'اكتب كود «رقمي» لهذا النوع مرة واحدة في ⚙️، ثم اضغط «رقمي».', timeout: 3500 })
+  openUssd(sim, c)
+}
+const setOpen = ref(null)
+const setBusy = ref(false)
+const setForm = ref({ min: null, max: null, slot: null, code: '' })
+function openSettings (r) {
+  if (setOpen.value === r.m.sim.sim_uuid) { setOpen.value = null; return }
+  const l = limitOf(r.m.sim)
+  setForm.value = { min: l.min_balance ?? null, max: l.max_per_day ?? null, slot: (r.m.modem_uuid && labels.value[r.m.modem_uuid]) ?? null, code: limitsView.value.number_codes?.[r.m.sim.sim_type] || NUMBER_CODES[r.m.sim.sim_type] || '' }
+  setOpen.value = r.m.sim.sim_uuid
+}
+const blank = (v) => (v === '' || v === null || v === undefined ? null : Number(v))
+async function saveSimSet (r) {
+  setBusy.value = true
+  try {
+    const f = setForm.value
+    const res = await flexy.ownerSimLimits(r.m.sim.sim_uuid, blank(f.min), blank(f.max))
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error === 'MIGRATION_0139_PENDING' ? 'طبّق 0139 من «ينتظر تطبيقك» أولًا.' : (res.body?.error || 'FLEXY_CORE'))
+    if (r.m.modem_uuid && blank(f.slot) !== ((labels.value[r.m.modem_uuid]) ?? null)) {
+      const m = await flexy.ownerModemLabel(r.m.modem_uuid, blank(f.slot))
+      if (m.status !== 200 || !m.body?.ok) throw new Error(m.body?.error || 'FLEXY_CORE')
+    }
+    const saved = limitsView.value.number_codes?.[r.m.sim.sim_type] || ''
+    if ((f.code || '').trim() !== saved && (f.code || '').trim() !== (NUMBER_CODES[r.m.sim.sim_type] || '')) {
+      const c = await flexy.ownerNumberCode(r.m.sim.sim_type, (f.code || '').trim())
+      if (c.status !== 200 || !c.body?.ok) throw new Error(c.body?.error === 'CODE_INVALID' ? 'الكود يبدأ بـ * أو # وينتهي بـ #' : (c.body?.error || 'FLEXY_CORE'))
+    }
+    Notify.create({ type: 'positive', message: 'حُفظت إعدادات ' + (r.m.sim.code || 'الشريحة'), position: 'top', timeout: 1500 })
+    setOpen.value = null
+    await load()
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message })
+  } finally {
+    setBusy.value = false
+  }
+}
 const rowReading = ref(null)
 const rowRead = ref({})
 async function readRowBalance (sim) {
@@ -1323,4 +1400,5 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
 .dot.on { background: #2FAE1E; box-shadow: 0 0 6px #2FAE1E; }
 .dot.off { background: #D32F2F; }
 .bal { font-size: 13px; padding: 4px 8px; }
+.sim-set { background: #F7F8FB; border-radius: 10px; padding: 10px; }
 </style>

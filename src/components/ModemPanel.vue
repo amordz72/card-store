@@ -3,7 +3,7 @@
        Read-only status, a message reader, and a USSD lab where no code is blocked; a code
        carrying a PIN waits 60 s and its reply. «{PIN}» is filled in by the server. -->
   <div class="column q-gutter-sm" style="min-width: 0; max-width: 100%">
-    <q-tabs v-if="!ussdOnly" v-model="tab" dense no-caps align="justify" mobile-arrows outside-arrows class="text-primary">
+    <q-tabs v-if="!ussdOnly && !inline" v-model="tab" dense no-caps align="justify" mobile-arrows outside-arrows class="text-primary">
       <!-- The admin phone (agent «phone-*») has no HiLink modem and no SMS reader: only the USSD lab works there -->
       <q-tab v-if="!phone" name="status" label="حالة المودم" />
       <q-tab v-if="!phone" name="sms" label="الرسائل" />
@@ -186,6 +186,8 @@ const props = defineProps({
   simType: { type: String, default: '' },
   // The offers tab's live session on a new group (owner 2026-10-28): the lab alone, its code ready
   ussdOnly: { type: Boolean, default: false },
+  // In a SIM's card (owner 2026-11-01): the USSD box alone, with its field; a startCode is sent at once («رقمي»)
+  inline: { type: Boolean, default: false },
   startCode: { type: String, default: '' },
   // Shown above «أرسل» (owner 2026-10-31: «أي شريحة»): the SIM the message leaves from
   simName: { type: String, default: '' },
@@ -204,7 +206,7 @@ const QUICK = {
 }
 const quick = computed(() => QUICK[props.simType] || [])
 
-const tab = ref(props.phone || props.ussdOnly ? 'ussd' : 'status')
+const tab = ref(props.phone || props.ussdOnly || props.inline ? 'ussd' : 'status')
 const page = ref(null)
 const lab = ref({ pin_wait_seconds: 0 })
 const messages = ref([])
@@ -446,7 +448,7 @@ watch(() => props.phone, (p) => { if (p) tab.value = 'ussd' })
 onMounted(async () => {
   await loadAll()
   // The offers tab's live session: no question, the menu opens at once (owner 2026-10-28)
-  if (props.ussdOnly && props.startCode && !sessionOpen.value && page.value?.ready) start()
+  if ((props.ussdOnly || props.inline) && props.startCode && !sessionOpen.value && page.value?.ready) start()
 })
 onBeforeUnmount(() => { alive = false; clearTimeout(timer) })
 </script>

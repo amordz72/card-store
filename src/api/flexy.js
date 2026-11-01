@@ -242,3 +242,6 @@ export const ownerPlatformProfile = () => owner('platform/profile', { method: 'G
 export const ownerPlatformProducts = () => owner('platform/products', { method: 'GET' })
 // «رقم USB» written on the modem (Flexy Core 0138): 1..999, or null to clear
 export const ownerModemLabel = (modemUuid, label) => owner('modems/label', { method: 'POST', body: { modem_uuid: modemUuid, label } })
+// 0139: a SIM's minimum / daily maximum (null clears), and the «رقمي» USSD of a SIM type
+export const ownerSimLimits = (simUuid, min, max) => owner('sims/limits', { method: 'POST', body: { sim_uuid: simUuid, min_balance: min, max_per_day: max } })
+export const ownerNumberCode = (simType, code) => owner('number-code', { method: 'POST', body: { sim_type: simType, code } })

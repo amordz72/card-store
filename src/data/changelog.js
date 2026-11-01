@@ -3,6 +3,16 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zn',
+    date: '2026-11-01',
+    title: '«رقمي» بضغطة، و⚙️ في بطاقة الشريحة',
+    items: [
+      { text: 'زر «رقمي» في البطاقة: سما ترسل *222# فورًا ويظهر الرد تحتها؛ لغيرها اكتب الكود مرة في ⚙️', to: '/flexy/devices', pr: 'card-store' },
+      { text: '«USSD» في البطاقة صار فيه حقل الكود مباشرة', to: '/flexy/devices', pr: 'card-store' },
+      { text: '⚙️: الحد الأدنى للرصيد، أقصى عمليات في اليوم («اليوم 12/20»)، رقم USB/SIM، كود «رقمي» (بعد تطبيق 0139)', to: '/flexy/devices', pr: 'card-store، 0139' }
+    ]
+  },
+  {
     id: '2026-11-01-zm',
     date: '2026-11-01',
     title: 'شريحة الهاتف: SIM-1 بدل USB',
