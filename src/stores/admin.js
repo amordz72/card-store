@@ -1,3 +1,4 @@
+import { clearRpcCache } from 'src/api/rpc'
 import { defineStore } from 'pinia'
 import { supabase } from 'boot/supabase'
 import { LocalStorage } from 'quasar'
@@ -54,6 +55,7 @@ export const useAdminStore = defineStore('admin', {
     },
 
     async logout () {
+      clearRpcCache()
       await supabase.auth.signOut()
       LocalStorage.remove(OK_KEY)
       this.$reset()

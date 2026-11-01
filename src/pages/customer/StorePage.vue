@@ -34,6 +34,9 @@
             </template>
             <template v-else>
               <div v-if="!p.available && splits[p.product_id]" class="small text-weight-medium text-deep-orange">متوفر من {{ partsText(splits[p.product_id]) }}</div>
+              <!-- The owner sees the counts (owner 2026-11-01: «الإدارة يظهر لها العدد المتاح، لا كل مرة إلى المخزن») -->
+              <div v-else-if="buyer.isShop.value && counts[p.product_id]" class="small text-weight-medium">
+                <span class="amount-pos">سليمة {{ counts[p.product_id].healthy }}</span><span v-if="counts[p.product_id].suspect" class="text-deep-orange"> · مشكوك {{ counts[p.product_id].suspect }}</span></div>
               <div v-else class="small text-weight-medium" :class="p.available ? 'amount-pos' : 'muted'">{{ p.available ? 'متوفر' : 'غير متوفر' }}</div>
               <q-btn unelevated :color="canBuy(p) ? 'primary' : 'grey-4'" :text-color="canBuy(p) ? 'white' : 'grey-8'"
                 :label="canBuy(p) ? 'شراء' : 'نفد'" :disable="!canBuy(p)" @click="openBuy(p)" />
@@ -160,7 +163,17 @@ async function loadServices () {
   const rows = await (buyer.isShop.value ? adminApi.services() : customerApi.services(customer.token)).catch(() => [])
   svc.value = Object.fromEntries((rows || []).filter((x) => x.active !== false).map((x) => [x.product_id, x]))
 }
+// The owner's counts per card (s181's ledger; before s181 the stock list's available only)
+const counts = ref({})
+async function loadCounts () {
+  if (!buyer.isShop.value) return
+  const led = await adminApi.stockLedger().catch(() => null)
+  if (led) { counts.value = Object.fromEntries(led.map((r) => [r.product_id, { healthy: Number(r.healthy), suspect: Number(r.suspect) }])); return }
+  const st = await adminApi.stock().catch(() => null)
+  if (st) counts.value = Object.fromEntries(st.map((r) => [r.product_id, { healthy: Number(r.available), suspect: 0 }]))
+}
 async function load () {
+  loadCounts()
   const [rows, sp] = await Promise.all([run(() => buyer.catalog()), buyer.splitOffers(), loadServices()])
   if (rows) products.value = rows
   splits.value = sp || {}
