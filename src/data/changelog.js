@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zc',
+    date: '2026-11-01',
+    title: 'منصة topup-dz: منتجاتنا أولًا، والقائمة محفوظة (بعد تطبيق s179)',
+    items: [
+      { text: 'منتجات الألعاب عندنا كأزرار حسب اللعبة؛ اضغط واحدًا لترى مقابله المتاح في المنصة، الأقرب ثم الأرخص', to: '/game', pr: 'card-store' },
+      { text: 'قائمة المنصة تُحفظ مرة واحدة؛ لا طلب للمنصة إلا بزر «حدّث من المنصة»؛ «كل منتجات المنصة» في الأسفل مغلقة', to: '/game', pr: 'card-store، s179' }
+    ]
+  },
+  {
     id: '2026-11-01-zb',
     date: '2026-11-01',
     title: 'منتجات المنصة بالفئات · شريط الأعلى لا يخرج من الشاشة',
