@@ -1,6 +1,6 @@
 <template>
   <q-page class="page">
-    <OpsFilters v-model="f" scopes :customers="customers" />
+    <OpsFilters v-model="f" scopes feeds :customers="customers" />
     <div class="card q-pa-none" style="overflow:hidden">
       <OperationRow v-for="op in rows" :key="op.key" :op="withSims(op)" admin @open="openCodes(op)" />
       <div v-if="!loading && !rows.length" class="text-center muted q-pa-lg">لا توجد عمليات</div>
@@ -65,11 +65,33 @@ function coreSource () {
   }
 }
 
+// «تغذية الشرائح» (s186, owner 2026-11-01): which SIM, the card, the state and the network's reply. Shown under
+// «الكل» (the owner's own scope) and under its own chip; filtered here by dates and search, like Flexy Core's list.
+function feedSource () {
+  const { from, to } = rangeDates(f.value)
+  const day = (t) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'Africa/Algiers' })
+  const q = (f.value.query || '').trim().toLowerCase()
+  return async (limit, before) => {
+    const n = Math.min(limit, 50)
+    const list = await api.simFeeds(n, before).catch(() => null)
+    if (!list) return undefined
+    const last = list[list.length - 1]
+    const older = from && last && day(last.queued_at) < from
+    const rows = list.filter((x) => (!from || day(x.queued_at) >= from) && (!to || day(x.queued_at) <= to) &&
+      (!q || [x.sim_label, x.sim_code, x.card_supplier].some((v) => String(v || '').toLowerCase().includes(q))))
+      .map((x) => ({ ...x, key: 'feed:' + x.feed_id, source: 'feed', kind: 'feed', op_id: x.feed_id, brand: 'Sama',
+        base_amount: x.card_face, network_reply: x.reply, created_at: x.queued_at }))
+    return { rows, state: last?.feed_id ?? before, done: list.length < n || Boolean(older) }
+  }
+}
+
 function sources () {
   coreFailed.value = false
   const v = f.value
+  if (v.type === 'feed') return [feedSource()]
   const withCore = v.scope !== 'customers' && !v.customerId && (!v.type || v.type === 'flexy' || v.type === 'offer')
-  return withCore ? [dbSource(), coreSource()] : [dbSource()]
+  const withFeeds = v.scope !== 'customers' && !v.customerId && !v.type
+  return [dbSource(), ...(withCore ? [coreSource()] : []), ...(withFeeds ? [feedSource()] : [])]
 }
 const { rows, total, hasMore, loading, loadingMore, reset, more, size } = useOpsFeed(sources, { size: 20 })
 // The SIM that ran each shop Flexy row (owner 2026-10-26, SHOP-OPS-SIM-AND-BALANCE step 1): the rows'

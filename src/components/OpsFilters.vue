@@ -37,7 +37,7 @@ import { computed, ref } from 'vue'
 import { CATEGORIES } from 'src/api/format'
 import DateField from 'components/DateField.vue'
 
-const props = defineProps({ customers: { type: Array, default: null }, scopes: Boolean })
+const props = defineProps({ customers: { type: Array, default: null }, scopes: Boolean, feeds: Boolean })
 const f = defineModel({ type: Object, required: true })
 
 // The first 6 customers as the store lists them; the rest behind «المزيد»; the chosen one always shown.
@@ -54,8 +54,10 @@ const shownCustomers = computed(() => {
 const moreCount = computed(() => Math.max(0, all.value.length - shownCustomers.value.length))
 
 const SCOPES = [{ id: null, label: 'الكل' }, { id: 'shop', label: 'أنا' }, { id: 'customers', label: 'زبائني' }]
-const TYPES = [{ id: null, label: 'الكل' }, { id: 'flexy', label: 'فليكسي' }, { id: 'offer', label: 'عروض' },
+const BASE_TYPES = [{ id: null, label: 'الكل' }, { id: 'flexy', label: 'فليكسي' }, { id: 'offer', label: 'عروض' },
   ...CATEGORIES.map((c) => ({ id: c.id, label: c.label }))]
+// «تغذية الشرائح» (s186): the owner's page only
+const TYPES = computed(() => (props.feeds ? [...BASE_TYPES, { id: 'feed', label: 'تغذية الشرائح' }] : BASE_TYPES))
 const RANGES = [{ id: 'today', label: 'اليوم' }, { id: 'yesterday', label: 'أمس' }, { id: '7d', label: '7 أيام' },
   { id: 'all', label: 'الكل' }, { id: 'custom', label: 'تاريخ محدد' }]
 
