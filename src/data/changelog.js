@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-y',
+    date: '2026-11-01',
+    title: 'العروض مغلقة في البداية',
+    items: [
+      { text: '«عروض»: Sama Mix وTalk وNet و«عروض أخرى» كلها مغلقة؛ اضغط واحدة لتفتحها', to: '/flexy/send', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-x',
     date: '2026-11-01',
     title: 'كل بطاقة خاطئة تحفظ رد الشبكة الخاص بها (بعد تطبيق s176)',
