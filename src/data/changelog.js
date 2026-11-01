@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zo',
+    date: '2026-11-01',
+    title: 'حساب الزبون أبسط',
+    items: [
+      { text: 'الزبون لا يرى «حد الدين» ولا «المتاح لك» في الشحن الذاتي؛ يبقيان عندك في صفحة الزبون', to: '/customers', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zn',
     date: '2026-11-01',
     title: '«رقمي» بضغطة، و⚙️ في بطاقة الشريحة',

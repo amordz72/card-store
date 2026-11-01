@@ -37,7 +37,6 @@
       <div class="card">
         <div class="row items-center q-gutter-x-sm muted text-weight-medium"><q-icon name="bookmark_remove" size="24px" /><span>{{ debt.label }}</span></div>
         <div class="big-number" :class="debt.cls">{{ hide ? '••••••' : debt.text }}</div>
-        <div class="small muted">حد الدين: {{ money(p.debt_limit) }}</div>
       </div>
       <div class="card">
         <div class="row items-center q-gutter-x-sm muted text-weight-medium"><q-icon name="bookmark_add" size="24px" /><span>أرباحي</span></div>

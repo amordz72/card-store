@@ -9,10 +9,10 @@
     <PushSettings v-if="session.isAdmin" />
 
     <template v-if="!session.isAdmin">
+    <!-- «حد الدين» removed for the customer (owner 2026-11-01: «مزعجة ولا نحتاجها»); the owner sees it on his pages -->
     <div v-if="p" class="card grid-3">
       <div class="column"><span class="small muted">رصيدي</span><b class="amount-pos">{{ shown(p.balance) }}</b></div>
       <div class="column"><span class="small muted">{{ debt.label }}</span><b :class="debt.cls">{{ customer.hideAmounts ? '••••••' : debt.text }}</b></div>
-      <div class="column"><span class="small muted">حد الدين</span><b>{{ money(p.debt_limit) }}</b></div>
     </div>
 
 
