@@ -183,7 +183,7 @@ const props = defineProps({
   // The owner's switch («المفاتيح»): the Sama board with its automatic offers; off = the line's offers once known
   boardSwitch: { type: Boolean, default: true }
 })
-const emit = defineEmits(['sent'])
+const emit = defineEmits(['sent', 'debt'])
 // The lab, only for the owner's live session on a new group (never loaded on a shop's page)
 const ModemPanel = defineAsyncComponent(() => import('src/components/ModemPanel.vue'))
 const newGroup = ref(null)
@@ -429,6 +429,7 @@ async function load ({ retry = false, debtPaid = false } = {}) {
   error.value = ''
   noOffers.value = false
   debt.value = 0
+  emit('debt', null)
   looked.value = false
   newGroup.value = null
   shape.value = null
@@ -473,6 +474,7 @@ async function load ({ retry = false, debtPaid = false } = {}) {
       group.value = ''
       debt.value = Number(r.debt) || 0
       debtAt.value = r.debt_seen_at ? Date.parse(r.debt_seen_at) : null
+      emit('debt', { phone: p, amount: debt.value, ago: debtAgo.value ? 'حسب ردّ أوريدو ' + debtAgo.value : '' })
     } else if (r?.status === 'no_offers') {
       // The network said the number takes no offers now: the empty list says it, no error (owner 2026-10-26)
       noOffers.value = true

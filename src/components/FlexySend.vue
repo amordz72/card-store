@@ -28,6 +28,12 @@
       <q-tab name="630" icon="payments" label="رصيد عادي" />
       <q-tab name="offer" icon="local_offer" label="عروض" />
     </q-tabs>
+    <!-- Ooredoo SABBAQLI debt (owner 2026-11-01: «يظهر بعد الشاشة الأولى، قبل أن يفتح العروض، أو متى وصل»): read as soon as
+         the number is whole, shown above both tabs the moment it arrives (fresh only: Flexy Core 0147/0148) -->
+    <div v-if="phoneFull && debtShown && debtShown.phone === digits" class="debt-line small">
+      ⚠ هذا الرقم عليه <b>{{ debtShown.amount.toLocaleString('en-US') }} دج</b> دين «سبقلي» لأوريدو<span v-if="debtShown.ago"> · {{ debtShown.ago }}</span>
+      — لا عروض له حتى يُدفع كاملًا
+    </div>
 
     <template v-if="phoneFull && tab === '630'">
       <!-- The amounts are this operator's own (Ooredoo from 10, Mobilis 40, Djezzy 100) and do not change under the hand -->
@@ -48,8 +54,8 @@
     <div v-else-if="phoneFull && !offers" class="card text-center muted q-pa-lg">العروض غير مفعّلة لحسابك.</div>
     <div v-else-if="phoneFull && !phoneOk" class="card text-center muted q-pa-lg">قريبًا: عروض هذا المتعامل غير متوفرة بعد.</div>
     <FlexyOffers v-if="offers && phoneOk" v-show="tab === 'offer'" ref="offersRef" :phone="digits" :phone-ok="phoneOk"
-      :active="tab === 'offer' || digits.startsWith('06')" :visible="tab === 'offer'" :board-switch="automix" :max-amount="maxAmount"
-      :lookup="lookup" :send="sendOffer" :available="availableOffers" :running="offerRunning" :probe="probeOffer" :decide="decideOffer" :explore="exploreOffer" :repeat-of="repeatOf" @sent="sentOffer" />
+      :active="tab === 'offer' || digits.startsWith('06') || digits.startsWith('05')" :visible="tab === 'offer'" :board-switch="automix" :max-amount="maxAmount"
+      :lookup="lookup" :send="sendOffer" :available="availableOffers" :running="offerRunning" :probe="probeOffer" :decide="decideOffer" :explore="exploreOffer" :repeat-of="repeatOf" @sent="sentOffer" @debt="(d) => (debtShown = d)" />
 
     <div>
       <div class="row items-center justify-between">
@@ -212,6 +218,8 @@ const emit = defineEmits(['sent', 'refresh', 'more'])
 const { busy, run } = useRun()
 
 const tab = ref('630')
+// The debt FlexyOffers found for this number (null = none known)
+const debtShown = ref(null)
 // The number lives with the page only (owner 2026-10-31: a refresh starts empty); the copy older versions kept goes
 try { if (props.remember) localStorage.removeItem('flexy-phone:' + props.remember) } catch { /* private mode */ }
 const phone = ref('')
@@ -443,4 +451,5 @@ function sentOffer (e) {
 :deep(.phone) { font-size: clamp(1.05rem, 5.6vw, 1.4rem); letter-spacing: 0; word-spacing: -0.2em; font-variant-numeric: tabular-nums; }
 /* A small phone (owner 2026-11-01): the whole number shows, the field padding shrinks */
 @media (max-width: 380px) { :deep(.q-field__control) { padding: 0 6px; } }
+.debt-line { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; border-radius: 10px; padding: 6px 10px; }
 </style>
