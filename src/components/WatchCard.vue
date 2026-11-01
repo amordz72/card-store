@@ -19,6 +19,9 @@
         <router-link class="kpi" :class="{ bad: w.counts.value.lowBal }" to="/watch">💰 {{ w.counts.value.lowBal }} تحت الحد</router-link>
         <router-link class="kpi" :class="{ bad: w.counts.value.lowStock }" to="/stock?tab=low">🃏 {{ w.counts.value.lowStock }} تنفد</router-link>
       </div>
+      <router-link v-if="w.counts.value.byType.length" to="/watch" class="bytype">
+        <span v-for="x in w.counts.value.byType" :key="x.t" :class="{ 'text-negative': x.ready < x.all }">{{ x.name }} {{ x.ready }}/{{ x.all }}<template v-if="x.low"> · 💰{{ x.low }}</template></span>
+      </router-link>
       <router-link v-if="bell.monitorBar.value" to="/flexy/monitor?tab=now" class="line" :class="bell.monitorBar.value.level === 'down' ? 'bg-negative' : 'bg-orange-9'">⚠ {{ bell.monitorBar.value.text }}</router-link>
       <div v-for="p in w.problems.value.slice(0, 6)" :key="p.key" class="prob row items-center no-wrap">
         <router-link :to="p.to" class="col ellipsis" :class="p.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ p.text }}</router-link>
@@ -69,6 +72,7 @@ const newsCount = computed(() => { void newsSeenRef.value; return unseenNews() }
 .dot.off { background: #D32F2F; }
 .kpi { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 12px; padding: 4px 8px; border-radius: 12px; background: #EEF2FF; color: #3730A3; text-decoration: none; }
 .kpi.bad { background: #FEE2E2; color: #B91C1C; }
+.bytype { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: #374151; text-decoration: none; margin-top: 6px; }
 .line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; text-decoration: none; border-radius: 8px; padding: 5px 10px; font-size: 13px; }
 .prob { min-width: 0; font-size: 13px; border-top: 1px solid #EEF0F4; padding-top: 2px; }
 .prob a { text-decoration: none; }
