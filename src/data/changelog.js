@@ -7,7 +7,7 @@ export const CHANGELOG = [
     date: '2026-11-01',
     title: '«عروض»: خط معروف بعروضه مباشرة',
     items: [
-      { text: 'رقم خطه معروف من قبل (Revolution، PixX…): تظهر عروضه بأسمائها مباشرة بعد التحميل، بلا لوحة Sama Mix؛ خط Sama أو غير معروف: اللوحة كما هي', to: '/flexy/shop', pr: 'card-store' }
+      { text: 'رقم خطه معروف (Sama، Revolution، PixX…): تظهر عروضه الحقيقية بأسمائها مباشرة بعد التحميل، بلا أوتوميكس؛ اللوحة التلقائية فقط لخط غير معروف أو كشف لم ينتهِ', to: '/flexy/shop', pr: 'card-store' }
     ]
   },
   {

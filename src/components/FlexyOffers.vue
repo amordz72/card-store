@@ -498,10 +498,9 @@ function details (o) {
 // realView: after «لا يوجد عرض…», the line's own offers in the ordinary look (owner 2026-10-31), this number only
 const realView = ref(false)
 watch(() => props.phone, () => { realView.value = false })
-// A line already known and not Sama (Revolution, PixX…): its own offers at once, by their names (owner 2026-11-01, «نفذ»);
-// the board stays for a Sama line, and for a line not known yet (the discovery goes on behind it)
-const knownOtherLine = computed(() => certain.value && offers.value.length > 0 &&
-  offers.value.every((o) => !/^sama\b/i.test(o.family || o.label || '')))
+// A line already known (Sama, Revolution, PixX…): its own offers at once, by their names (owner 2026-11-01: «في العروض المعروفة
+// لا يجب أن تظهر أوتوميكس»). The automatic board only covers a line not known yet, or whose discovery has not ended.
+const knownOtherLine = computed(() => certain.value && offers.value.length > 0)
 const boardOn = computed(() => props.boardSwitch && !realView.value && !knownOtherLine.value && props.phoneOk && props.phone.startsWith('06') && automix.value.for === props.phone &&
   !shape.value && !newGroup.value)
 // The line's own offer for one row: same price; Mix before other families for the mixed rows (unavailable ones too)
