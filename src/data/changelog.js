@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zt',
+    date: '2026-11-01',
+    title: 'هل البطء من الخادم أم من الإنترنت؟',
+    items: [
+      { text: 'بطاقة «المراقبة» ولوحتها: «🐢 الخادم بطيء الآن» أو «📶 الإنترنت عندك بطيء» تلقائيًا، بقياس طلب صغير للقاعدة مقابل ملف صغير من الموقع', to: '/watch', pr: 'card-store' },
+      { text: 'بعد تطبيق s182: جلسة الزبون تكتب «آخر استعمال» مرة في الدقيقة فقط، فيقل التزاحم وقت الضغط', to: '/watch', pr: 'flexy-core، s182' }
+    ]
+  },
+  {
     id: '2026-11-01-zs',
     date: '2026-11-01',
     title: 'المراقبة منفصلة · العدد في المتجر · لا تحميل كل مرة',

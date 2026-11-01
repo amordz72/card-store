@@ -10,6 +10,9 @@
       <q-icon :name="open ? 'expand_less' : 'expand_more'" size="20px" />
     </button>
     <div v-if="open" class="body">
+      <div v-if="w.speed.value?.level" class="line" :class="w.speed.value.level === 'server' ? 'bg-deep-orange-8' : 'bg-blue-grey-7'">
+        {{ w.speed.value.level === 'server' ? '🐢 الخادم بطيء الآن' : '📶 الإنترنت عندك بطيء الآن' }}
+        ({{ w.speed.value.db === Infinity ? 'لا رد' : (w.speed.value.db / 1000).toFixed(1) + ' ث' }})</div>
       <div class="kpis">
         <router-link class="kpi" to="/watch">💻 {{ w.counts.value.pcOn }}/{{ w.counts.value.pcAll }} متصل</router-link>
         <router-link class="kpi" to="/watch">📶 {{ w.counts.value.simReady }}/{{ w.counts.value.simAll }} جاهزة</router-link>

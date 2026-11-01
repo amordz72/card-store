@@ -7,6 +7,8 @@
       <span class="small muted">{{ w.at.value ? 'حُدّثت ' + clock(w.at.value) : '' }}</span>
       <q-btn flat round dense icon="refresh" :loading="w.loading.value" aria-label="تحديث" @click="w.load" />
     </div>
+    <div v-if="w.speed.value?.level" class="small text-weight-bold" :class="w.speed.value.level === 'server' ? 'text-deep-orange-9' : 'text-blue-grey-8'">
+      {{ w.speed.value.level === 'server' ? '🐢 الخادم بطيء الآن (القاعدة ترد في ' + (w.speed.value.db / 1000).toFixed(1) + ' ث والموقع سريع): ليس إنترنتك' : '📶 الإنترنت عندك بطيء الآن (الموقع والقاعدة كلاهما بطيء)' }}</div>
     <div v-if="w.error.value" class="small text-negative">تعذّرت القراءة الآن ({{ w.error.value }}): تُعرض آخر حالة.</div>
 
     <!-- The numbers -->
