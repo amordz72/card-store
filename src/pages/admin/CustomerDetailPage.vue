@@ -93,7 +93,8 @@
             <span class="text-weight-bold">{{ sv.name }}</span>
             <q-option-group dense inline :model-value="fx.block[sv.key] ? 'block' : 'allow'" :options="ALLOW" :disable="busy"
               @update:model-value="fx.block[sv.key] = $event === 'block'" />
-            <q-input v-model.number="fx.rate[sv.key]" dense outlined type="number" step="0.25" suffix="%" :disable="busy || fx.block[sv.key]" />
+            <q-input v-if="!sv.oneRate" v-model.number="fx.rate[sv.key]" dense outlined type="number" step="0.25" suffix="%" :disable="busy || fx.block[sv.key]" />
+            <span v-else class="small muted">= نسبة جازي</span>
           </div>
           <div class="small muted">نسبته من كل إرسال؛ فارغ = النسبة الافتراضية. «منع» يقفل الخدمة ويحفظ النسبة جانبًا. المحل لا يرى نسبته ولا دوره.</div>
           <q-btn unelevated no-caps color="primary" label="حفظ الفليكسي" class="self-start" :loading="busy" :disable="!fxChanges.length" @click="saveFlexy" />
@@ -227,7 +228,8 @@ const FLEXY_SERVICES = [
   { key: 'ooredoo', name: 'أوريدو', rate: 'rate_630_ooredoo', block: 'block_ooredoo' },
   { key: 'djezzy', name: 'جازي', rate: 'rate_630_djezzy', block: 'block_djezzy' },
   { key: 'offer_ooredoo', name: 'عروض أوريدو', rate: 'rate_offer_ooredoo', block: 'block_offer_ooredoo' },
-  { key: 'offer_djezzy', name: 'عروض جازي', rate: 'rate_offer_djezzy', block: 'block_offer_djezzy' }
+  // s188: Djezzy has one rate (owner 2026-11-01): its offers take the ordinary Djezzy rate; only «منع» here
+  { key: 'offer_djezzy', name: 'عروض جازي (بنسبة جازي)', rate: 'rate_offer_djezzy', block: 'block_offer_djezzy', oneRate: true }
 ]
 const ROLE_OPTIONS = [{ label: 'تاجر', value: 'trader' }, { label: 'تاجر الجملة', value: 'wholesale' }]
 const ALLOW = [{ label: 'سماح', value: 'allow' }, { label: 'منع', value: 'block' }]
@@ -256,7 +258,7 @@ const fxChanges = computed(() => {
   if (f.role !== o.role && f.role) out.push({ role: f.role })
   for (const sv of FLEXY_SERVICES) {
     if (f.block[sv.key] !== o.block[sv.key]) out.push({ service: sv.key, block: f.block[sv.key] })
-    if (rateNum(f.rate[sv.key]) !== o.rate[sv.key]) out.push({ service: sv.key, rate: rateNum(f.rate[sv.key]) })
+    if (!sv.oneRate && rateNum(f.rate[sv.key]) !== o.rate[sv.key]) out.push({ service: sv.key, rate: rateNum(f.rate[sv.key]) })
   }
   if (rateNum(f.max) !== null && rateNum(f.max) !== o.max) out.push({ max: rateNum(f.max) })
   return out

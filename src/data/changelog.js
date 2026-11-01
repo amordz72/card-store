@@ -3,6 +3,16 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zz3',
+    date: '2026-11-01',
+    title: 'الحساب الجديد: الخدمات مفتوحة ونصف ربحك',
+    items: [
+      { text: 'بعد تطبيق s188: النسب الافتراضية نصف ربحك — موبيليس 2%، العروض 4.5%، أوريدو 1.4%، جازي 0.5%', to: '/flexy/shops', pr: 'flexy-core، s188' },
+      { text: 'كل حساب جديد يُفتح بالفليكسي العادي (موبيليس، أوريدو، جازي) وتعبئة إيدوم مفعّلين بهذه النسب؛ العروض تبقى مقفلة حتى تفتحها', to: '/customers', pr: 'flexy-core، s188' },
+      { text: 'جازي بنسبة واحدة: عروض جازي تأخذ نسبة جازي العادية دائمًا، فلا خانة لها', to: '/flexy/shops', pr: 'flexy-core، s188' }
+    ]
+  },
+  {
     id: '2026-11-01-zz2',
     date: '2026-11-01',
     title: 'عرض أوريدو 500، ومتابعة «المراجعة» وحدها',
