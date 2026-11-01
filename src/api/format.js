@@ -17,7 +17,27 @@ export function dateTime (iso) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   const v = Object.fromEntries(ALGIERS.formatToParts(d).map((x) => [x.type, x.value]))
-  return `${v.year}-${v.month}-${v.day} ${v.hour === '24' ? '00' : v.hour}:${v.minute}`
+  // day/month/year, Algeria's time (owner 2026-11-01: «التاريخ اكتبه صحيحًا»)
+  return `${v.day}/${v.month}/${v.year} ${v.hour === '24' ? '00' : v.hour}:${v.minute}`
+}
+
+/** «الآن» / «قبل 5 دقائق» / «قبل ساعتين»; null after 24 hours (owner 2026-11-01: «قبل ساعة، قبل دقائق… أوضح») */
+export function ago (iso, now = Date.now()) {
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return null
+  const m = Math.floor((now - t) / 60000)
+  if (m < 1) return 'الآن'
+  if (m < 60) return 'قبل ' + (m === 1 ? 'دقيقة' : m === 2 ? 'دقيقتين' : m <= 10 ? m + ' دقائق' : m + ' دقيقة')
+  const h = Math.floor(m / 60)
+  if (h < 24) return 'قبل ' + (h === 1 ? 'ساعة' : h === 2 ? 'ساعتين' : h <= 10 ? h + ' ساعات' : h + ' ساعة')
+  return null
+}
+
+/** «قبل 5 دقائق · 13:04» today, else the full date «01/11/2026 13:04» (Algeria) */
+export function whenText (iso) {
+  const full = dateTime(iso)
+  const a = ago(iso)
+  return a ? a + ' · ' + full.slice(-5) : full
 }
 
 export const CATEGORIES = [

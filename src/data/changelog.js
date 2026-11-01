@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zi',
+    date: '2026-11-01',
+    title: 'الوقت أوضح',
+    items: [
+      { text: 'التاريخ في كل مكان يوم/شهر/سنة بتوقيت الجزائر (01/11/2026 13:04)', to: '/operations', pr: 'card-store' },
+      { text: 'في «العمليات»: «الآن»، «قبل 5 دقائق»، «قبل ساعتين» ثم الساعة؛ بعد يوم التاريخ كاملًا', to: '/operations', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zh',
     date: '2026-11-01',
     title: 'هاتف أم كمبيوتر في العمليات',

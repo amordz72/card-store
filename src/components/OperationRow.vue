@@ -14,7 +14,7 @@
         <q-item-label v-if="lastSim" caption>الشريحة: <q-icon :name="onPhone(lastSim) ? 'smartphone' : 'computer'" :color="onPhone(lastSim) ? 'deep-purple' : 'blue-grey'" size="16px" class="q-mx-xs" :title="onPhone(lastSim) ? 'هاتف' : 'كمبيوتر'" /><bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
         <q-item-label v-if="before" caption>رصيد الشريحة قبل: {{ before }}</q-item-label>
         <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:var(--brand-soft, #FFF1E8);color:var(--brand-deep, #9A3412)">{{ op.customer_name }}</span></q-item-label>
-        <q-item-label caption>{{ dateTime(op.created_at) }}<span v-if="op.source !== 'core'"> · رقم {{ op.op_id }}</span></q-item-label>
+        <q-item-label caption>{{ whenText(op.created_at) }}<span v-if="op.source !== 'core'"> · رقم {{ op.op_id }}</span></q-item-label>
       </q-item-section>
       <q-item-section side top class="items-end q-gutter-xs">
         <span class="text-weight-bold text-dark">{{ money(op.base_amount) }}</span>
@@ -51,7 +51,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { money, dateTime, brandColor } from 'src/api/format'
+import { money, brandColor, whenText } from 'src/api/format'
 import { algeriaTime, explain, movedWhy, simLine } from 'src/api/flexyExplain'
 
 const props = defineProps({ op: { type: Object, required: true }, admin: Boolean, shop: Boolean, hide: Boolean })
