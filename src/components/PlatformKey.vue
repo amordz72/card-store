@@ -42,10 +42,10 @@
           <div class="small text-weight-bold text-grey-8">{{ b.brand }}</div>
           <div class="row q-gutter-xs">
             <q-btn v-for="o in b.items" :key="o.product_id" no-caps dense :unelevated="picked === o.product_id" :outline="picked !== o.product_id"
-              color="primary" :label="o.name" @click="picked = picked === o.product_id ? null : o.product_id" />
+              color="primary" :label="o.name + ' · ' + money(o.base_price)" @click="picked = picked === o.product_id ? null : o.product_id" />
           </div>
           <div v-if="pickedIn(b)" class="match column q-gutter-xs">
-            <div class="small muted">مقابله في المنصة (المتاح، الأقرب أولًا ثم الأرخص):</div>
+            <div class="small muted">مقابله في المنصة (المتاح، الأقرب أولًا ثم الأرخص) · سعرنا {{ money(pickedProduct?.base_price) }}:</div>
             <div v-for="p in matches" :key="p.id" class="prod row items-center no-wrap q-gutter-sm">
               <div class="col">
                 <div class="text-weight-bold">{{ p.name }} <span class="small muted">#{{ p.id }}</span></div>
@@ -54,6 +54,8 @@
               <div class="text-right">
                 <div class="text-weight-bold">{{ rate > 0 ? dzd(p.price) : '—' }}</div>
                 <div class="small muted ltr">{{ usd(p.price) }}</div>
+                <div v-if="rate > 0 && pickedProduct?.base_price" class="small" :class="gap(p) >= 0 ? 'text-positive' : 'text-negative'">
+                  الفرق {{ gap(p) >= 0 ? '+' : '' }}{{ gap(p).toLocaleString('en-US') }} دج</div>
               </div>
             </div>
             <div v-if="!matches.length" class="small muted">لا يوجد مقابل متاح في المنصة.</div>
@@ -95,7 +97,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ownerPlatformProducts, ownerPlatformProfile } from 'src/api/flexy'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
-import { dateTime } from 'src/api/format'
+import { dateTime, money } from 'src/api/format'
 
 const PLATFORM = 'topup-dz'
 const { busy, run } = useRun()
@@ -216,6 +218,9 @@ const ours = computed(() => {
   }
   return [...m.entries()].map(([brand, items]) => ({ brand, items: items.sort((a, b) => (a.base_price ?? 0) - (b.base_price ?? 0)) }))
 })
+const pickedProduct = computed(() => ourProducts.value.find((x) => x.product_id === picked.value) || null)
+// our price minus the platform's cost in dinars (viewing only, at the rate typed above)
+const gap = (p) => Math.round(Number(pickedProduct.value?.base_price || 0) - Number(p.price || 0) * Number(rate.value || 0))
 const pickedIn = (b) => b.items.some((o) => o.product_id === picked.value)
 const flat = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, '')
 const firstNumber = (t) => (String(t || '').match(/\d+/) || [null])[0]
