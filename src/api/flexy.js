@@ -237,3 +237,6 @@ export const validate = (phone, amount, distributorAccount) => call('validate', 
   method: 'POST',
   body: { operation_key: 'mobilis.arsselli.ordinary.630', phone, amount, distributor_account: distributorAccount }
 })
+// «منصة topup-dz» (s178, owner 2026-11-01): read only, through flexy-api (the key stays on the server)
+export const ownerPlatformProfile = () => owner('platform/profile', { method: 'GET' })
+export const ownerPlatformProducts = () => owner('platform/products', { method: 'GET' })
