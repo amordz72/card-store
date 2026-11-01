@@ -13,7 +13,7 @@
       :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :explore-offer="exploreOffer" :rows="allOps" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <!-- «تعبئة» (owner 2026-11-01): an Idoom line typed in the same field shows its cards here -->
-      <template v-if="!phoneMode" #other="{ raw }"><IdoomCards owner :raw="raw" @sent="afterIdoom" /></template>
+      <template v-if="!phoneMode" #other="{ raw }"><IdoomCards owner :raw="raw" :running-lines="idoomBusy" @sent="afterIdoom" /></template>
       <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
       <div v-if="newReplies.length" class="card column q-gutter-xs">
         <div class="row items-center">
@@ -386,6 +386,7 @@ const loadIdoom = () => (phoneMode ? Promise.resolve()
     if (ids.length) api.idoomJobBatches(ids).then((m) => { idoomTags.value = m || {} })
   }).catch(() => null))
 const idoomRunning = computed(() => idoomRows.value.some((j) => ['queued', 'claimed'].includes(j.status)))
+const idoomBusy = computed(() => idoomRows.value.filter((j) => ['queued', 'claimed'].includes(j.status)).map((j) => ({ line: j.line, at: j.created_at })))
 const allOps = computed(() => [...ops.value, ...idoomRows.value.map((j) => ({
   id: 'idoom:' + j.id, title: j.product_name, phone: j.line, kind: 'idoom', amount: null,
   badge: idoomView(j), at: j.created_at, reply: j.status === 'looked_up' ? null : j.reply,

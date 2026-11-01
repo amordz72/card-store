@@ -29,7 +29,8 @@
       <div class="text-weight-bold">اختر البطاقة</div>
       <!-- The same short rows as «تعبئة» (owner 2026-11-01); s170: from the suspect stock on his choice -->
       <q-toggle v-if="suspectTotal" v-model="fromSuspect" color="deep-orange" :label="'من المشكوك فيها (' + suspectTotal + ')'" />
-      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy" @click="confirmCharge(c)">
+      <div v-if="lineBusy" class="busy-line">⏳ تعبئة جارية لهذا الخط · منذ {{ busySince }} — انتظر ردها</div>
+      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy" @click="confirmCharge(c)">
         <span class="col">{{ c.name }}<span v-if="fromSuspect" class="small text-deep-orange"> · مشكوك فيها {{ suspectOf(c) }}</span></span>
         <span class="price">{{ money(c.base_price) }}</span>
       </button>
@@ -86,6 +87,7 @@ import { copyText } from 'src/composables/useCopy'
 import * as api from 'src/api/admin'
 import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
+import { useLineBusy } from 'src/composables/useLineBusy'
 
 const STATUS = {
   queued: { label: 'في الانتظار', color: 'grey-7' },
@@ -111,6 +113,7 @@ let timer = null
 
 const digits = computed(() => line.value.replace(/\D/g, ''))
 const lineOk = computed(() => /^(0\d{8}|213\d{9})$/.test(digits.value))
+const { busyLine: lineBusy, busySince } = useLineBusy(() => jobs.value, () => digits.value)
 // 4G LTE lines are 12 digits starting with 213; fixed lines (ADSL/FTTH) are 9 digits
 const is4g = computed(() => /^213\d{9}$/.test(digits.value))
 const spaced = (d) => (d || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{3})?$/, (m, a, b, c, e) => [a, b, c, e].filter(Boolean).join(' '))
@@ -257,4 +260,5 @@ watch(() => check.value?.status, (s) => { if (s === 'looked_up') loadInfo() })
   background: #fff; font: inherit; color: inherit; text-align: right; cursor: pointer; }
 .idoom-row:disabled { opacity: 0.5; cursor: default; }
 .idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap; min-width: 76px; text-align: center; }
+.busy-line { background: #E3F2FD; color: #0D47A1; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 </style>

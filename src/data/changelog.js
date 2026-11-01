@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-t',
+    date: '2026-11-01',
+    title: 'قفل بطاقات إيدوم أثناء تعبئة نفس الخط',
+    items: [
+      { text: 'ما دامت تعبئة هذا الخط جارية تُقفل بطاقاته: «تعبئة جارية لهذا الخط · منذ N ث»، وتُفتح وحدها عند الرد؛ رقم آخر أو فليكسي أو 4G آخر يبقى حرًا', to: '/idoom', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-s',
     date: '2026-11-01',
     title: '«رأس المال» بلا المشكوك فيها (بعد تطبيق s173)',

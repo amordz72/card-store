@@ -24,7 +24,8 @@
       <div v-if="lineOk" class="card column q-gutter-sm">
         <div class="text-weight-bold">اختر البطاقة</div>
         <!-- The same short rows as «تعبئة» (owner 2026-11-01) -->
-        <button v-for="c in cards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !access.phoneOnline.value" @click="confirmCharge(c)">
+        <div v-if="lineBusy" class="busy-line">⏳ تعبئة جارية لهذا الخط · منذ {{ busySince }} — انتظر ردها</div>
+        <button v-for="c in cards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy || !access.phoneOnline.value" @click="confirmCharge(c)">
           <span class="col">{{ c.name }}</span>
           <span class="price">{{ money(c.base_price) }}</span>
         </button>
@@ -66,6 +67,7 @@ import { useIdoomAccess } from 'src/composables/useIdoomAccess'
 import * as api from 'src/api/customer'
 import { money } from 'src/api/format'
 import LoadMoreBar from 'components/LoadMoreBar.vue'
+import { useLineBusy } from 'src/composables/useLineBusy'
 
 const customer = useCustomerStore()
 const buyer = useBuyer()
@@ -111,6 +113,7 @@ watch(digits, async () => {
 
 const { rows, total, loadingMore, reset, refresh, more, size } =
   useLoadMore((limit, offset) => run(() => api.idoomJobs(customer.token, limit, offset)), { key: 'job_id' })
+const { busyLine: lineBusy, busySince } = useLineBusy(() => rows.value, () => digits.value)
 const open = computed(() => rows.value.some((j) => ['queued', 'claimed'].includes(j.status)))
 
 async function reloadAll () {
@@ -175,4 +178,5 @@ onUnmounted(() => clearInterval(timer))
   background: #fff; font: inherit; color: inherit; text-align: right; cursor: pointer; }
 .idoom-row:disabled { opacity: 0.5; cursor: default; }
 .idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap; min-width: 76px; text-align: center; }
+.busy-line { background: #E3F2FD; color: #0D47A1; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 </style>
