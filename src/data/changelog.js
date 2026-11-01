@@ -3,6 +3,16 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zk',
+    date: '2026-11-01',
+    title: 'الشرائح مرتبة حسب الكمبيوتر · الدفعات الأحدث أولًا',
+    items: [
+      { text: '«المحطات والشرائح»: تبويب «الكل»، والشرائح مرتبة 💻1 ثم 💻2… (ثم رقم USB)، الجاهزة أولًا', to: '/flexy/devices', pr: 'card-store' },
+      { text: 'سطر «💻1 / USB-1 / sama-1» في كل بطاقة؛ غير الجاهزة باهتة والجزء المعطّل مشطوب ✗', to: '/flexy/devices', pr: 'card-store' },
+      { text: 'الدفعات من الأحدث إلى الأقدم (المخزن و«من أي دفعة؟»)؛ «تلقائي» يبقى يأخذ الأقدم', to: '/stock', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zj',
     date: '2026-11-01',
     title: '💻 4 بدل server-4 · رقم USB المكتوب على الجهاز',

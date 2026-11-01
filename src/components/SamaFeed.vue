@@ -163,7 +163,7 @@ const batchCodes = ref({})
 const feedBatches = ref([])
 const feedBatch = ref(null)
 const batchOptions = computed(() => [{ label: 'تلقائي (الأقدم)', value: null },
-  ...feedBatches.value.map((b) => ({ label: `${b.code || '#' + b.batch_id} · ${b.n} بطاقة`, value: b.batch_id }))])
+  ...[...feedBatches.value].sort((a, b) => Number(b.batch_id) - Number(a.batch_id)).map((b) => ({ label: `${b.code || '#' + b.batch_id} · ${b.n} بطاقة`, value: b.batch_id }))])
 const loadFeedBatches = () => { feedBatch.value = null; if (targetFace.value) admin.batchesForFace(targetFace.value, fromSuspect.value).then((v) => { feedBatches.value = v || [] }) }
 watch(fromSuspect, loadFeedBatches)
 const fromSuspect = ref(false)

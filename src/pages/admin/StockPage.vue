@@ -882,7 +882,9 @@ const shownBatches = computed(() => batchList.value.filter((b) =>
   (!bf.value.availOnly || b.available + b.frozen + b.suspect > 0) &&
   (!bf.value.suspectOnly || b.suspect > 0) &&
   (!codeHits.value || codeHits.value.has(b.batch_id)) &&
-  inRange(b.created_at)))
+  inRange(b.created_at))
+  // newest first (owner 2026-11-01: «من الأحدث إلى الأقدم»)
+  .sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0) || b.batch_id - a.batch_id))
 
 // Only codes still in stock change; a code sold meanwhile is skipped by the database.
 async function stockCodeIds (b, test) {

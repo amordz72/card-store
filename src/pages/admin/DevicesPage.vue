@@ -88,7 +88,7 @@
         <!-- One word per SIM from the top layer down (owner 2026-10-28): its computer off is not its problem;
              «تحتاج تدخلًا» holds only what needs the owner now, even with its computer off (a PIN, an approval) -->
         <q-btn-toggle v-model="simTab" dense unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-          :options="[{ label: `جاهزة (${simRows.ready.length})`, value: 'ready' }, { label: `كمبيوترها مطفأ (${simRows.station_off.length})`, value: 'station_off' }, { label: `تحتاج تدخلًا (${simRows.needs_action.length})`, value: 'needs_action' }, ...(missingSims.length ? [{ label: `غائبة (${missingSims.filter((x) => !x.retired).length})`, value: 'missing' }] : [])]" />
+          :options="[{ label: `الكل (${simRows.all.length})`, value: 'all' }, { label: `جاهزة (${simRows.ready.length})`, value: 'ready' }, { label: `كمبيوترها مطفأ (${simRows.station_off.length})`, value: 'station_off' }, { label: `تحتاج تدخلًا (${simRows.needs_action.length})`, value: 'needs_action' }, ...(missingSims.length ? [{ label: `غائبة (${missingSims.filter((x) => !x.retired).length})`, value: 'missing' }] : [])]" />
       </div>
       <!-- Owner 2026-10-30: «المراقبة» named a SIM this page did not show. An approved SIM no modem holds now: where it was
            last, and «ألغِ تتبّعها» (owner's word: «إخراج من الخدمة» is something else) when it was taken out on purpose (it comes back by itself when seen again). -->
@@ -111,8 +111,15 @@
         <table class="sims">
           <thead><tr><th>الشريحة</th><th>الرقم</th><th>الجهاز</th><th>الرصيد</th><th>الحالة</th><th v-if="audiences">لمن</th></tr></thead>
           <tbody>
-            <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" @click="open(r.st, r.m)">
-              <td><span v-if="isPreferred(r.m.sim)" class="text-amber-8" title="مفضّلة: يرسل منها أولًا">⭐ </span><span class="text-weight-bold">{{ simName(r.m.sim, r.st) || 'جديدة' }}</span><span v-if="adminName(r.m.sim)" class="small muted"> · {{ r.m.sim.code }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
+            <tr v-for="r in shownSims" :key="r.m.sim.sim_uuid" :class="{ 'sim-down': simState(r) !== 'ready' }" @click="open(r.st, r.m)">
+              <td>
+                <!-- «💻1 / USB-1 / sama-1» (owner 2026-11-01): the broken part struck through with ✗ -->
+                <div class="place ltr text-left">
+                  <span :class="{ struck: placeDown(r) === 'pc' }">{{ isPhone(r.st) || r.st.phone ? '📱' : '💻' }}{{ stNo(r.st) }}<b v-if="placeDown(r) === 'pc'"> ✗</b></span> /
+                  <span :class="{ struck: placeDown(r) === 'usb' }">USB-{{ usbOf(r.m) ?? '?' }}<b v-if="placeDown(r) === 'usb'"> ✗</b></span> /
+                  <span :class="{ struck: placeDown(r) === 'sim' }">{{ r.m.sim.code || 'sim' }}<b v-if="placeDown(r) === 'sim'"> ✗</b></span>
+                </div>
+                <span v-if="isPreferred(r.m.sim)" class="text-amber-8" title="مفضّلة: يرسل منها أولًا">⭐ </span><span class="text-weight-bold">{{ simName(r.m.sim, r.st) || 'جديدة' }}</span><span v-if="adminName(r.m.sim)" class="small muted"> · {{ r.m.sim.code }}</span><div class="small muted">{{ r.m.sim.label || r.m.sim.sim_type_name }}</div></td>
               <td><bdi class="ltr">{{ r.m.sim.msisdn || (r.m.sim.msisdn_tail ? '…' + r.m.sim.msisdn_tail : '—') }}</bdi></td>
               <td>{{ stName(r.st) || '—' }}</td>
               <td :class="r.m.sim.balance == null ? 'text-deep-orange' : r.m.sim.balance <= 0 ? 'text-negative' : ''">{{ r.m.sim.balance == null ? 'غير مقروء' : money(r.m.sim.balance) }}</td>
@@ -617,7 +624,7 @@ const SUMMARY_TYPES = [['mobilis-arsselli', 'أرسلي'], ['mobilis-sama', 'Sam
 const typeName = (type) => SUMMARY_TYPES.find(([t]) => t === type)?.[1] || type
 const typeFilter = ref(null)
 const simStation = ref('all')
-const simTab = ref('ready')
+const simTab = ref('all')
 // «هاتف الإدارة» is gone (owner 2026-11-01): its phones are in «الشرائح»
 const readTab = () => { try { return localStorage.getItem('devices.tab') === 'computers' ? 'computers' : 'sims' } catch { return 'sims' } }
 const pageTab = ref(readTab())
@@ -647,11 +654,18 @@ const STATE = {
   station_off: { label: 'كمبيوترها مطفأ', color: 'grey-6' },
   needs_action: { label: 'تحتاج تدخلًا', color: 'negative' }
 }
+// By computer number, then USB number (owner 2026-11-01); «الكل»: the ready ones first
+const stNo = (st) => Number((String(st?.code || '').match(/\d+/) || [])[0] ?? 999)
+const byPlace = (a, b) => stNo(a.st) - stNo(b.st) || (Number(usbOf(a.m)) || 999) - (Number(usbOf(b.m)) || 999)
+// The part that is down: the computer off, the modem gone from its USB, else the SIM itself
+const placeDown = (r) => (simState(r) === 'ready' ? null : isAbsent(r.st) ? 'pc' : modemGone(r) ? 'usb' : 'sim')
 const simRows = computed(() => {
   const rows = everySim.value.filter((r) =>
     (simStation.value === 'all' || r.st.station_uuid === simStation.value) && (!typeFilter.value || r.m.sim.sim_type === typeFilter.value))
+    .sort(byPlace)
   const now = rows.filter((r) => !r.old)
   return {
+    all: [...now.filter((r) => simState(r) === 'ready'), ...now.filter((r) => simState(r) !== 'ready')],
     ready: now.filter((r) => simState(r) === 'ready'),
     station_off: now.filter((r) => simState(r) === 'station_off'),
     needs_action: now.filter((r) => simState(r) === 'needs_action'),
@@ -1237,4 +1251,7 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
   .sims td { display: block; border: 0; padding: 0; white-space: normal; min-width: 0; }
   .sims td:first-child, .sims td[colspan] { flex-basis: 100%; }
 }
+.sim-down { opacity: 0.55; }
+.place { font-weight: 700; white-space: nowrap; }
+.place .struck { text-decoration: line-through; color: #C62828; }
 </style>

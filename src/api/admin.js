@@ -135,7 +135,8 @@ export async function pickBatch (Dialog, title, list) {
     Dialog.create({
       title, cancel: 'إلغاء', ok: 'متابعة',
       options: { type: 'radio', model: 'auto', items: [{ label: 'تلقائي (الأقدم)', value: 'auto' },
-        ...list.map((b) => ({ label: `${b.code || '#' + b.batch_id} · ${b.n} بطاقة`, value: String(b.batch_id) }))] }
+        // newest first (owner 2026-11-01); «تلقائي» still takes the oldest
+        ...[...list].sort((a, b) => Number(b.batch_id) - Number(a.batch_id)).map((b) => ({ label: `${b.code || '#' + b.batch_id} · ${b.n} بطاقة`, value: String(b.batch_id) }))] }
     }).onOk((v) => resolve({ batch: v === 'auto' ? null : Number(v) })).onCancel(() => resolve(null))
   })
 }
