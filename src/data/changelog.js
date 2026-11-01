@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zz6',
+    date: '2026-11-01',
+    title: 'كمبيوتر جديد: الحزمة من الهاتف بضغطة، وزر «حدّث الآن»',
+    items: [
+      { text: 'الأجهزة ← إضافة كمبيوتر: «نزّل الثلاثة» ينزّل على الهاتف ملف التثبيت وGit وNode (ملفات مباشرة من مواقعها الرسمية)، تُنقل معًا إلى الكمبيوتر فيثبّت بلا إنترنت', to: '/flexy/devices', pr: 'card-store' },
+      { text: 'برنامج المحطة 0.9.11: أيقونة «Flexy Update» على سطح مكتب الكمبيوتر وزر «حدّث الآن» في صفحته: يحدّث لآخر نسخة بنفس الطريق الآمن ويرجع وحده إن فشل', to: '/flexy/devices', pr: 'station-connect #79' }
+    ]
+  },
+  {
     id: '2026-11-01-zz5',
     date: '2026-11-01',
     title: 'دين أوريدو يظهر مبكرًا',

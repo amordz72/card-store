@@ -70,10 +70,15 @@
         <!-- Git and Node carried once by cable (owner 2026-10-27): the installer uses them if they sit next to it,
              else downloads them; no internet then = it waits and goes on by itself -->
         <div class="small column q-gutter-xs help">
-          <div class="text-weight-bold">حزمة Git وNode (مرة واحدة على الهاتف، لتثبيت بلا انتظار):</div>
+          <div class="text-weight-bold">حزمة التثبيت على الهاتف (مرة واحدة، لتثبيت بلا إنترنت على الكمبيوتر):</div>
+          <!-- Direct files (owner 2026-11-01: «ملفات تُحمّل مع بعض في الهاتف»): the same versions the installer itself would
+               download (station-connect install-station.ps1), official servers only -->
+          <q-btn unelevated no-caps color="primary" icon="download_for_offline" label="نزّل الثلاثة: ملف التثبيت + Git + Node" :loading="busy === 'bat'" @click="downloadPack" />
           <div>
-            <a :href="GIT_DOWNLOAD" target="_blank" rel="noopener noreferrer">Git لـWindows ↗</a> (64-bit Git for Windows Setup، ‏Git-…-64-bit.exe)
-            · <a :href="NODE_DOWNLOAD" target="_blank" rel="noopener noreferrer">Node.js ↗</a> (LTS 22، ‏Windows Installer ‏.msi، ‏x64)
+            أو واحدًا واحدًا: <a :href="GIT_FILE" rel="noopener noreferrer">Git (64-bit) ↓</a>
+            · <a :href="NODE_FILE" rel="noopener noreferrer">Node.js 22 (x64) ↓</a>
+            · <a :href="GIT_DOWNLOAD" target="_blank" rel="noopener noreferrer">صفحة Git الرسمية ↗</a>
+            · <a :href="NODE_DOWNLOAD" target="_blank" rel="noopener noreferrer">صفحة Node الرسمية ↗</a>
           </div>
           <div class="muted">في تطبيق الملفات بالهاتف: حدّد الملفين ← ضغط (Compress) ← سمّه <b class="ltr">station-tools.zip</b>.
             انقله مع <b class="ltr">Flexy-install-station-…التاريخ.bat</b> (ابحث «Flexy» في التنزيلات؛ الأحدث بتاريخ اليوم) إلى سطح مكتب الكمبيوتر: يثبّت منه بلا تنزيل، ولا حاجة لفكّه.
@@ -111,6 +116,9 @@ const GITHUB_KEYS = 'https://github.com/settings/personal-access-tokens'
 // Official download pages for the owner's one-time Git / Node pack
 const GIT_DOWNLOAD = 'https://git-scm.com/downloads/win'
 const NODE_DOWNLOAD = 'https://nodejs.org/en/download'
+// The files themselves (the installer's own fallback versions): one tap downloads them on the phone
+const GIT_FILE = 'https://github.com/git-for-windows/git/releases/download/v2.51.2.windows.1/Git-2.51.2-64-bit.exe'
+const NODE_FILE = 'https://nodejs.org/dist/v22.23.4/node-v22.23.4-x64.msi'
 
 const KEY_LEVEL = {
   ok: { label: 'محفوظ وسليم', cls: 'text-positive' },
@@ -216,6 +224,22 @@ function download (quick) {
     setTimeout(() => URL.revokeObjectURL(url), 10000)
     say(quick ? `نُزّل الملف السريع: يعمل مرة واحدة حتى ${clock(b.expires_at)}.` : 'نُزّل ملف التثبيت.')
   })
+}
+
+// «نزّل الثلاثة»: the installer (from the server), then Git and Node straight from their official servers; the phone
+// asks once to allow several downloads. Each lands in Downloads; the page says what to do next.
+async function downloadPack () {
+  await download(false)
+  for (const href of [GIT_FILE, NODE_FILE]) {
+    const a = document.createElement('a')
+    a.href = href
+    a.rel = 'noopener noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+  }
+  say('بدأ تنزيل الثلاثة (إن سأل الهاتف «السماح بتنزيلات متعددة» فاسمح). ضعها معًا في مجلد واحد على الكمبيوتر، أو ضغطها في station-tools.zip مع ملف التثبيت.')
 }
 
 // Every 3 seconds while a computer is on its way, every 30 otherwise; never in the background
