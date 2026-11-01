@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zy',
+    date: '2026-11-01',
+    title: 'المتوفر الآن حسب الشرائح',
+    items: [
+      { text: 'بعد تطبيق s185: صفحة «تعبئة» عند المحل تُظهر «✓ موبيليس · ✓ أوريدو · ⏳ جيزي — غير متوفر حاليًا، قريبًا» حسب الشرائح الجاهزة، والمتعامل بلا شريحة جاهزة لا يقبل الإرسال؛ يعود وحده عند تركيب شريحته', to: '/flexy/shop', pr: 'flexy-core، s185' }
+    ]
+  },
+  {
     id: '2026-11-01-zx',
     date: '2026-11-01',
     title: 'ديون أوريدو «سبقلي»: تُكتشف وتمنع العروض',
