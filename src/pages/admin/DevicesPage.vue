@@ -115,9 +115,12 @@
             <template v-for="g in simGroups" :key="g.st.station_uuid">
               <tr class="pc-head static" :class="{ 'sim-down': g.down }">
                 <td :colspan="audiences ? 5 : 4">
+                  <!-- 🟢 connected / 🔴 off at a glance (owner 2026-11-01: «لماذا لا تظهر الأيقونة الخضراء») -->
+                  <span class="dot big" :class="g.down ? 'off' : 'on'"></span>
                   <span class="pc-icon">{{ isPhone(g.st) || g.st.phone ? '📱' : '💻' }}</span>
                   <span class="pc-no" :class="{ struck: g.down }">{{ stNo(g.st) }}</span><b v-if="g.down" class="text-negative"> ✗</b>
-                  <span class="small muted q-ml-sm">{{ g.rows.length }} {{ g.rows.length === 1 ? 'شريحة' : 'شرائح' }}<template v-if="g.down"> · مطفأ</template></span>
+                  <span class="small q-ml-sm" :class="g.down ? 'text-negative' : 'text-positive'">{{ g.down ? 'مطفأ' : 'متصل' }}<template v-if="g.st.last_seen_at"> · منذ {{ since(g.st.last_seen_at) }}</template></span>
+                  <span class="small muted"> · {{ g.rows.length ? g.rows.length + ' ' + (g.rows.length === 1 ? 'شريحة' : 'شرائح') : 'لا شريحة بعد' }}</span>
                 </td>
               </tr>
               <template v-for="r in g.rows" :key="r.m.sim.sim_uuid">
@@ -193,7 +196,7 @@
                 </tr>
               </template>
             </template>
-            <tr v-if="!shownSims.length">
+            <tr v-if="!simGroups.length">
               <td :colspan="audiences ? 5 : 4" class="text-center muted">لا شرائح بهذا الفلتر
                 <q-btn v-if="typeFilter || simStation !== 'all'" flat dense no-caps size="sm" color="primary" label="إلغاء الفلاتر" @click="clearFilters" /></td>
             </tr>
@@ -719,6 +722,12 @@ const simGroups = computed(() => {
   for (const r of shownSims.value) {
     if (!m.has(r.st.station_uuid)) m.set(r.st.station_uuid, { st: r.st, rows: [], down: isAbsent(r.st) })
     m.get(r.st.station_uuid).rows.push(r)
+  }
+  // «الكل» with no filter: every computer and phone, even with no SIM yet (plugging them one by one shows each arrive)
+  if (simTab.value === 'all' && !typeFilter.value) {
+    for (const st of [...current.value, ...phones.value]) {
+      if ((simStation.value === 'all' || st.station_uuid === simStation.value) && !m.has(st.station_uuid)) m.set(st.station_uuid, { st, rows: [], down: isAbsent(st) })
+    }
   }
   const ready = (r) => (simState(r) === 'ready' ? 0 : 1)
   return [...m.values()].map((g) => ({ ...g, rows: g.rows.sort((a, b) => ready(a) - ready(b) || byPlace(a, b)) }))
@@ -1401,4 +1410,5 @@ button.tile { border: 0; font: inherit; cursor: pointer; }
 .dot.off { background: #D32F2F; }
 .bal { font-size: 13px; padding: 4px 8px; }
 .sim-set { background: #F7F8FB; border-radius: 10px; padding: 10px; }
+.dot.big { width: 14px; height: 14px; margin-inline-end: 8px; }
 </style>
