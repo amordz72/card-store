@@ -62,7 +62,8 @@ export function useWatch (every = 20000) {
       sims: (st.modems || []).filter((m) => m.sim && m.level !== 'old').map((m) => {
         const sim = m.sim
         const ready = (m.sim_state || (isOff(st) ? 'station_off' : m.level === 'down' ? 'needs_action' : 'ready')) === 'ready'
-        const slot = isPhone(st) ? 'SIM-' + (labels.value[m.modem_uuid] || 1) : 'USB-' + ((m.modem_uuid && labels.value[m.modem_uuid]) || m.usb || '?')
+        // A phone's slot is the app's own (Rech-Doom 0.9.3: SIM 1 = 127.0.0.3, SIM 2 = 127.0.0.2), never a typed label
+        const slot = isPhone(st) ? (m.ip === '127.0.0.3' ? 'SIM-1' : 'SIM-2') : 'USB-' + ((m.modem_uuid && labels.value[m.modem_uuid]) || m.usb || '?')
         const lowBal = sim.balance != null && sim.balance <= minOf(sim)
         return { st, m, sim, ready, slot, lowBal, why: (m.reasons || []).map((r) => r.text).join(' · ') }
       }).sort((a, b) => (Number(String(a.slot).replace(/\D/g, '')) || 999) - (Number(String(b.slot).replace(/\D/g, '')) || 999))

@@ -734,7 +734,8 @@ const simGroups = computed(() => {
     .sort((a, b) => (a.down - b.down) || stNo(a.st) - stNo(b.st))
 })
 // A phone's SIM is «SIM-1 / SIM-2» (its slot), a computer's modem «USB-N» (owner 2026-11-01)
-const slotOf = (r) => (isPhone(r.st) || r.st.phone ? 'SIM-' + ((r.m.modem_uuid && labels.value[r.m.modem_uuid]) || 1) : 'USB-' + (usbOf(r.m) ?? '?'))
+// A phone's slot is the app's own (Rech-Doom 0.9.3, owner 2026-11-02: «يخطئ في مكان الشريحة»): SIM 1 = 127.0.0.3, SIM 2 = 127.0.0.2
+const slotOf = (r) => (isPhone(r.st) || r.st.phone ? (r.m.ip === '127.0.0.3' ? 'SIM-1' : 'SIM-2') : 'USB-' + (usbOf(r.m) ?? '?'))
 // «الرصيد» / «USSD» in the card itself
 // The minimum before a SIM's balance turns red (owner 2026-11-01: «إذا وصل إلى الحد الأدنى»)
 const MIN_BALANCE = 1000
