@@ -10,7 +10,8 @@
         <!-- s168: an Idoom top-up shows its line, a game top-up its player -->
         <q-item-label v-if="op.kind === 'idoom' && op.target" caption>الخط <bdi dir="ltr">{{ op.target }}</bdi></q-item-label>
         <q-item-label v-if="op.kind === 'game' && op.target" caption>المعرّف <bdi dir="ltr">{{ op.target }}</bdi></q-item-label>
-        <q-item-label v-if="lastSim" caption>الشريحة: <bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
+        <!-- 📱 a phone / 💻 a computer (owner 2026-11-01: «كيف أعرف أن هذه الشريحة هاتف») -->
+        <q-item-label v-if="lastSim" caption>الشريحة: <q-icon :name="onPhone(lastSim) ? 'smartphone' : 'computer'" :color="onPhone(lastSim) ? 'deep-purple' : 'blue-grey'" size="16px" class="q-mx-xs" :title="onPhone(lastSim) ? 'هاتف' : 'كمبيوتر'" /><bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
         <q-item-label v-if="before" caption>رصيد الشريحة قبل: {{ before }}</q-item-label>
         <q-item-label v-if="op.customer_name && !shop" caption><span class="q-px-sm rounded-borders" style="background:var(--brand-soft, #FFF1E8);color:var(--brand-deep, #9A3412)">{{ op.customer_name }}</span></q-item-label>
         <q-item-label caption>{{ dateTime(op.created_at) }}<span v-if="op.source !== 'core'"> · رقم {{ op.op_id }}</span></q-item-label>
@@ -41,7 +42,7 @@
       </template>
       <template v-if="op.sims && op.sims.length">
         <div v-for="(w, i) in op.sims.slice(0, -1)" :key="i" class="muted">
-          تحوّلت من <bdi dir="ltr">{{ simLine(w) }}</bdi>: {{ movedWhy(op.sims[i + 1].moved_because) }}
+          تحوّلت من <q-icon :name="onPhone(w) ? 'smartphone' : 'computer'" size="14px" class="q-mx-xs" /><bdi dir="ltr">{{ simLine(w) }}</bdi>: {{ movedWhy(op.sims[i + 1].moved_because) }}
         </div>
       </template>
     </div>
@@ -96,6 +97,8 @@ const badge = computed(() => {
 })
 
 // The owner only: the SIM that ran a Flexy row (its own, or a shop's from Flexy Core)
+// a phone station is named «هاتف الإدارة · <model>» (agent phone-*); a computer by its Windows name
+const onPhone = (w) => /هاتف|phone/i.test(String(w?.computer_name || ''))
 const lastSim = computed(() => (props.op.sims?.length ? props.op.sims[props.op.sims.length - 1] : null))
 
 // The owner only: the SIM's estimated balance before it (SHOP-OPS-SIM-AND-BALANCE step 2): the last
