@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zz',
+    date: '2026-11-01',
+    title: 'التغذية في «كل العمليات»',
+    items: [
+      { text: 'بعد تطبيق s186: «كل العمليات» تُظهر تغذية الشرائح (مع «الكل» وزر «تغذية الشرائح»): الشريحة 📱/💻، البطاقة ومورّدها ودفعتها، الحالة، ورد الشبكة والرصيد قبلها وبعدها عند الضغط', to: '/operations', pr: 'flexy-core، s186' }
+    ]
+  },
+  {
     id: '2026-11-01-zy',
     date: '2026-11-01',
     title: 'المتوفر الآن حسب الشرائح',

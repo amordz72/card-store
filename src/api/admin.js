@@ -78,6 +78,9 @@ const opsArgs = (f) => ({
 })
 export const ops = (f) => rpc('store_admin_ops_v2', opsArgs(f))
   .catch((e) => (missingFn(e) ? rpc('store_admin_ops', opsArgs(f)) : Promise.reject(e)))
+// s186: the SIM feedings (a stock card typed into a Sama SIM), newest first; none before s186
+export const simFeeds = (limit, before) => rpc('store_admin_sim_feeds', { p_limit: limit, p_before: before ?? null })
+  .catch((e) => (missingFn(e) ? [] : Promise.reject(e)))
 
 // v1.38: the Flexy Core keys of shop Flexy rows, to read the SIM that ran each (owner only)
 export const flexyKeys = (jobIds) => rpc('store_admin_flexy_keys', { p_job_ids: jobIds })

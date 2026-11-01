@@ -10,6 +10,9 @@
         <!-- s168: an Idoom top-up shows its line, a game top-up its player -->
         <q-item-label v-if="op.kind === 'idoom' && op.target" caption>الخط <bdi dir="ltr">{{ op.target }}</bdi></q-item-label>
         <q-item-label v-if="op.kind === 'game' && op.target" caption>المعرّف <bdi dir="ltr">{{ op.target }}</bdi></q-item-label>
+        <!-- s186: a SIM feeding — which SIM, the card's supplier and batch -->
+        <q-item-label v-if="op.kind === 'feed'" caption>الشريحة: <q-icon :name="op.on_phone ? 'smartphone' : 'computer'" :color="op.on_phone ? 'deep-purple' : 'blue-grey'" size="16px" class="q-mx-xs" /><bdi dir="ltr">{{ op.sim_code || '' }}{{ op.sim_label && op.sim_label !== op.sim_code ? ' · ' + op.sim_label : '' }}</bdi></q-item-label>
+        <q-item-label v-if="op.kind === 'feed'" caption>بطاقة {{ op.card_face }}<span v-if="op.card_supplier"> · {{ op.card_supplier }}</span><span v-if="op.card_batch"> · الدفعة {{ op.card_batch }}</span><span v-if="op.requested_by === 'auto'"> · تلقائية</span></q-item-label>
         <!-- 📱 a phone / 💻 a computer (owner 2026-11-01: «كيف أعرف أن هذه الشريحة هاتف») -->
         <q-item-label v-if="lastSim" caption>الشريحة: <q-icon :name="onPhone(lastSim) ? 'smartphone' : 'computer'" :color="onPhone(lastSim) ? 'deep-purple' : 'blue-grey'" size="16px" class="q-mx-xs" :title="onPhone(lastSim) ? 'هاتف' : 'كمبيوتر'" /><bdi dir="ltr">{{ simLine(lastSim) }}</bdi></q-item-label>
         <q-item-label v-if="before" caption>رصيد الشريحة قبل: {{ before }}</q-item-label>
@@ -34,7 +37,9 @@
     </div>
     <!-- A Flexy row opens in place: what happened, the network's reply, and (owner's own) the SIM -->
     <div v-if="opened" class="q-px-md q-pb-sm column q-gutter-xs small">
-      <div v-if="op.kind !== 'idoom' && op.kind !== 'game'" class="text-weight-bold">{{ explain(op.outcome_code, op.status) }}</div>
+      <div v-if="op.kind === 'feed'" class="text-weight-bold">{{ op.reason || (op.decided_by ? 'حُسمت: ' + (op.decided_by === 'auto' ? 'تلقائيًا' : op.decided_by === 'auto-verify' ? 'بقراءة الرصيد' : op.decided_by) : '') }}</div>
+      <div v-if="op.kind === 'feed' && op.last_reading != null" class="muted">الرصيد قبلها: {{ money(op.last_reading) }}<span v-if="op.amount != null"> · بعدها: {{ money(op.amount) }}</span></div>
+      <div v-else-if="op.kind !== 'idoom' && op.kind !== 'game'" class="text-weight-bold">{{ explain(op.outcome_code, op.status) }}</div>
       <!-- the raw reply: the owner only (owner 2026-11-01) -->
       <template v-if="op.network_reply && admin">
         <div>رد الشبكة:</div>
@@ -77,6 +82,7 @@ const title = computed(() => {
   const o = props.op
   if (o.kind === 'idoom') return 'تعبئة إيدوم · ' + o.product_name
   if (o.kind === 'game') return 'شحن لعبة · ' + o.product_name
+  if (o.kind === 'feed') return 'تغذية شريحة · ' + (o.sim_code || o.sim_label || '')
   if (isCard.value) return o.product_name + (o.qty > 1 ? ' × ' + o.qty : '')
   return o.category === 'offer' ? 'عرض ' + (o.offer_label || '') : 'فليكسي'
 })
@@ -90,7 +96,14 @@ const FLEXY = {
   not_sent: { label: 'لم تُرسل', color: '#6B7280' },
   review: { label: 'قيد المراجعة', color: '#C2410C' }
 }
+// s186: a feeding's own states
+const FEED = {
+  queued: { label: 'تنتظر', color: '#6B7280' }, claimed: { label: 'جارية', color: '#2563EB' }, sent: { label: 'أُرسلت', color: '#2563EB' },
+  success: { label: 'نجحت', color: '#15803D' }, refused: { label: 'رُفضت', color: '#B91C1C' },
+  review: { label: 'مراجعة', color: '#C2410C' }, not_sent: { label: 'لم تُرسل', color: '#6B7280' }
+}
 const badge = computed(() => {
+  if (props.op.kind === 'feed') return FEED[props.op.status] || { label: props.op.status || '—', color: '#6B7280' }
   if ((props.op.kind === 'idoom' || props.op.kind === 'game') && TOPUP[props.op.job_status]) return TOPUP[props.op.job_status]
   if (isCard.value) return props.op.status === 'done' ? { label: 'ناجحة', color: '#15803D' } : { label: 'مسترجعة', color: '#6B7280' }
   return FLEXY[props.op.status] || { label: 'جارية', color: '#2563EB' }
