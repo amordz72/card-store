@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-v',
+    date: '2026-11-01',
+    title: 'روابط لوحة Supabase في «الاستعمال»',
+    items: [
+      { text: 'تبويب «الخادم»: تقارير القاعدة، حجم الخادم، إعادة تشغيل المشروع، الاستهلاك — مع شرح كل واحد', to: '/usage', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-u',
     date: '2026-11-01',
     title: 'بطاقات إيدوم تختفي بعد الإرسال · «Carte non existante» = مستعملة',

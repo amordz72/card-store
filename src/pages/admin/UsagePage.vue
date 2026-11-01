@@ -5,8 +5,18 @@
   <q-page class="q-pa-md column q-gutter-sm page">
     <SectionTabs :tabs="ADMIN_TABS" :links="ADMIN_LINKS" />
     <q-btn-toggle v-model="view" spread unelevated no-caps toggle-color="primary" color="grey-3" text-color="dark"
-      :options="[{ label: 'المؤشرات', value: 'money' }, { label: 'الصفحات', value: 'pages' }]" />
+      :options="[{ label: 'المؤشرات', value: 'money' }, { label: 'الصفحات', value: 'pages' }, { label: 'الخادم', value: 'server' }]" />
     <ShopIndicators v-if="view === 'money'" />
+
+    <!-- «الخادم» (owner 2026-11-01): the Supabase pages to look at when everything turns slow -->
+    <div v-else-if="view === 'server'" class="card column q-gutter-sm">
+      <div class="section-title">لوحة Supabase — مشروع amor-manager</div>
+      <div class="small muted">عندما يصير كل شيء بطيئًا (الأزرار تدور، العمليات لا تظهر) افتح هذه الصفحات بالترتيب.</div>
+      <a v-for="l in SERVER_LINKS" :key="l.href" :href="l.href" target="_blank" rel="noopener" class="server-link column">
+        <span class="text-weight-bold">{{ l.title }} ↗</span>
+        <span class="small muted">{{ l.text }}</span>
+      </a>
+    </div>
 
     <template v-else>
     <div class="row q-gutter-xs">
@@ -62,6 +72,13 @@
 </template>
 
 <script setup>
+const SUPA = 'https://supabase.com/dashboard/project/wqyebqzbbpohbnznqdjj'
+const SERVER_LINKS = [
+  { title: '١. تقارير القاعدة', href: SUPA + '/reports/database', text: 'المعالج (CPU) ورصيد سرعة القرص (Disk IO budget) والذاكرة: إن كان المعالج قرب 100% أو رصيد القرص صفرًا فهذا سبب البطء.' },
+  { title: '٢. حجم الخادم', href: SUPA + '/settings/compute-and-disk', text: 'حجم الخادم الحالي (Micro أو Small…) ومنه يُرفع إن لزم (بمقابل).' },
+  { title: '٣. إعادة تشغيل المشروع', href: SUPA + '/settings/general', text: 'زر «Restart project»: يتوقف كل شيء نحو دقيقتين ثم يعود ويفكّ العالق، ولا يحذف أي بيانات.' },
+  { title: 'الاستهلاك والفاتورة', href: 'https://supabase.com/dashboard/org/jxoxmiauzcmdtxrdrrse/usage', text: 'استدعاءات الوظائف وحجم التخزين خلال الشهر.' }
+]
 import { computed, onMounted, ref, watch } from 'vue'
 import SectionTabs from 'src/components/SectionTabs.vue'
 import ShopIndicators from 'src/components/ShopIndicators.vue'
@@ -142,4 +159,5 @@ watch(view, (v) => { if (v === 'pages') load() })
 .visit { padding: 3px 0; }
 .line { border-top: 1px solid rgba(0, 0, 0, 0.06); padding: 8px 12px; }
 .ltr { direction: ltr; text-align: right; }
+.server-link { display: flex; padding: 10px 12px; border: 1px solid #E3E6EC; border-radius: 10px; color: inherit; text-decoration: none; }
 </style>
