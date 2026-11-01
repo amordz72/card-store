@@ -33,6 +33,7 @@
             <span v-if="c.customer_name"> · بيع لـ<b>{{ c.customer_name }}</b> (طلب {{ c.order_id }}) · {{ dateTime(c.sold_at) }}</span>
             <span v-if="c.void_reason && c.status === 'void'"> · {{ c.void_reason }}</span>
           </div>
+          <div v-if="replies[c.code_id]" class="small text-deep-orange ltr text-right">«{{ replies[c.code_id].reply }}» · {{ dateTime(replies[c.code_id].reply_at) }}<span v-if="replies[c.code_id].line"> · {{ replies[c.code_id].line }}</span></div>
         </div>
         <div v-if="!loading && !rows.length" class="text-center muted q-pa-md">لا أكواد</div>
         <q-inner-loading :showing="loading" />
@@ -56,6 +57,7 @@ const { busy, run } = useRun()
 const rows = ref([])
 const loading = ref(false)
 const revealed = ref(false)
+const replies = ref({})
 const stockIds = computed(() => rows.value.filter((c) => c.status === 'available' && !c.suspect).map((c) => c.code_id))
 
 async function load (reveal) {
@@ -64,6 +66,7 @@ async function load (reveal) {
   try {
     rows.value = await api.batchCodesV3(props.batch.batch_id, reveal)
     revealed.value = reveal
+    replies.value = await api.codeReplies(rows.value.map((c) => c.code_id))
   } catch (e) {
     Notify.create({ type: 'negative', message: /store_admin_batch_codes_v3/.test(e?.message || '') ? 'طبّق s167 من «ينتظر تطبيقك» أولًا.' : (e?.message || 'خطأ') })
   } finally {

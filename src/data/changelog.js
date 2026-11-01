@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-x',
+    date: '2026-11-01',
+    title: 'كل بطاقة خاطئة تحفظ رد الشبكة الخاص بها (بعد تطبيق s176)',
+    items: [
+      { text: 'تحت حالة البطاقة في «ابحث» و«عرض» الدفعة: رد الشبكة كما هو وتاريخه والخط؛ الحكم يبقى «مستعملة»', to: '/stock', pr: 'card-store، s176' }
+    ]
+  },
+  {
     id: '2026-11-01-w',
     date: '2026-11-01',
     title: 'رد الشبكة الخام لك وحدك',
