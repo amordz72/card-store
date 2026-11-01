@@ -215,6 +215,9 @@
 
     </div>
 
+    <!-- «دفتر المخزون» (owner 2026-11-01, s181) -->
+    <div v-if="tab === 'ledger'" class="tab-pane"><StockLedger /></div>
+
     <div v-show="tab === 'batches'" class="tab-pane">
     <!-- s167: a batch with 2+ bad cards became suspect by itself (owner 2026-11-01); «تم» hides it -->
     <div v-for="a in batchAlertList" :key="'al' + a.batch_id" class="card row items-center no-wrap q-gutter-sm alert-batch">
@@ -370,6 +373,7 @@
 </template>
 
 <script setup>
+import StockLedger from 'src/components/StockLedger.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Dialog, LocalStorage, Notify } from 'quasar'
@@ -392,7 +396,7 @@ import CodeFind from 'components/CodeFind.vue'
 const { busy, run } = useRun()
 
 // --- tabs (remembered on this device)
-const TABS = [{ id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'low', label: 'تكاد تنفد' }, { id: 'buy', label: 'قائمة الشراء' }, { id: 'batches', label: 'الدفعات' }, { id: 'capital', label: 'رأس المال' }, { id: 'settings', label: 'إعدادات' }]
+const TABS = [{ id: 'ledger', label: 'الدفتر' }, { id: 'codes', label: 'إضافة أكواد' }, { id: 'cards', label: 'البطاقات' }, { id: 'low', label: 'تكاد تنفد' }, { id: 'buy', label: 'قائمة الشراء' }, { id: 'batches', label: 'الدفعات' }, { id: 'capital', label: 'رأس المال' }, { id: 'settings', label: 'إعدادات' }]
 const TAB_KEY = 'cs_stock_tab'
 const readTab = () => { try { const t = LocalStorage.getItem(TAB_KEY); return TABS.some((x) => x.id === t) ? t : 'codes' } catch { return 'codes' } }
 // the bell opens «تكاد تنفد» (?tab=low)

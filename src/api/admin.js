@@ -416,3 +416,6 @@ export const platformCatalogSave = (platform, products) => rpc('store_admin_plat
 export const platformLinks = () => rpc('store_admin_platform_links')
 export const platformLink = (productId, platform, platformProductId) =>
   rpc('store_admin_platform_link', { p_product: productId, p_platform: platform, p_platform_product: platformProductId })
+// s181: «دفتر المخزون» — per card: in / sold / voided / fed / left; a card's (or one batch's) movements with the count left
+export const stockLedger = () => rpc('store_admin_stock_ledger')
+export const stockMoves = (productId, limit = 200, batchId = null) => rpc('store_admin_stock_moves', { p_product: productId, p_limit: limit, p_batch: batchId })

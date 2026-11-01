@@ -69,6 +69,8 @@
             </q-btn>
           </div>
         </div>
+        <!-- «تغذية سما» here too (owner 2026-11-01: «لا أدري أين التغذية»): manual «اشحنها» and the automatic feeding -->
+        <div id="feed" class="panel"><SamaFeed :active="true" /></div>
         <div class="panel">
           <div class="panel-title row items-center">البطاقات التي تنفد ({{ w.lowItems.value.length }})<q-space /><router-link to="/stock?tab=low" class="small">المخزن</router-link></div>
           <div v-if="!w.lowItems.value.length" class="text-positive small q-pa-sm">✓ المخزون كافٍ</div>
@@ -88,6 +90,7 @@ import { ref } from 'vue'
 import { useWatch, stNo } from 'src/composables/useWatch'
 import * as flexy from 'src/api/flexy'
 import ModemPanel from 'src/components/ModemPanel.vue'
+import SamaFeed from 'src/components/SamaFeed.vue'
 
 const w = useWatch(20000)
 const clock = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Africa/Algiers' })
