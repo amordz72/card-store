@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zz2',
+    date: '2026-11-01',
+    title: 'عرض أوريدو 500، ومتابعة «المراجعة» وحدها',
+    items: [
+      { text: 'عروض أوريدو بصفحتها الجديدة («500 DA = … / 1- Acheter / ×6 ×9 ×12»): البرنامج يختار «1- Acheter» إذا كان السعر سعرنا، ثم الـPIN', to: '/flexy/send', pr: 'flexy-core' },
+      { text: 'بعد تطبيق s187: عملية محل في «تحتاج حكمك» حسمها Flexy بعدُ (رسالة متأخرة) تُحسم في المتجر وحدها كل دقيقتين: نجحت تبقى، فشلت يُرد المبلغ', to: '/flexy/shops', pr: 'flexy-core، s187' }
+    ]
+  },
+  {
     id: '2026-11-01-zz',
     date: '2026-11-01',
     title: 'التغذية في «كل العمليات»',
