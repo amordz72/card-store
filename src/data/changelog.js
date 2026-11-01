@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-w',
+    date: '2026-11-01',
+    title: 'رد الشبكة الخام لك وحدك',
+    items: [
+      { text: 'المحلات لا ترى نص رد الشبكة («رد الشبكة: …») في «تعبئة» ولا في «العمليات»؛ ترى الحالة وشرحها فقط', to: '/flexy/send', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-v',
     date: '2026-11-01',
     title: 'روابط لوحة Supabase في «الاستعمال»',

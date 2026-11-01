@@ -80,7 +80,8 @@
             <div v-if="j.amount" class="small">المبلغ: {{ money(j.amount) }}</div>
             <div class="small">أُرسلت: <bdi dir="ltr">{{ algeriaTime(j.at) }}</bdi></div>
             <div v-if="!j.running && j.doneAt && j.doneAt !== j.at" class="small">انتهت: <bdi dir="ltr">{{ algeriaTime(j.doneAt) }}</bdi></div>
-            <template v-if="j.reply">
+            <!-- The network's raw words: the owner only (owner 2026-11-01); a shop reads the badge and its explanation -->
+            <template v-if="j.reply && showReply">
               <div class="small">رد الشبكة:</div>
               <div class="small muted ltr text-right reply">{{ j.reply }}</div>
             </template>
@@ -173,6 +174,7 @@ async function loadPresence (j) {
 }
 
 const props = defineProps({
+  showReply: { type: Boolean, default: false },
   open: { type: Boolean, required: true },
   maxAmount: { type: Number, required: true },
   offers: { type: Boolean, default: true },

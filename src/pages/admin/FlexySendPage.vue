@@ -7,7 +7,7 @@
       <q-btn round unelevated :color="phoneMode ? 'primary' : 'grey-4'" :text-color="phoneMode ? 'white' : 'grey-8'" icon="smartphone"
         :aria-label="phoneMode ? 'إيقاف الإرسال من الهاتف' : 'الإرسال من هاتفي'" :aria-pressed="phoneMode" @click="switchVia" />
     </div>
-    <FlexySend remember="owner" :automix="automix" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
+    <FlexySend remember="owner" show-reply :automix="automix" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :explore-offer="exploreOffer" :rows="allOps" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
