@@ -11,7 +11,10 @@ export function easyPassword () {
   return Array.from(a, (x) => x % 10).join('')
 }
 
-export const siteLink = () => window.location.origin + window.location.pathname
+// The link given to a customer (owner 2026-11-01): always the Cloudflare one, which hides GitHub, even when the owner
+// works from the GitHub address (that one keeps working for his other app)
+export const SHARE_SITE = 'https://card-store-eej.pages.dev/'
+export const siteLink = () => SHARE_SITE
 
 export function loginMessage (name, phone, password) {
   return `السلام عليكم ${name}\nرابط الموقع: ${siteLink()}\nرقم الهاتف: ${normPhone(phone)}\nكلمة السر: ${password}`

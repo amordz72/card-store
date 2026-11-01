@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zg',
+    date: '2026-11-01',
+    title: 'بيانات الدخول برابط Cloudflare',
+    items: [
+      { text: 'نسخ بيانات حساب جديد أو كلمة سر جديدة يعطي الرابط card-store-eej.pages.dev بدل رابط GitHub (رابط GitHub يبقى يعمل)', to: '/customers', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zf',
     date: '2026-11-01',
     title: 'مفتاح المنصة بعيد عن الخطأ',
