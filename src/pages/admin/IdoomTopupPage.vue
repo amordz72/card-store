@@ -27,17 +27,13 @@
     <!-- Cards show at once: every top-up checks the line on the phone before a card is taken -->
     <div v-if="lineOk" class="card column q-gutter-sm">
       <div class="text-weight-bold">اختر البطاقة</div>
-      <div v-if="cards.length" class="row q-col-gutter-sm">
-        <div v-for="c in cards" :key="c.product_id" class="col-6">
-          <q-btn unelevated color="primary" class="full-width q-py-md" :disable="busy" @click="confirmCharge(c)">
-            <div class="column items-center">
-              <span class="text-h6">{{ c.base_price }} دج</span>
-              <span class="small">{{ c.name }}</span>
-            </div>
-          </q-btn>
-        </div>
-      </div>
-      <div v-else class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة في المخزن</div>
+      <!-- The same short rows as «تعبئة» (owner 2026-11-01); s170: from the suspect stock on his choice -->
+      <q-toggle v-if="suspectTotal" v-model="fromSuspect" color="deep-orange" :label="'من المشكوك فيها (' + suspectTotal + ')'" />
+      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy" @click="confirmCharge(c)">
+        <span class="col">{{ c.name }}<span v-if="fromSuspect" class="small text-deep-orange"> · مشكوك فيها {{ suspectOf(c) }}</span></span>
+        <span class="price">{{ money(c.base_price) }}</span>
+      </button>
+      <div v-if="!shownCards.length" class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة في المخزن</div>
     </div>
 
     <div class="row items-center justify-between q-mt-md">
@@ -85,6 +81,7 @@ import { Dialog } from 'quasar'
 import { useRun } from 'src/composables/useRun'
 import { copyText } from 'src/composables/useCopy'
 import * as api from 'src/api/admin'
+import { money } from 'src/api/format'
 import { useBell } from 'src/composables/useBell'
 
 const STATUS = {
@@ -170,17 +167,31 @@ async function lookup () {
   if (await run(() => api.idoomLookup(line.value, crypto.randomUUID()))) load()
 }
 
+// s170: suspect cards per product; the owner may top up from them (the line's answer judges the card)
+const suspectCounts = ref({})
+const fromSuspect = ref(false)
+const suspectOf = (c) => Number(suspectCounts.value?.[String(c.product_id)] || 0)
+const idoomAll = computed(() => catalog.value
+  .filter((p) => p.category === 'net' && /4g|lte/i.test(p.brand + ' ' + p.name) === is4g.value)
+  .sort((a, b) => a.base_price - b.base_price))
+const suspectTotal = computed(() => idoomAll.value.reduce((n, c) => n + suspectOf(c), 0))
+const shownCards = computed(() => (fromSuspect.value ? idoomAll.value.filter((c) => suspectOf(c) > 0) : cards.value))
+const loadSuspect = () => api.suspectCounts().then((v) => { suspectCounts.value = v || {} }).catch(() => { suspectCounts.value = {} })
+
 function confirmCharge (c) {
+  const suspect = fromSuspect.value
   Dialog.create({
     title: 'تأكيد الشحن',
     html: true,
-    message: `شحن <b dir="ltr">${pretty.value}</b><br>العرض: ${known.value ? `<span dir="ltr">${known.value.offer}</span>` : 'يُقرأ عند الشحن'}<br>البطاقة: <b>${c.base_price} دج</b> (${c.name})`,
+    message: `شحن <b dir="ltr">${pretty.value}</b><br>العرض: ${known.value ? `<span dir="ltr">${known.value.offer}</span>` : 'يُقرأ عند الشحن'}<br>البطاقة: <b>${c.base_price} دج</b> (${c.name})` +
+      (suspect ? '<br><b style="color:#E65100">من المشكوك فيها</b>: إن كانت مستعملة تُحسب خاطئة في دفعتها.' : ''),
     cancel: 'إلغاء',
     ok: 'نعم، اشحن'
   }).onOk(async () => {
-    const r = await run(() => api.idoomCreate(c.product_id, digits.value, crypto.randomUUID()),
-      { success: 'أُرسل الشحن إلى الهاتف. تُسحب البطاقة بعد أن يتحقق الهاتف من الخط.' })
-    if (r) load()
+    const r = await run(() => (suspect ? api.idoomCreateSuspect(c.product_id, digits.value, crypto.randomUUID())
+      : api.idoomCreate(c.product_id, digits.value, crypto.randomUUID())),
+    { success: suspect ? 'أُرسل الشحن من بطاقة مشكوك فيها.' : 'أُرسل الشحن إلى الهاتف. تُسحب البطاقة بعد أن يتحقق الهاتف من الخط.' })
+    if (r) { load(); if (suspect) loadSuspect() }
   })
 }
 
@@ -203,6 +214,7 @@ async function cancel (id) {
 onMounted(async () => {
   const data = await run(() => api.shopCatalog())
   if (data) catalog.value = data
+  loadSuspect()
   load()
   timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 5000)
 })
@@ -229,4 +241,8 @@ watch(() => check.value?.status, (s) => { if (s === 'looked_up') loadInfo() })
 .chip-check { background: #9CA3AF; }
 .op-amount { background: #1F2937; color: #fff; font-weight: 700; padding: 2px 10px; border-radius: 8px; }
 .op-details { margin-top: 4px; }
+.idoom-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 12px; border: 1px solid #E3E6EC; border-radius: 10px;
+  background: #fff; font: inherit; color: inherit; text-align: right; cursor: pointer; }
+.idoom-row:disabled { opacity: 0.5; cursor: default; }
+.idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap; min-width: 76px; text-align: center; }
 </style>

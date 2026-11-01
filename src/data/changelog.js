@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-p',
+    date: '2026-11-01',
+    title: '«تعبئة إيدوم» بشكل «تعبئة»',
+    items: [
+      { text: 'بطاقات إيدوم في صفحة «تعبئة إيدوم» أسطر قصيرة (الاسم والسعر) كما في «تعبئة»، لك وللمحلات', to: '/idoom', pr: 'card-store' },
+      { text: 'صفحتك «تعبئة إيدوم»: مفتاح «من المشكوك فيها (N)» كما في «تعبئة»', to: '/idoom', pr: 'card-store، s170' }
+    ]
+  },
+  {
     id: '2026-11-01-o',
     date: '2026-11-01',
     title: 'توقيت الجزائر في كل الصفحات',
