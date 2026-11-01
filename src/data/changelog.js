@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zz4',
+    date: '2026-11-01',
+    title: 'دين أوريدو: لا دين قديم، وإعادة فحص كل 10 دقائق',
+    items: [
+      { text: 'لا يُذكر دين «سبقلي» إلا إذا ردّت به أوريدو في آخر 10 دقائق، مع «منذ N دقائق»', to: '/flexy/send', pr: 'flexy-core، 0147' },
+      { text: 'بعد تطبيق 0148: رقم عُرف عليه دين قبل أكثر من 10 دقائق يُفحص من جديد عند فتح عروضه (*590* يقرأ أول شاشة ويغلق، لا مال)، ويظهر الجديد فقط', to: '/flexy/send', pr: 'flexy-core، 0148' }
+    ]
+  },
+  {
     id: '2026-11-01-zz3',
     date: '2026-11-01',
     title: 'الحساب الجديد: الخدمات مفتوحة ونصف ربحك',
