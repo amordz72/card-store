@@ -32,6 +32,13 @@ select pg_temp.check('old-stock supplier exists and is suspect by default', (sel
 select pg_temp.check('codes added under it come in suspect and frozen',
   (select bool_and(suspect and frozen) from store.codes where batch_id = :b2));
 select pg_temp.check('a normal batch is not suspect', (select not bool_or(suspect) from store.codes where batch_id = :b1));
+-- a batch moved to the old-stock supplier with «عدّل»: its stock becomes suspect
+set role authenticated;
+select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
+select batch_id as b3 from public.store_admin_add_codes(:sp, null, 950, E'S167-MOV-3001\nS167-MOV-3002') \gset
+select public.store_admin_batch_edit(:b3, :oldsup, null) \g /dev/null
+reset role;
+select pg_temp.check('moved to old stock: suspect', (select bool_and(suspect and frozen) from store.codes where batch_id = :b3));
 
 set role authenticated;
 select set_config('request.jwt.claim.sub', '60e166af-1366-47cc-81f9-791a4585c66e', false);
