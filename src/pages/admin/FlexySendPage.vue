@@ -10,8 +10,10 @@
     <FlexySend remember="owner" :automix="automix" :open="(switchOn === true || djezzyOn === true || ooredooOn === true) && !forcedOff" :max-amount="MAX_AMOUNT" :send="send" :lookup="lookupOffers"
       :credit-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
       :offer-prefixes="phoneMode ? ['06'] : ['06', '07', '05']"
-      :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :explore-offer="exploreOffer" :rows="ops" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
+      :send-offer="sendOffer" :probe-offer="probeOffer" :decide-offer="decideOffer" :explore-offer="exploreOffer" :rows="allOps" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing" :settle="settleRow" :presence="presenceAt"
       @sent="afterSend" @refresh="refreshNow" @more="more">
+      <!-- «تعبئة» (owner 2026-11-01): an Idoom line typed in the same field shows its cards here -->
+      <template v-if="!phoneMode" #other="{ raw }"><IdoomCards owner :raw="raw" @sent="afterIdoom" /></template>
       <!-- What the network said that no path knows yet (Flexy Core 0056): the owner reads it, then marks it seen -->
       <div v-if="newReplies.length" class="card column q-gutter-xs">
         <div class="row items-center">
@@ -67,6 +69,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import * as flexy from 'src/api/flexy'
 import { flexyUi } from 'src/api/admin'
+import * as api from 'src/api/admin'
+import { idoomView } from 'src/api/idoomView'
+import IdoomCards from 'src/components/IdoomCards.vue'
 import { money } from 'src/api/format'
 import FlexySend from 'src/components/FlexySend.vue'
 import { explain, offerTitle } from 'src/api/flexyExplain'
@@ -370,6 +375,22 @@ const BADGES = {
   review: { label: 'قيد المراجعة', color: 'deep-orange' }
 }
 const rows = ref([])
+// The owner's own Idoom top-ups in the same list (the customers' stay on «تعبئة إيدوم»)
+const idoomRows = ref([])
+const loadIdoom = () => (phoneMode ? Promise.resolve()
+  : api.idoomJobs(30).then((l) => { idoomRows.value = (l || []).filter((j) => !j.customer_name && j.kind !== 'lookup') }).catch(() => null))
+const idoomRunning = computed(() => idoomRows.value.some((j) => ['queued', 'claimed'].includes(j.status)))
+const allOps = computed(() => [...ops.value, ...idoomRows.value.map((j) => ({
+  id: 'idoom:' + j.id, title: j.product_name, phone: j.line, kind: 'idoom', amount: null,
+  badge: idoomView(j), at: j.created_at, reply: j.status === 'looked_up' ? null : j.reply,
+  running: ['queued', 'claimed'].includes(j.status)
+}))].sort((a, b) => String(b.at).localeCompare(String(a.at))))
+async function afterIdoom () {
+  await loadIdoom()
+  delay = FAST_MS
+  since = Date.now()
+  schedule()
+}
 const ops = computed(() => rows.value.map((o) => ({
   id: o.idempotency_key, title: o.offer ? offerTitle(o.offer) : money(o.amount), phone: o.phone,
   kind: [OFFER_KEY, ARSSELLI_OFFER_KEY, DJEZZY_OFFER_KEY, OOREDOO_OFFER_KEY].includes(o.operation_key) ? 'offer' : '630', amount: o.amount, offer: o.offer,
@@ -465,7 +486,7 @@ async function refreshNow () {
             : o.operation_key === DJEZZY_OFFER_KEY ? flexy.ownerOfferStatus760(o.idempotency_key)
               : o.operation_key === OOREDOO_OFFER_KEY ? flexy.ownerOfferStatus585(o.idempotency_key)
                 : flexy.ownerStatus(o.idempotency_key)).catch(() => null)))
-    await loadFirst()
+    await Promise.all([loadFirst(), loadIdoom()])
   } catch { /* offline: keep what is shown */ } finally { refreshing.value = false }
 }
 
@@ -478,7 +499,7 @@ let delay = FAST_MS
 let since = Date.now()
 function schedule () {
   clearTimeout(timer)
-  if (!running.value) { delay = FAST_MS; since = Date.now(); return }
+  if (!running.value && !idoomRunning.value) { delay = FAST_MS; since = Date.now(); return }
   timer = setTimeout(async () => {
     await refreshNow()
     if (Date.now() - since > FAST_FOR_MS) delay = Math.min(Math.round(delay * 1.6), 30000)
@@ -501,7 +522,7 @@ onMounted(async () => {
     loadPhone().catch(() => null)
     phoneTimer = setInterval(() => { if (document.visibilityState === 'visible') loadPhone().catch(() => null) }, 10_000)
   }
-  await loadFirst().catch(() => null)
+  await Promise.all([loadFirst().catch(() => null), loadIdoom()])
   schedule()
 })
 onUnmounted(() => { clearTimeout(timer); clearInterval(phoneTimer) })

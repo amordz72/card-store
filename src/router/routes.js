@@ -23,7 +23,7 @@ const routes = [
       { path: 'stock', component: () => import('pages/admin/StockPage.vue'), meta: { heavy: true, admin: true, title: 'المخزن' } },
       { path: 'prices', component: () => import('pages/admin/PricesPage.vue'), meta: { admin: true, title: 'أسعار ونسب الزبائن' } },
       { path: 'flexy', component: () => import('pages/admin/FlexyTestPage.vue'), meta: { heavy: true, admin: true, title: 'اختبار Flexy' } },
-      { path: 'flexy/send', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, title: 'إرسال فليكسي' } },
+      { path: 'flexy/send', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, title: 'تعبئة' } },
       // The admin phone's own screen (2026-10-27): the same page in phone mode, owner only
       { path: 'flexy/phone', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, phone: true, title: 'فليكسي الهاتف' } },
       // «المراقبة» and «الإحصائيات» in one page with tabs (owner 2026-10-30): ?tab=now|judge|db

@@ -444,7 +444,7 @@ const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.it
 const nav = computed(() => [
   // Owner 2026-10-26, from the right: «فليكسي» in the transfers' place (transfers stay in the side
   // menu), then «تعبئة إيدوم», the home in the middle, the cards and the operations. One bar for both.
-  session.isAdmin ? { to: '/flexy/send', label: 'فليكسي', icon: 'send_to_mobile' }
+  session.isAdmin ? { to: '/flexy/send', label: 'تعبئة', icon: 'send_to_mobile' }
     : hasFlexy.value ? { to: '/flexy/shop', label: 'تعبئة', icon: 'send_to_mobile' }
       : { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
   hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }

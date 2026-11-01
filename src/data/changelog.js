@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-f',
+    date: '2026-11-01',
+    title: '«تعبئة» في صفحتك أيضًا',
+    items: [
+      { text: 'زرك «فليكسي» صار «تعبئة»: رقم ثابت أو 4G في الحقل نفسه يُظهر بطاقات إيدوم، وتعبئاتك لإيدوم في «آخر العمليات»', to: '/flexy/send', pr: 'card-store' },
+      { text: '«تعبئة إيدوم» باقية لك لمتابعة تعبئات الزبائن ومراجعتها', to: '/idoom', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-e',
     date: '2026-11-01',
     title: 'المخزون المشكوك فيه (بعد تطبيق s167)',
