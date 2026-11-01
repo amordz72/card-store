@@ -404,6 +404,7 @@ const MENU = [
     label: 'العمليات',
     items: [
       { to: '/operations', label: 'كل العمليات', icon: 'receipt_long' },
+      { to: '/daily', label: 'التقرير اليومي والأرباح', icon: 'query_stats', admin: true },
       { to: '/reports', label: 'البلاغات', icon: 'support', admin: true },
       { to: '/reports', label: 'بلاغاتي', icon: 'support', customer: true },
       // kept discreet at the end (owner decision): visible only when the customer earns on some card

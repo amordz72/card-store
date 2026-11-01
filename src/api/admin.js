@@ -418,4 +418,6 @@ export const platformLink = (productId, platform, platformProductId) =>
   rpc('store_admin_platform_link', { p_product: productId, p_platform: platform, p_platform_product: platformProductId })
 // s181: «دفتر المخزون» — per card: in / sold / voided / fed / left; a card's (or one batch's) movements with the count left
 export const stockLedger = () => rpc('store_admin_stock_ledger')
+// s184: day by day (shops, mine, Flexy) and the products sold most, from → to
+export const dailyReport = (from, to) => rpc('store_admin_daily_report', { p_from: from || null, p_to: to || null })
 export const stockMoves = (productId, limit = 200, batchId = null) => rpc('store_admin_stock_moves', { p_product: productId, p_limit: limit, p_batch: batchId })
