@@ -8,7 +8,8 @@ const CACHE_KEY = 'rpc.cache.v1'
 const TTL = {
   store_admin_stock_v2: 60_000, store_admin_brands: 300_000, store_admin_suppliers: 300_000, store_admin_product_costs: 300_000,
   store_admin_price_list: 120_000, store_admin_low_stock: 60_000, store_admin_stock_ledger: 60_000, store_admin_suspect_counts: 60_000,
-  store_admin_customers: 60_000, store_admin_batches_v2: 60_000, store_admin_platform_catalog: 600_000
+  store_admin_customers: 60_000, store_admin_batches_v2: 60_000, store_admin_platform_catalog: 600_000,
+  store_admin_daily_report: 120_000
 }
 const WRITE = /_(set|save|add|create|delete|remove|update|mark|resolve|cancel|topup|buy|order|transfer|retry|judge|link|clear|freeze|void|restore|state|hide|confirm|approve|apply|reveal|fix|used|take|move|assign|send|pay|debt|refund|split|rename|reorder|toggle|import|upload|enable|disable|record|note|done|start|stop|change|reset)(_|$)/
 // A kept answer serves only the first call after the page opens (a reload, a new tab): «تحديث» inside the page always asks

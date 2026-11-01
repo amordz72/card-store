@@ -38,6 +38,7 @@ const routes = [
       { path: 'news', component: () => import('pages/admin/NewsPage.vue'), meta: { admin: true, title: 'ما الجديد' } },
       { path: 'ideas', component: () => import('pages/admin/IdeasPage.vue'), meta: { heavy: true, admin: true, title: 'أفكار وأوامر' } },
       { path: 'stats', redirect: '/flexy/monitor?tab=db' },
+      { path: 'daily', component: () => import('pages/admin/DailyReportPage.vue'), meta: { heavy: true, admin: true, title: 'التقرير اليومي' } },
       { path: 'usage', component: () => import('pages/admin/UsagePage.vue'), meta: { heavy: true, admin: true, title: 'الاستعمال' } },
       { path: 'flexy/offers', component: () => import('pages/admin/OffersPage.vue'), meta: { heavy: true, admin: true, title: 'العروض' } },
       // the owner's page or the customer's page (customers the owner enabled)
