@@ -46,6 +46,8 @@
     </template>
 
     <!-- Owner: the same cards for «حساب المحل», with a period selector -->
+    <!-- «المراقبة» (owner 2026-11-01): his alone, at the top of the home page -->
+    <WatchCard v-if="session.isAdmin" />
     <template v-if="session.isAdmin && row">
       <div class="card row items-center no-wrap">
         <div class="col">
@@ -82,6 +84,7 @@
 </template>
 
 <script setup>
+import WatchCard from 'src/components/WatchCard.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useSessionStore } from 'stores/session'
 import { useCustomerStore } from 'stores/customer'

@@ -27,6 +27,7 @@ const routes = [
       // The admin phone's own screen (2026-10-27): the same page in phone mode, owner only
       { path: 'flexy/phone', component: () => import('pages/admin/FlexySendPage.vue'), meta: { admin: true, phone: true, title: 'فليكسي الهاتف' } },
       // «المراقبة» and «الإحصائيات» in one page with tabs (owner 2026-10-30): ?tab=now|judge|db
+      { path: 'watch', component: () => import('pages/admin/WatchPage.vue'), meta: { heavy: true, admin: true, title: 'لوحة المراقبة' } },
       { path: 'flexy/monitor', component: () => import('pages/admin/MonitorHub.vue'), meta: { heavy: true, admin: true, title: 'المراقبة والإحصائيات' } },
       { path: 'flexy/devices', component: () => import('pages/admin/DevicesPage.vue'), meta: { heavy: true, admin: true, title: 'المحطات والشرائح' } },
       { path: 'flexy/shops', component: () => import('pages/admin/FlexyShopsPage.vue'), meta: { heavy: true, admin: true, title: 'فليكسي المحلات' } },

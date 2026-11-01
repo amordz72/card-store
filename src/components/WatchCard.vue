@@ -1,0 +1,64 @@
+<template>
+  <!-- «المراقبة» on the owner's home (owner 2026-11-01): opens and folds, remembered on this device; the red and purple
+       lines live inside it now. «لوحة المراقبة» is the full screen. -->
+  <div class="watch card q-pa-none">
+    <button type="button" class="watch-head" @click="toggle">
+      <span class="dot" :class="w.problems.value.some((p) => p.level === 'down') || bell.monitorBar.value?.level === 'down' ? 'off' : w.problems.value.length ? 'warn' : 'on'"></span>
+      <span class="col text-weight-bold">المراقبة</span>
+      <span class="small" :class="w.problems.value.length ? 'text-negative' : 'text-positive'">
+        {{ w.problems.value.length ? w.problems.value.length + (w.problems.value.length === 1 ? ' مشكلة' : ' مشاكل') : 'كل شيء يعمل' }}</span>
+      <q-icon :name="open ? 'expand_less' : 'expand_more'" size="20px" />
+    </button>
+    <div v-if="open" class="column q-gutter-xs q-pa-sm">
+      <div class="row q-gutter-xs">
+        <router-link class="kpi" to="/watch">💻 {{ w.counts.value.pcOn }}/{{ w.counts.value.pcAll }} متصل</router-link>
+        <router-link class="kpi" to="/watch">📶 {{ w.counts.value.simReady }}/{{ w.counts.value.simAll }} جاهزة</router-link>
+        <router-link class="kpi" :class="{ bad: w.counts.value.lowBal }" to="/watch">💰 {{ w.counts.value.lowBal }} تحت الحد</router-link>
+        <router-link class="kpi" :class="{ bad: w.counts.value.lowStock }" to="/stock?tab=low">🃏 {{ w.counts.value.lowStock }} تنفد</router-link>
+      </div>
+      <router-link v-if="bell.monitorBar.value" to="/flexy/monitor?tab=now" class="line" :class="bell.monitorBar.value.level === 'down' ? 'bg-negative' : 'bg-orange-9'">⚠ {{ bell.monitorBar.value.text }}</router-link>
+      <div v-for="p in w.problems.value.slice(0, 6)" :key="p.key" class="prob row items-center no-wrap">
+        <router-link :to="p.to" class="col ellipsis" :class="p.level === 'down' ? 'text-negative' : 'text-deep-orange'">{{ p.text }}</router-link>
+        <q-btn flat dense no-caps size="sm" color="grey-7" label="أخفِ" @click="w.hide(p.key, 60)">
+          <q-menu auto-close><q-list dense>
+            <q-item clickable @click="w.hide(p.key, 60)"><q-item-section>ساعة</q-item-section></q-item>
+            <q-item clickable @click="w.hide(p.key, 240)"><q-item-section>4 ساعات</q-item-section></q-item>
+            <q-item clickable @click="w.hide(p.key, 1440)"><q-item-section>حتى الغد</q-item-section></q-item>
+          </q-list></q-menu>
+        </q-btn>
+      </div>
+      <router-link v-if="newsCount" to="/news" class="line bg-purple-7">🆕 {{ newsCount }} {{ newsCount === 1 ? 'جديد' : 'جديدة' }} في البرنامج</router-link>
+      <q-btn unelevated dense no-caps color="primary" icon="monitor_heart" label="افتح لوحة المراقبة" to="/watch" class="q-mt-xs" />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref } from 'vue'
+import { useWatch } from 'src/composables/useWatch'
+import { useBell } from 'src/composables/useBell'
+import { unseenNews, newsSeenRef } from 'src/composables/useNews'
+
+const KEY = 'watch.card.open'
+const open = ref((() => { try { return localStorage.getItem(KEY) !== '0' } catch { return true } })())
+function toggle () {
+  open.value = !open.value
+  try { localStorage.setItem(KEY, open.value ? '1' : '0') } catch { /* private mode */ }
+}
+const w = useWatch(60000)
+const bell = useBell()
+const newsCount = computed(() => { void newsSeenRef.value; return unseenNews() })
+</script>
+
+<style scoped>
+.watch-head { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; text-align: right; }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.dot.on { background: #2FAE1E; box-shadow: 0 0 6px #2FAE1E; }
+.dot.warn { background: #F59E0B; }
+.dot.off { background: #D32F2F; }
+.kpi { font-size: 12px; padding: 3px 8px; border-radius: 12px; background: #EEF2FF; color: #3730A3; text-decoration: none; }
+.kpi.bad { background: #FEE2E2; color: #B91C1C; }
+.line { display: block; color: #fff; text-decoration: none; border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+.prob { font-size: 13px; border-top: 1px solid #EEF0F4; padding-top: 2px; }
+.prob a { text-decoration: none; }
+</style>
