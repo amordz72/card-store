@@ -379,7 +379,8 @@ function sentOffer (e) {
 <style scoped>
 .tabs { background: #E4E6EC; border-radius: 12px; overflow: hidden; }
 .tabs :deep(.q-tab--active) { border-radius: 12px; }
-.amounts { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none; }
+/* contain: the row never widens the page (Quasar's .column wraps, and a wrapped line takes its widest child's width) */
+.amounts { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none; width: 100%; contain: inline-size; }
 .amounts::-webkit-scrollbar { display: none; }
 .chip { flex: 0 0 auto; min-width: 96px; min-height: 44px; font-weight: 700; border-radius: 8px; scroll-snap-align: start; }
 .amount-in { max-width: 240px; }
