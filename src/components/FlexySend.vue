@@ -59,20 +59,24 @@
       <div class="card q-pa-none q-mt-sm">
         <button v-for="j in shown" :key="j.id" type="button" class="op-row" :aria-expanded="opened === j.id"
           @click="opened = opened === j.id ? null : j.id">
+          <!-- One look for every row (owner 2026-11-01): the network's logo, the number first, then what, how much and when;
+               one word for the state, the same for Flexy and Idoom (its full words stay in the details) -->
           <div class="row items-center no-wrap q-gutter-sm">
+            <img v-if="logoOf(j)" :src="logoOf(j)" alt="" class="row-logo">
             <div class="col column">
-              <span class="text-weight-bold">{{ j.title }}</span>
-              <span class="small muted">{{ j.kind === 'offer' ? 'عرض' : j.kind === 'idoom' ? 'إيدوم' : 'رصيد عادي' }} · <bdi dir="ltr">{{ j.kind === 'idoom' ? j.phone : spaced(j.phone) }}</bdi></span>
+              <bdi dir="ltr" class="text-weight-bold row-number">{{ numberOf(j) }}</bdi>
+              <span class="small muted">{{ kindOf(j) }} · {{ j.title }} · <bdi dir="ltr">{{ shortTime(j.at) }}</bdi></span>
             </div>
             <span v-if="j.running" class="row items-center no-wrap q-gutter-xs text-primary small">
-              <q-spinner size="20px" /><span>جارٍ…</span>
+              <q-spinner size="18px" /><span>جارية</span>
             </span>
-            <q-badge v-else :color="j.badge.color" class="q-pa-xs">{{ j.badge.label }}</q-badge>
+            <q-badge v-else :color="wordOf(j).color" class="q-pa-xs">{{ wordOf(j).label }}</q-badge>
             <!-- «أعد الرقم» (owner 2026-11-01): the number only, back in the field -->
             <q-btn flat round dense size="sm" icon="replay" color="primary" aria-label="أعد الرقم" @click.stop="reuse(j)" />
           </div>
           <div v-if="opened === j.id" class="details column q-gutter-xs">
             <div class="small text-weight-bold">{{ j.explain || j.badge.label }}</div>
+            <div v-if="j.amount" class="small">المبلغ: {{ money(j.amount) }}</div>
             <div class="small">أُرسلت: <bdi dir="ltr">{{ algeriaTime(j.at) }}</bdi></div>
             <div v-if="!j.running && j.doneAt && j.doneAt !== j.at" class="small">انتهت: <bdi dir="ltr">{{ algeriaTime(j.doneAt) }}</bdi></div>
             <template v-if="j.reply">
@@ -358,6 +362,37 @@ function clearSoon () {
   clearTimer = setInterval(() => { if (--clearIn.value <= 0) clearNow() }, 1000)
 }
 onBeforeUnmount(stopClear)
+// The rows' one look (owner 2026-11-01)
+const ROW_LOGOS = { '05': 'brands/ooredoo.png', '06': 'brands/mobilis.png', '07': 'brands/djezzy.png' }
+function logoOf (j) {
+  const d = String(j.phone || '').replace(/\D/g, '')
+  if (j.kind === 'idoom') return d.startsWith('213') ? 'brands/idoom-4g.png' : 'brands/idoom-adsl.png'
+  return ROW_LOGOS[d.slice(0, 2)] || null
+}
+function numberOf (j) {
+  const d = String(j.phone || '').replace(/\D/g, '')
+  if (j.kind === 'idoom') return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{3})?$/, (m, a, b, c, e) => [a, b, c, e].filter(Boolean).join(' '))
+  return spaced(d)
+}
+const kindOf = (j) => (j.kind === 'offer' ? 'عرض' : j.kind === 'idoom' ? 'إيدوم' : 'رصيد')
+function shortTime (t) {
+  if (!t) return ''
+  const d = new Date(t)
+  const hm = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Algiers' })
+  const day = (x) => x.toLocaleDateString('en-GB', { timeZone: 'Africa/Algiers' })
+  return day(d) === day(new Date()) ? hm : d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Algiers' }) + ' ' + hm
+}
+// One word per state, whatever page made the row: ناجحة · فشلت · لم تُرسل · مراجعة · أُلغيت
+function wordOf (j) {
+  const t = String(j.badge?.label || '')
+  if (/ناجح|تمت|قبلتها/.test(t)) return { label: 'ناجحة', color: 'positive' }
+  if (/مراجعة/.test(t)) return { label: 'مراجعة', color: 'deep-orange' }
+  if (/لم تُرسل/.test(t)) return { label: 'لم تُرسل', color: 'grey-7' }
+  if (/أُلغي/.test(t)) return { label: 'أُلغيت', color: 'grey-7' }
+  if (/فاشل|فشل|لم تتم|رفض/.test(t)) return { label: 'فشلت', color: 'negative' }
+  if (/انتظار|تنتظر|جار|التنفيذ/.test(t)) return { label: 'جارية', color: 'info' }
+  return j.badge || { label: t, color: 'grey' }
+}
 function reuse (j) {
   typed(String(j.phone || '').replace(/\D/g, ''))
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -392,6 +427,8 @@ function sentOffer (e) {
 .carrier.djezzy { background: #E53935; }
 .carrier.ooredoo { background: #E30613; }
 .carrier.idoom { background: #6A1B9A; }
+.row-logo { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; border: 1px solid #ECEEF3; background: #fff; flex-shrink: 0; }
+.row-number { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .link { border: 0; background: transparent; padding: 0; font: inherit; color: var(--q-primary); cursor: pointer; text-decoration: underline; }
 .op-row { width: 100%; border: 0; background: transparent; text-align: right; padding: 10px 14px; border-bottom: 1px solid #ECEEF3;
   display: flex; flex-direction: column; gap: 4px; font: inherit; color: inherit; cursor: pointer; }

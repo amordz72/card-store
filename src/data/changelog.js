@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-m',
+    date: '2026-11-01',
+    title: '«آخر العمليات»: شكل واحد',
+    items: [
+      { text: 'كل سطر: شعار الشبكة، الرقم أولًا ومقسّمًا، ثم النوع والمبلغ أو العرض والوقت؛ للفليكسي وإيدوم معًا', to: '/flexy/shop', pr: 'card-store' },
+      { text: 'حالة بكلمة واحدة للجميع: ناجحة · جارية · فشلت · لم تُرسل · مراجعة · أُلغيت (التفاصيل عند الضغط)', to: '/flexy/shop', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-l',
     date: '2026-11-01',
     title: '«عروض»: خط معروف بعروضه مباشرة',
