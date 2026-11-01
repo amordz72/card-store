@@ -408,3 +408,6 @@ export const platformKeyClear = (platform) => rpc('store_admin_platform_key_clea
 // s178: the dollar's price as the owner bought it (cost in dinars = platform price × rate)
 export const platformRates = () => rpc('store_admin_platform_rates')
 export const platformRateSet = (platform, rate) => rpc('store_admin_platform_rate_set', { p_platform: platform, p_rate: rate })
+// s179: the platform's product list saved once ({ products, n, fetched_at } | null); refreshed only on the owner's press
+export const platformCatalog = (platform) => rpc('store_admin_platform_catalog', { p_platform: platform })
+export const platformCatalogSave = (platform, products) => rpc('store_admin_platform_catalog_save', { p_platform: platform, p_products: products })
