@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zj',
+    date: '2026-11-01',
+    title: '💻 4 بدل server-4 · رقم USB المكتوب على الجهاز',
+    items: [
+      { text: 'في الواجهة: 💻 ورقم الكمبيوتر بدل «server-N»، و📱 ورقمه للهاتف (الأسماء في النظام كما هي)', to: '/flexy/devices', pr: 'card-store' },
+      { text: '«المحطات والشرائح» ← المودم: «رقم USB» تكتب فيه الرقم الملصق عليه؛ يتبعه حتى لو نقلته (بعد تطبيق 0138)', to: '/flexy/devices', pr: 'card-store، 0138' }
+    ]
+  },
+  {
     id: '2026-11-01-zi',
     date: '2026-11-01',
     title: 'الوقت أوضح',
