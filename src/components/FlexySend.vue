@@ -393,5 +393,7 @@ function sentOffer (e) {
 .moved { color: #BF360C; }
 .details { margin-top: 6px; padding: 8px; border: 1px solid #E4E6EC; border-radius: 8px; background: #F8F9FB; }
 .reply { white-space: normal; word-break: break-word; }
-:deep(.phone) { font-size: 1.4rem; letter-spacing: 0; word-spacing: -0.2em; font-variant-numeric: tabular-nums; }
+:deep(.phone) { font-size: clamp(1.05rem, 5.6vw, 1.4rem); letter-spacing: 0; word-spacing: -0.2em; font-variant-numeric: tabular-nums; }
+/* A small phone (owner 2026-11-01): the whole number shows, the field padding shrinks */
+@media (max-width: 380px) { :deep(.q-field__control) { padding: 0 6px; } }
 </style>
