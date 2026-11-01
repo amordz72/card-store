@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zf',
+    date: '2026-11-01',
+    title: 'مفتاح المنصة بعيد عن الخطأ',
+    items: [
+      { text: 'بعد الحفظ: سطر «✓ المفتاح محفوظ» فقط؛ الاستبدال والحذف في «إعدادات المفتاح» أسفل القسم، مغلقة، وكلاهما يسأل «متأكد؟»', to: '/game', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-ze',
     date: '2026-11-01',
     title: 'حاسبة المنصة: جدول واحد',

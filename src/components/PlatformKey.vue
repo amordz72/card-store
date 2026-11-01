@@ -3,19 +3,18 @@
   <div class="column q-gutter-sm q-pa-md">
     <div v-if="missing" class="small text-negative">طبّق s178 من «ينتظر تطبيقك» أولًا.</div>
     <template v-else>
+      <!-- The key (owner 2026-11-01): saved → one line here, its field moved to «إعدادات المفتاح» at the bottom -->
       <div v-if="info" class="row items-center q-gutter-sm">
-        <q-badge color="positive" class="q-pa-sm">✓ محفوظ · آخره <bdi dir="ltr" class="q-ml-xs">…{{ info.last4 }}</bdi></q-badge>
-        <span class="small muted">{{ dateTime(info.saved_at) }}</span>
-        <q-space />
-        <q-btn flat dense no-caps color="negative" label="احذفه" :disable="busy" @click="clear" />
+        <q-badge color="positive" class="q-pa-sm">✓ المفتاح محفوظ · آخره <bdi dir="ltr" class="q-ml-xs">…{{ info.last4 }}</bdi></q-badge>
       </div>
-      <div v-else class="small muted">لا يوجد مفتاح محفوظ.</div>
-      <q-input v-model="key" dense outlined :type="show ? 'text' : 'password'" autocomplete="off" input-class="ltr"
-        :label="info ? 'استبدل المفتاح (API TOKEN)' : 'المفتاح (API TOKEN)'">
-        <template #append><q-icon :name="show ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="show = !show" /></template>
-      </q-input>
-      <q-btn unelevated no-caps color="primary" icon="lock" label="احفظ" :loading="busy" :disable="key.trim().length < 8" @click="save" />
-      <div class="small muted">يُحفظ مشفّرًا في خزنة Supabase ولا يظهر بعد الحفظ، حتى لك. «السماح لكل الايبيات» يبقى في موقع topup-dz.</div>
+      <template v-else>
+        <div class="small muted">لا يوجد مفتاح محفوظ.</div>
+        <q-input v-model="key" dense outlined :type="show ? 'text' : 'password'" autocomplete="off" input-class="ltr" label="المفتاح (API TOKEN)">
+          <template #append><q-icon :name="show ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="show = !show" /></template>
+        </q-input>
+        <q-btn unelevated no-caps color="primary" icon="lock" label="احفظ" :loading="busy" :disable="key.trim().length < 8" @click="save" />
+        <div class="small muted">يُحفظ مشفّرًا في خزنة Supabase ولا يظهر بعد الحفظ، حتى لك. «السماح لكل الايبيات» يبقى في موقع topup-dz.</div>
+      </template>
 
       <!-- The dollar as the owner bought it: cost in dinars = platform price × rate -->
       <q-separator class="q-my-sm" />
@@ -108,12 +107,28 @@
           </div>
         </q-expansion-item>
       </template>
+
+      <!-- Replace / delete the saved key: out of the way, closed -->
+      <q-expansion-item v-if="info" dense class="cat q-mt-md" header-class="cat-head" icon="vpn_key" label="إعدادات المفتاح">
+        <div class="column q-gutter-sm q-pa-sm">
+          <div class="small muted">حُفظ {{ dateTime(info.saved_at) }} · آخره <bdi dir="ltr">…{{ info.last4 }}</bdi></div>
+          <q-input v-model="key" dense outlined :type="show ? 'text' : 'password'" autocomplete="off" input-class="ltr" label="استبدل المفتاح (API TOKEN)">
+            <template #append><q-icon :name="show ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="show = !show" /></template>
+          </q-input>
+          <div class="row q-gutter-sm">
+            <q-btn unelevated no-caps color="primary" icon="lock" label="احفظ" :loading="busy" :disable="key.trim().length < 8" @click="save" />
+            <q-btn flat no-caps color="negative" label="احذف المفتاح" :disable="busy" @click="clear" />
+          </div>
+          <div class="small muted">يُحفظ مشفّرًا ولا يظهر بعد الحفظ، حتى لك.</div>
+        </div>
+      </q-expansion-item>
     </template>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { Dialog } from 'quasar'
 import { ownerPlatformProducts, ownerPlatformProfile } from 'src/api/flexy'
 import { useRun } from 'src/composables/useRun'
 import * as api from 'src/api/admin'
@@ -133,11 +148,18 @@ async function load () {
     missing.value = /store_admin_platform_keys/.test(e?.message || '')
   }
 }
+// A confirmation before replacing or deleting a saved key (owner 2026-11-01: «ممكن أحذفه بالخطأ أو أغيّره بالخطأ»)
+const confirmed = (title, message, ok) => new Promise((resolve) => {
+  Dialog.create({ title, message, cancel: 'إلغاء', ok: { label: ok, color: 'negative' }, persistent: true })
+    .onOk(() => resolve(true)).onCancel(() => resolve(false)).onDismiss(() => resolve(false))
+})
 async function save () {
+  if (info.value && !(await confirmed('استبدال المفتاح', 'المفتاح المحفوظ (آخره …' + info.value.last4 + ') يُستبدل بالجديد، ولا يمكن استرجاعه. متأكد؟', 'نعم، استبدله'))) return
   const r = await run(() => api.platformKeySet(PLATFORM, key.value.trim()), { success: 'حُفظ المفتاح.' })
   if (r) { key.value = ''; show.value = false; await load() }
 }
 async function clear () {
+  if (!(await confirmed('حذف المفتاح', 'يُحذف المفتاح (آخره …' + (info.value?.last4 || '') + ') ولا يمكن استرجاعه؛ تتوقف المنصة حتى تلصقه من جديد. متأكد؟', 'نعم، احذفه'))) return
   const r = await run(() => api.platformKeyClear(PLATFORM), { success: 'حُذف المفتاح.' })
   if (r !== undefined) await load()
 }
