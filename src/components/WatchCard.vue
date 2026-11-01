@@ -10,7 +10,7 @@
       <q-icon :name="open ? 'expand_less' : 'expand_more'" size="20px" />
     </button>
     <div v-if="open" class="column q-gutter-xs q-pa-sm">
-      <div class="row q-gutter-xs">
+      <div class="kpis">
         <router-link class="kpi" to="/watch">💻 {{ w.counts.value.pcOn }}/{{ w.counts.value.pcAll }} متصل</router-link>
         <router-link class="kpi" to="/watch">📶 {{ w.counts.value.simReady }}/{{ w.counts.value.simAll }} جاهزة</router-link>
         <router-link class="kpi" :class="{ bad: w.counts.value.lowBal }" to="/watch">💰 {{ w.counts.value.lowBal }} تحت الحد</router-link>
@@ -51,14 +51,16 @@ const newsCount = computed(() => { void newsSeenRef.value; return unseenNews() }
 </script>
 
 <style scoped>
-.watch-head { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; text-align: right; }
+.watch { contain: inline-size; min-width: 0; max-width: 100%; overflow: hidden; }
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.watch-head { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; text-align: right; }
 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
 .dot.on { background: #2FAE1E; box-shadow: 0 0 6px #2FAE1E; }
 .dot.warn { background: #F59E0B; }
 .dot.off { background: #D32F2F; }
-.kpi { font-size: 12px; padding: 3px 8px; border-radius: 12px; background: #EEF2FF; color: #3730A3; text-decoration: none; }
+.kpi { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 12px; padding: 4px 8px; border-radius: 12px; background: #EEF2FF; color: #3730A3; text-decoration: none; }
 .kpi.bad { background: #FEE2E2; color: #B91C1C; }
-.line { display: block; color: #fff; text-decoration: none; border-radius: 8px; padding: 5px 10px; font-size: 13px; }
-.prob { font-size: 13px; border-top: 1px solid #EEF0F4; padding-top: 2px; }
+.line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; text-decoration: none; border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+.prob { min-width: 0; font-size: 13px; border-top: 1px solid #EEF0F4; padding-top: 2px; }
 .prob a { text-decoration: none; }
 </style>
