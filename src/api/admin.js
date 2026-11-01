@@ -405,3 +405,6 @@ export async function codeReplies (ids) {
 export const platformKeys = () => rpc('store_admin_platform_keys')
 export const platformKeySet = (platform, key) => rpc('store_admin_platform_key_set', { p_platform: platform, p_key: key })
 export const platformKeyClear = (platform) => rpc('store_admin_platform_key_clear', { p_platform: platform })
+// s178: the dollar's price as the owner bought it (cost in dinars = platform price × rate)
+export const platformRates = () => rpc('store_admin_platform_rates')
+export const platformRateSet = (platform, rate) => rpc('store_admin_platform_rate_set', { p_platform: platform, p_rate: rate })
