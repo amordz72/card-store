@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zz5',
+    date: '2026-11-01',
+    title: 'دين أوريدو يظهر مبكرًا',
+    items: [
+      { text: 'عند اكتمال رقم أوريدو يُقرأ دينه فورًا (دون انتظار فتح «عروض»)، ويظهر فوق «رصيد عادي» و«عروض» معًا متى وصل', to: '/flexy/send', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zz4',
     date: '2026-11-01',
     title: 'دين أوريدو: لا دين قديم، وإعادة فحص كل 10 دقائق',
