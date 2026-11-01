@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zh',
+    date: '2026-11-01',
+    title: 'هاتف أم كمبيوتر في العمليات',
+    items: [
+      { text: 'في «العمليات» بجانب «الشريحة»: أيقونة 📱 إن أُرسلت من هاتف، و💻 إن أُرسلت من كمبيوتر', to: '/operations', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zg',
     date: '2026-11-01',
     title: 'بيانات الدخول برابط Cloudflare',
