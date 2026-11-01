@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zm',
+    date: '2026-11-01',
+    title: 'شريحة الهاتف: SIM-1 بدل USB',
+    items: [
+      { text: 'تحت 📱 تظهر الشريحة «SIM-1 / sama-1» (خانة الهاتف) بدل «USB-16»', to: '/flexy/devices', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-zl',
     date: '2026-11-01',
     title: 'الشرائح تحت كمبيوترها · أزرار في البطاقة',

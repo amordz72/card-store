@@ -126,7 +126,7 @@
                     <!-- «USB-9 / djezzy-1», the broken part struck through with ✗; one name, not twice -->
                     <div class="place ltr text-left">
                       <span class="dot" :class="simState(r) === 'ready' ? 'on' : 'off'" :title="simState(r) === 'ready' ? 'جاهزة' : (STATE[simState(r)]?.label || '')"></span>
-                      <span :class="{ struck: placeDown(r) === 'usb' }">USB-{{ usbOf(r.m) ?? '?' }}<b v-if="placeDown(r) === 'usb'"> ✗</b></span> /
+                      <span :class="{ struck: placeDown(r) === 'usb' }">{{ slotOf(r) }}<b v-if="placeDown(r) === 'usb'"> ✗</b></span> /
                       <span :class="{ struck: placeDown(r) === 'sim' }">{{ r.m.sim.code || 'sim' }}<b v-if="placeDown(r) === 'sim'"> ✗</b></span>
                       <span v-if="isPreferred(r.m.sim)" class="text-amber-8" title="مفضّلة: يرسل منها أولًا"> ⭐</span>
                     </div>
@@ -698,6 +698,8 @@ const simGroups = computed(() => {
   return [...m.values()].map((g) => ({ ...g, rows: g.rows.sort((a, b) => ready(a) - ready(b) || byPlace(a, b)) }))
     .sort((a, b) => (a.down - b.down) || stNo(a.st) - stNo(b.st))
 })
+// A phone's SIM is «SIM-1 / SIM-2» (its slot), a computer's modem «USB-N» (owner 2026-11-01)
+const slotOf = (r) => (isPhone(r.st) || r.st.phone ? 'SIM-' + ((r.m.modem_uuid && labels.value[r.m.modem_uuid]) || 1) : 'USB-' + (usbOf(r.m) ?? '?'))
 // «الرصيد» / «USSD» in the card itself
 // The minimum before a SIM's balance turns red (owner 2026-11-01: «إذا وصل إلى الحد الأدنى»)
 const MIN_BALANCE = 1000
