@@ -23,17 +23,12 @@
 
       <div v-if="lineOk" class="card column q-gutter-sm">
         <div class="text-weight-bold">اختر البطاقة</div>
-        <div v-if="cards.length" class="row q-col-gutter-sm">
-          <div v-for="c in cards" :key="c.product_id" class="col-6">
-            <q-btn unelevated color="primary" class="full-width q-py-md" :disable="busy || !access.phoneOnline.value" @click="confirmCharge(c)">
-              <div class="column items-center">
-                <span class="text-h6">{{ money(c.base_price) }}</span>
-                <span class="small">{{ c.name }}</span>
-              </div>
-            </q-btn>
-          </div>
-        </div>
-        <div v-else class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
+        <!-- The same short rows as «تعبئة» (owner 2026-11-01) -->
+        <button v-for="c in cards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !access.phoneOnline.value" @click="confirmCharge(c)">
+          <span class="col">{{ c.name }}</span>
+          <span class="price">{{ money(c.base_price) }}</span>
+        </button>
+        <div v-if="!cards.length" class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
       </div>
 
       <div class="row items-center justify-between q-mt-md">
@@ -176,4 +171,8 @@ onUnmounted(() => clearInterval(timer))
 .idoom-line { font-size: 2.2rem; font-weight: 700; letter-spacing: 2px; }
 .op-row { padding: 10px 14px; border-bottom: 1px solid #ECEEF3; display: flex; flex-direction: column; gap: 4px; }
 .op-row:last-child { border-bottom: 0; }
+.idoom-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 12px; border: 1px solid #E3E6EC; border-radius: 10px;
+  background: #fff; font: inherit; color: inherit; text-align: right; cursor: pointer; }
+.idoom-row:disabled { opacity: 0.5; cursor: default; }
+.idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap; min-width: 76px; text-align: center; }
 </style>
