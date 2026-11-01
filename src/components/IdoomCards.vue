@@ -33,14 +33,23 @@ import { useBuyer } from 'src/composables/useBuyer'
 import { useRun } from 'src/composables/useRun'
 import { useIdoomAccess } from 'src/composables/useIdoomAccess'
 import * as api from 'src/api/customer'
+import * as adminApi from 'src/api/admin'
 import { money } from 'src/api/format'
 
-const props = defineProps({ raw: { type: String, default: '' } })
+// owner: the owner's own page («تعبئة» for the owner, 2026-11-01): his API, always enabled, the phone's state from its executors
+const props = defineProps({ raw: { type: String, default: '' }, owner: { type: Boolean, default: false } })
 const emit = defineEmits(['sent'])
 
 const customer = useCustomerStore()
 const buyer = useBuyer()
-const access = useIdoomAccess()
+const shopAccess = useIdoomAccess()
+const ownerOnline = ref(false)
+const access = props.owner
+  ? { enabled: ref(true), phoneOnline: ownerOnline, refresh: async () => {
+      const list = await adminApi.executors().catch(() => [])
+      ownerOnline.value = (list || []).some((p) => p.active && p.last_seen_at && Date.now() - Date.parse(p.last_seen_at) <= 60_000)
+    } }
+  : shopAccess
 const { busy, run } = useRun()
 
 const is4g = computed(() => /^213[0-489]\d{8}$/.test(props.raw))
@@ -55,7 +64,7 @@ const known = ref(null)
 watch(() => props.raw, async (want) => {
   known.value = null
   if (!isIdoom.value) return
-  const r = await api.idoomLineInfo(customer.token, want).catch(() => null)
+  const r = await (props.owner ? adminApi.idoomLineInfo(want) : api.idoomLineInfo(customer.token, want)).catch(() => null)
   if (want === props.raw) known.value = r
 })
 
@@ -68,9 +77,10 @@ function confirmCharge (c) {
     cancel: 'إلغاء',
     ok: 'نعم، عبّئ'
   }).onOk(async () => {
-    const r = await run(() => api.idoomCreate(customer.token, c.product_id, line, crypto.randomUUID()))
+    const r = await run(() => (props.owner ? adminApi.idoomCreate(c.product_id, line, crypto.randomUUID())
+      : api.idoomCreate(customer.token, c.product_id, line, crypto.randomUUID())))
     if (r) {
-      buyer.refresh()
+      if (!props.owner) buyer.refresh()
       Notify.create({ type: 'positive', message: 'أُرسل الطلب. تابع حالته في «آخر العمليات».', position: 'top' })
       emit('sent')
     }
@@ -80,7 +90,7 @@ function confirmCharge (c) {
 onMounted(async () => {
   await access.refresh()
   if (!access.enabled.value) return
-  const data = await buyer.catalog().catch(() => null)
+  const data = await (props.owner ? adminApi.shopCatalog() : buyer.catalog()).catch(() => null)
   if (data) catalog.value = data
 })
 </script>
