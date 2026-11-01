@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-r',
+    date: '2026-11-01',
+    title: 'اختر الدفعة بنفسك (بعد تطبيق 0134 وs172)',
+    items: [
+      { text: 'تعبئة إيدوم من صفحتك («تعبئة» و«تعبئة إيدوم»): «من أي دفعة؟» تلقائي (الأقدم) أو دفعة برمزها وعدد بطاقاتها', to: '/idoom', pr: 'card-store، s172' },
+      { text: '«اشحنها»: «من الدفعة» في نافذة التأكيد؛ المحلات تأخذ الأقدم كما كانت', to: '/flexy/monitor', pr: 'card-store، s172، 0134' }
+    ]
+  },
+  {
     id: '2026-11-01-q',
     date: '2026-11-01',
     title: 'رمز لكل دفعة بتاريخها (بعد تطبيق s171)',

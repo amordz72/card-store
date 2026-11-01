@@ -121,6 +121,22 @@ export const feedFaces = () => rpc('store_admin_feed_faces')
 // s170: suspect cards per value (feeding) and per product (Idoom); the owner's Idoom top-up from a suspect card
 export const feedSuspectFaces = () => rpc('store_admin_feed_suspect_faces')
 // s171: each batch's code with its history (Q4-H50-W70); by Idoom job; find by any part; the suppliers' letters
+// s172: the batches holding a card (per Idoom product / per feeding value), and an Idoom top-up from the chosen batch
+export const batchesForProduct = (productId, suspect) => rpc('store_admin_batches_for_product', { p_product_id: productId, p_suspect: !!suspect }).catch(() => [])
+export const batchesForFace = (face, suspect) => rpc('store_admin_batches_for_face', { p_face: face, p_suspect: !!suspect }).catch(() => [])
+export const idoomCreateFromBatch = (productId, line, requestId, batchId, suspect) => rpc('store_admin_idoom_create_from_batch',
+  { p_product_id: productId, p_line: line, p_request_id: requestId, p_batch: batchId, p_suspect: !!suspect }).then((r) => r?.[0] || null)
+// The owner's pick: «تلقائي (الأقدم)» or one batch (its code and its cards left); null = cancelled. Empty list = no question.
+export async function pickBatch (Dialog, title, list) {
+  if (!list || !list.length) return { batch: null }
+  return await new Promise((resolve) => {
+    Dialog.create({
+      title, cancel: 'إلغاء', ok: 'متابعة',
+      options: { type: 'radio', model: 'auto', items: [{ label: 'تلقائي (الأقدم)', value: 'auto' },
+        ...list.map((b) => ({ label: `${b.code || '#' + b.batch_id} · ${b.n} بطاقة`, value: String(b.batch_id) }))] }
+    }).onOk((v) => resolve({ batch: v === 'auto' ? null : Number(v) })).onCancel(() => resolve(null))
+  })
+}
 export const batchCodeMap = (ids) => rpc('store_admin_batch_code_map', { p_batch_ids: ids }).catch(() => ({}))
 export const idoomJobBatches = (ids) => rpc('store_admin_idoom_job_batches', { p_job_ids: ids }).catch(() => ({}))
 export const batchFind = (part) => rpc('store_admin_batch_find', { p_part: part })

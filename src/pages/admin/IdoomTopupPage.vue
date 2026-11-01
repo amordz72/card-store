@@ -186,8 +186,11 @@ const suspectTotal = computed(() => idoomAll.value.reduce((n, c) => n + suspectO
 const shownCards = computed(() => (fromSuspect.value ? idoomAll.value.filter((c) => suspectOf(c) > 0) : cards.value))
 const loadSuspect = () => api.suspectCounts().then((v) => { suspectCounts.value = v || {} }).catch(() => { suspectCounts.value = {} })
 
-function confirmCharge (c) {
+async function confirmCharge (c) {
   const suspect = fromSuspect.value
+  // s172: the owner picks the batch (or the oldest)
+  const pick = await api.pickBatch(Dialog, 'من أي دفعة؟ ' + c.name, await api.batchesForProduct(c.product_id, suspect))
+  if (!pick) return
   Dialog.create({
     title: 'تأكيد الشحن',
     html: true,
@@ -196,7 +199,8 @@ function confirmCharge (c) {
     cancel: 'إلغاء',
     ok: 'نعم، اشحن'
   }).onOk(async () => {
-    const r = await run(() => (suspect ? api.idoomCreateSuspect(c.product_id, digits.value, crypto.randomUUID())
+    const r = await run(() => (pick.batch ? api.idoomCreateFromBatch(c.product_id, digits.value, crypto.randomUUID(), pick.batch, suspect)
+      : suspect ? api.idoomCreateSuspect(c.product_id, digits.value, crypto.randomUUID())
       : api.idoomCreate(c.product_id, digits.value, crypto.randomUUID())),
     { success: suspect ? 'أُرسل الشحن من بطاقة مشكوك فيها.' : 'أُرسل الشحن إلى الهاتف. تُسحب البطاقة بعد أن يتحقق الهاتف من الخط.' })
     if (r) { load(); if (suspect) loadSuspect() }
