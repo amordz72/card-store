@@ -21,6 +21,11 @@
       :rows="allOps" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
       <template #other="{ raw }"><IdoomCards :raw="raw" :running-lines="idoomBusy" @sent="afterIdoom" /></template>
+      <!-- What can be sent now, by the ready SIMs (s185, owner 2026-11-01): a missing one says «قريبًا» -->
+      <div v-if="access.operators.value.length && access.supply.value" class="row q-gutter-xs supply">
+        <span v-for="o in access.operators.value" :key="o.key" class="op" :class="o.on ? 'on' : 'off'">
+          {{ o.on ? '✓' : '⏳' }} {{ o.name }}<template v-if="!o.on"> — غير متوفر حاليًا، قريبًا</template></span>
+      </div>
       <!-- Only when stopped (owner 2026-11-01: «إزالة كلمة متاح») -->
       <q-badge v-if="!access.open.value" color="negative" class="q-pa-sm self-start">الخدمة متوقفة الآن — حاول بعد قليل</q-badge>
     </FlexySend>
@@ -188,3 +193,9 @@ onMounted(async () => {
 })
 onUnmounted(() => clearTimeout(timer))
 </script>
+
+<style scoped>
+.supply .op { font-size: 12px; padding: 3px 10px; border-radius: 999px; }
+.supply .on { background: #ECFDF5; color: #047857; }
+.supply .off { background: #F3F4F6; color: #6B7280; }
+</style>
