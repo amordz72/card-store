@@ -216,6 +216,14 @@
     </div>
 
     <div v-show="tab === 'batches'" class="tab-pane">
+    <!-- s167: a batch with 2+ bad cards became suspect by itself (owner 2026-11-01); «تم» hides it -->
+    <div v-for="a in batchAlertList" :key="'al' + a.batch_id" class="card row items-center no-wrap q-gutter-sm alert-batch">
+      <q-icon name="report" color="negative" size="22px" />
+      <div class="col small"><b>الدفعة #{{ a.batch_id }}</b> {{ a.product_name }}: فيها {{ a.bad }} بطاقات خاطئة، فصارت مشكوكًا فيها ({{ a.moved }} بطاقة لم تعد تُباع).</div>
+      <q-btn flat dense no-caps color="primary" label="عرض" @click="openBatchById(a.batch_id)" />
+      <q-btn flat dense no-caps color="grey-8" label="تم" @click="alertSeen(a)" />
+    </div>
+    <CodeFind v-if="suspectReady" @batch="openBatchById" @changed="afterCodes" />
     <!-- Filters: brand → card, supplier, «فيها متوفر» (on by default) -->
     <div class="card column q-gutter-xs">
       <div class="row q-gutter-xs">
@@ -237,6 +245,8 @@
       </div>
       <q-btn rounded no-caps dense class="self-start q-px-sm" :unelevated="bf.availOnly" :outline="!bf.availOnly" color="positive"
         :label="bf.availOnly ? '✓ فيها متوفر فقط' : 'فيها متوفر فقط'" :aria-pressed="bf.availOnly" @click="bf.availOnly = !bf.availOnly" />
+      <q-btn rounded no-caps dense class="self-start q-px-sm" :unelevated="bf.suspectOnly" :outline="!bf.suspectOnly" color="deep-orange"
+        :label="bf.suspectOnly ? '✓ فيها مشكوك فيها فقط' : 'فيها مشكوك فيها فقط'" :aria-pressed="bf.suspectOnly" @click="bf.suspectOnly = !bf.suspectOnly" />
     </div>
     <!-- One small card per batch (fits a phone screen) -->
     <div v-for="b in shownBatches" :key="b.batch_id" class="card column q-gutter-xs">
@@ -247,7 +257,11 @@
       <div class="small muted">{{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}
         <q-btn flat dense size="sm" color="primary" icon="edit" label="عدّل سعر الشراء" @click="editCost(b)" />
         <q-btn flat dense size="sm" color="primary" icon="tune" label="عدّل" @click="openBatchEdit(b)" />
+        <q-btn v-if="suspectReady" flat dense size="sm" color="primary" icon="visibility" label="عرض" @click="openBatch(b)" />
       </div>
+      <!-- s167: tells batches apart, and how many of its cards proved bad -->
+      <div v-if="extra[b.batch_id]" class="small muted">أول كود <bdi dir="ltr">{{ extra[b.batch_id].first_code }}</bdi>
+        <span v-if="Number(extra[b.batch_id].bad)" class="text-negative text-weight-bold"> · خاطئة {{ extra[b.batch_id].bad }}</span></div>
       <div v-for="(c, n) in batchChanges[b.batch_id] || []" :key="'e' + n" class="small text-deep-orange">
         <template v-if="c.old_supplier !== c.new_supplier">المورّد: {{ c.old_supplier }} ← {{ c.new_supplier }} </template>
         <template v-if="c.old_product !== c.new_product">البطاقة: {{ c.old_product }} ← {{ c.new_product }} </template>· {{ dateTime(c.at) }}</div>
@@ -263,6 +277,7 @@
       </div>
       <div v-if="b.available + b.frozen + b.suspect > 0" class="row q-gutter-xs">
         <q-btn v-if="b.available > 0" dense outline size="sm" color="warning" label="تجميد" @click="freezeBatch(b, true)" />
+        <q-btn v-if="suspectReady && b.available > 0" dense outline size="sm" color="deep-orange" label="اجعلها مشكوكًا فيها" @click="suspectBatch(b)" />
         <q-btn v-if="b.frozen > 0" dense outline size="sm" color="positive" label="فك التجميد" @click="freezeBatch(b, false)" />
         <q-btn dense outline size="sm" color="negative" label="إلغاء غير المباع" @click="voidBatch(b)" />
       </div>
@@ -342,6 +357,7 @@
       </q-card>
     </q-dialog>
     <CodesDialog v-model="usedOpen" title="بطاقة مشكوك فيها" :subtitle="usedSub" :codes="usedCodes" :order-id="usedOrderId" />
+    <BatchCodesDialog v-model="batchOpen" :batch="batchPicked" @changed="afterCodes" />
   </q-page>
 </template>
 
@@ -361,6 +377,8 @@ import ImageField from 'components/ImageField.vue'
 import BannersAdmin from 'components/BannersAdmin.vue'
 import CodesDialog from 'components/CodesDialog.vue'
 import CapitalTab from 'components/CapitalTab.vue'
+import BatchCodesDialog from 'components/BatchCodesDialog.vue'
+import CodeFind from 'components/CodeFind.vue'
 
 const { busy, run } = useRun()
 
@@ -648,6 +666,46 @@ async function loadBatches () {
     return all
   })
   if (rows) batchList.value = rows.map((b) => ({ ...b, available: Number(b.available), frozen: Number(b.frozen), sold: Number(b.sold), voided: Number(b.voided), suspect: Number(b.suspect) }))
+  loadExtra()
+}
+// s167 (owner 2026-11-01): each batch's first code and bad count, the 2-bad alerts, «عرض» and «الصق كودًا».
+// Before s167 is applied the functions are missing: nothing of it shows.
+const extra = ref({})
+const suspectReady = ref(false)
+const batchAlertList = ref([])
+async function loadExtra () {
+  const ids = batchList.value.map((b) => b.batch_id)
+  try {
+    const rows = ids.length ? await api.batchesExtra(ids) : []
+    extra.value = Object.fromEntries(rows.map((r) => [r.batch_id, r]))
+    suspectReady.value = true
+    batchAlertList.value = (await api.batchAlerts()) || []
+  } catch { suspectReady.value = false }
+}
+const batchOpen = ref(false)
+const batchPicked = ref(null)
+function openBatch (b) { batchPicked.value = b; batchOpen.value = true }
+function openBatchById (id) {
+  const b = batchList.value.find((x) => x.batch_id === id)
+  openBatch(b || { batch_id: id, product_name: '', supplier: '' })
+}
+async function alertSeen (a) {
+  await run(() => api.batchAlertsSeen(a.batch_id))
+  batchAlertList.value = batchAlertList.value.filter((x) => x.batch_id !== a.batch_id)
+}
+function afterCodes () { loadBatches() }
+function suspectBatch (b) {
+  Dialog.create({
+    title: 'اجعلها مشكوكًا فيها',
+    message: `${b.product_name} #${b.batch_id}: ${b.available} بطاقة متوفرة لا تُباع للزبائن حتى تجعلها «سليمة». المباعة لا تتغير.`,
+    cancel: 'إلغاء', ok: { label: 'نعم', color: 'deep-orange' }
+  }).onOk(async () => {
+    const codes = await run(() => api.batchCodesV3(b.batch_id, false))
+    if (!codes) return
+    const ids = codes.filter((c) => c.status === 'available' && !c.suspect).map((c) => c.code_id)
+    const n = await run(() => api.codesState(ids, 'suspect'), { success: (n) => `${n} بطاقة صارت مشكوكًا فيها.` })
+    if (n !== undefined) loadBatches()
+  })
 }
 async function reloadAll () { await Promise.all([load(), loadBatches(), loadLow(), loadBuy()]) }
 // v1.54: «قائمة الشراء»
@@ -775,7 +833,7 @@ function saveBatchEdit () {
     .onOk(go)
 }
 
-const bf = ref({ brand: null, product: null, supplier: 'all', availOnly: true })
+const bf = ref({ brand: null, product: null, supplier: 'all', availOnly: true, suspectOnly: false })
 const brandImage = computed(() => Object.fromEntries(stock.value.map((p) => [p.brand, p.brand_image])))
 const batchBrands = computed(() => [...new Set(batchList.value.map((b) => b.brand))].map((name) => ({ name, image: brandImage.value[name] })))
 const batchProducts = computed(() => {
@@ -788,7 +846,8 @@ const shownBatches = computed(() => batchList.value.filter((b) =>
   (!bf.value.brand || b.brand === bf.value.brand) &&
   (!bf.value.product || b.product_id === bf.value.product) &&
   (bf.value.supplier === 'all' || b.supplier === bf.value.supplier) &&
-  (!bf.value.availOnly || b.available + b.frozen + b.suspect > 0)))
+  (!bf.value.availOnly || b.available + b.frozen + b.suspect > 0) &&
+  (!bf.value.suspectOnly || b.suspect > 0)))
 
 // Only codes still in stock change; a code sold meanwhile is skipped by the database.
 async function stockCodeIds (b, test) {
@@ -912,4 +971,5 @@ onMounted(() => { load(); loadBatches(); loadCostChanges(); loadBatchChanges(); 
 .picked-bar img { display: block; flex: 0 0 56px; height: 32px; width: 56px; object-fit: contain; }
 .picked-bar.none { background: #FEF2F2; border-color: #FCA5A5; color: #B91C1C; }
 .brand-pick.on { border-color: var(--brand-accent, #C2410C); box-shadow: 0 0 0 2px #C7CAF5; }
+.alert-batch { border: 2px solid #C62828; }
 </style>
