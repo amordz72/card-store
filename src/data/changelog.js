@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-l',
+    date: '2026-11-01',
+    title: '«عروض»: خط معروف بعروضه مباشرة',
+    items: [
+      { text: 'رقم خطه معروف من قبل (Revolution، PixX…): تظهر عروضه بأسمائها مباشرة بعد التحميل، بلا لوحة Sama Mix؛ خط Sama أو غير معروف: اللوحة كما هي', to: '/flexy/shop', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-k',
     date: '2026-11-01',
     title: '«تعبئة»: أزرار المبلغ',
