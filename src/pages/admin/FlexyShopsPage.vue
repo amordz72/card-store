@@ -37,7 +37,7 @@
          later) and «أعطِ» gives it to every enabled shop that has none for that service -->
     <div class="card column q-gutter-xs">
       <div class="section-title">النسب</div>
-      <div v-for="sv in SERVICES" :key="sv.key" class="rate-row">
+      <div v-for="sv in SERVICES.filter((x) => !x.oneRate)" :key="sv.key" class="rate-row">
         <span class="text-weight-bold">{{ sv.name }}</span>
         <q-input v-model.number="defaults[sv.key]" dense outlined type="number" step="0.25" suffix="%" />
         <q-btn outline no-caps color="primary" label="أعطِ لمن بلا نسبة" :loading="busy" :disable="defaults[sv.key] == null" @click="fillRate(sv)" />
@@ -122,7 +122,8 @@
           <div v-for="sv in SERVICES" :key="sv.key" class="svc-row">
             <span class="text-weight-bold">{{ sv.name }} <q-badge v-if="changedService(sv)" color="warning" label="معدَّل" /></span>
             <q-option-group dense inline :model-value="form.block[sv.key] ? 'block' : 'allow'" :options="ALLOW" :disable="busy" @update:model-value="form.block[sv.key] = $event === 'block'" />
-            <q-input v-model.number="form.rate[sv.key]" dense outlined type="number" step="0.25" suffix="%" :disable="busy || form.block[sv.key] === true" />
+            <q-input v-if="!sv.oneRate" v-model.number="form.rate[sv.key]" dense outlined type="number" step="0.25" suffix="%" :disable="busy || form.block[sv.key] === true" />
+            <span v-else class="small muted">= نسبة جازي</span>
           </div>
           <div class="svc-row">
             <span class="text-weight-bold">أكبر مبلغ</span><span></span>
@@ -195,7 +196,8 @@ const SERVICES = [
   { key: 'djezzy', name: 'جازي', rate: 'rate_630_djezzy', block: 'block_djezzy' },
   // v1.55: its own rate (empty = the offers' rate)
   { key: 'offer_ooredoo', name: 'عروض أوريدو', rate: 'rate_offer_ooredoo', block: 'block_offer_ooredoo' },
-  { key: 'offer_djezzy', name: 'عروض جازي', rate: 'rate_offer_djezzy', block: 'block_offer_djezzy' }
+  // s188: Djezzy has one rate (owner 2026-11-01): its offers take the ordinary Djezzy rate; only «منع» here
+  { key: 'offer_djezzy', name: 'عروض جازي (بنسبة جازي)', rate: 'rate_offer_djezzy', block: 'block_offer_djezzy', oneRate: true }
 ]
 const ALLOW = [{ label: 'سماح', value: 'allow' }, { label: 'منع', value: 'block' }]
 const SIZES = [{ label: '10', value: 10 }, { label: '20', value: 20 }, { label: '50', value: 50 }]
@@ -312,6 +314,7 @@ const blank = (v) => v == null || v === ''
 const rateOf = (f, sv) => (blank(f.rate[sv.key]) ? null : Number(f.rate[sv.key]))
 // A rate counts as changed only if it differs from what the window opened with; for a selection an empty field is never sent
 function rateChanged (f, sv) {
+  if (sv.oneRate) return false
   const v = rateOf(f, sv)
   return v !== f.orig.rate[sv.key] && !(v == null && !f.single)
 }
