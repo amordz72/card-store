@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zb',
+    date: '2026-11-01',
+    title: 'منتجات المنصة بالفئات · شريط الأعلى لا يخرج من الشاشة',
+    items: [
+      { text: '«منتجات المنصة»: الفئات أولًا بعددها وأقل تكلفة؛ اضغط فئة لترى منتجاتها مرتبة بالسعر؛ منتجات TEST مخفية', to: '/game', pr: 'card-store' },
+      { text: 'شريط الأعلى (القائمة والرصيد) كان يخرج 12px في الشاشات 360px: صُحّح في كل الصفحات', to: '/', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-za',
     date: '2026-11-01',
     title: 'مفتاح منصة topup-dz من صفحتك (بعد تطبيق s178)',
