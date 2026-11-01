@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zd',
+    date: '2026-11-01',
+    title: '«اربطه»: منتجنا بمنتج المنصة (بعد تطبيق s180)',
+    items: [
+      { text: 'تحت كل مقابل زر «اربطه»؛ المنتج المربوط عليه 🔗 و«فكّ الربط». ربط فقط: لا مال ولا شحن آلي بعد', to: '/game', pr: 'card-store، s180' }
+    ]
+  },
+  {
     id: '2026-11-01-zc',
     date: '2026-11-01',
     title: 'منصة topup-dz: منتجاتنا أولًا، والقائمة محفوظة (بعد تطبيق s179)',
