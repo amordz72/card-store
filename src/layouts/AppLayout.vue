@@ -444,12 +444,13 @@ const menu = computed(() => MENU.filter(allowed).map((g) => ({ ...g, items: g.it
 const nav = computed(() => [
   // Owner 2026-10-26, from the right: «فليكسي» in the transfers' place (transfers stay in the side
   // menu), then «تعبئة إيدوم», the home in the middle, the cards and the operations. One bar for both.
+  // 2026-11-01: «تعبئة» holds Idoom too; a shop with Idoom only keeps «تعبئة إيدوم» here
   session.isAdmin ? { to: '/flexy/send', label: 'تعبئة', icon: 'send_to_mobile' }
     : hasFlexy.value ? { to: '/flexy/shop', label: 'تعبئة', icon: 'send_to_mobile' }
-      : { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
-  hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }
-    : game.isOperator.value ? { to: '/game', label: 'شحن الألعاب', icon: 'sports_esports' }
-      : { to: '/account', label: 'حسابي', icon: 'person' },
+      : hasIdoom.value ? { to: '/idoom', label: 'تعبئة إيدوم', icon: 'wifi' }
+        : { to: '/transfers', label: 'التحويلات', icon: 'swap_horiz' },
+  // Owner 2026-11-01: «الألعاب» in the old «تعبئة إيدوم» place, for everyone («تعبئة إيدوم» stays in the side menu)
+  { to: '/game', label: 'الألعاب', icon: 'sports_esports' },
   { to: '/', label: 'الرئيسية', icon: 'home', exact: true, home: true },
   { to: '/store', label: 'البطاقات', icon: 'style' },
   { to: '/operations', label: 'العمليات', icon: 'receipt_long' }

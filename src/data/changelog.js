@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-g',
+    date: '2026-11-01',
+    title: 'الشريط السفلي: «الألعاب» مكان «تعبئة إيدوم»',
+    items: [
+      { text: 'زر «الألعاب» 🎮 في الشريط السفلي للجميع؛ «تعبئة إيدوم» في القائمة الجانبية ☰ (وإيدوم داخل «تعبئة»)', to: '/game', pr: 'card-store' }
+    ]
+  },
+  {
     id: '2026-11-01-f',
     date: '2026-11-01',
     title: '«تعبئة» في صفحتك أيضًا',
