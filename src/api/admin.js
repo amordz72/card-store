@@ -56,7 +56,9 @@ export const orders = (f) => rpc('store_admin_orders', {
 })
 
 // v1.37: «العمليات» as one list, cards and the shops' Flexy together (type: phone|net|game|flexy|offer)
-export const ops = (f) => rpc('store_admin_ops', {
+// s168: the v2 feed names an Idoom or game top-up (kind, target, job_status); before s168 the v1 feed, as before
+const missingFn = (e) => e?.raw?.code === 'PGRST202' || /Could not find the function|does not exist/.test(String(e?.raw?.message || ''))
+const opsArgs = (f) => ({
   p_scope: f.scope || null,
   p_customer_id: f.customerId || null,
   p_type: f.type || null,
@@ -66,6 +68,8 @@ export const ops = (f) => rpc('store_admin_ops', {
   p_limit: f.limit,
   p_offset: f.offset
 })
+export const ops = (f) => rpc('store_admin_ops_v2', opsArgs(f))
+  .catch((e) => (missingFn(e) ? rpc('store_admin_ops', opsArgs(f)) : Promise.reject(e)))
 
 // v1.38: the Flexy Core keys of shop Flexy rows, to read the SIM that ran each (owner only)
 export const flexyKeys = (jobIds) => rpc('store_admin_flexy_keys', { p_job_ids: jobIds })

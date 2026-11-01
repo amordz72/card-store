@@ -43,7 +43,9 @@ export const orders = (token, f) => rpc('store_orders', {
 })
 
 // v1.37: the customer's cards and Flexy in one list
-export const ops = (token, f) => rpc('store_ops', {
+// s168: the v2 feed names an Idoom or game top-up (kind, target, job_status); before s168 the v1 feed, as before
+const missingFn = (e) => e?.raw?.code === 'PGRST202' || /Could not find the function|does not exist/.test(String(e?.raw?.message || ''))
+const opsArgs = (token, f) => ({
   p_token: token,
   p_type: f.type || null,
   p_from: f.from || null,
@@ -52,6 +54,8 @@ export const ops = (token, f) => rpc('store_ops', {
   p_limit: f.limit,
   p_offset: f.offset
 })
+export const ops = (token, f) => rpc('store_ops_v2', opsArgs(token, f))
+  .catch((e) => (missingFn(e) ? rpc('store_ops', opsArgs(token, f)) : Promise.reject(e)))
 
 // v2 adds code_id and the report state of each card (v1.20)
 export const orderCodes = (token, orderId) => rpc('store_order_codes_v2', { p_token: token, p_order_id: orderId })

@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-h',
+    date: '2026-11-01',
+    title: '«العمليات»: تعبئة إيدوم وشحن الألعاب بأسمائها (بعد تطبيق s168)',
+    items: [
+      { text: 'تعبئة إيدوم تظهر «تعبئة إيدوم · …» مع الخط وحالتها (تنتظر، جارية، تمت، لم تتم)، حتى قبل أن يأخذها الهاتف', to: '/operations', pr: 'card-store، s168' },
+      { text: 'شحن الألعاب يظهر «شحن لعبة · …» مع معرّف اللاعب وحالته؛ والبحث يجد الخط أو المعرّف', to: '/operations', pr: 'card-store، s168' }
+    ]
+  },
+  {
     id: '2026-11-01-g',
     date: '2026-11-01',
     title: 'الشريط السفلي: «الألعاب» مكان «تعبئة إيدوم»',
