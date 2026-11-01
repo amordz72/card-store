@@ -7,9 +7,7 @@
     </div>
 
     <template v-else>
-      <q-badge :color="access.phoneOnline.value ? 'positive' : 'negative'" class="q-pa-sm self-start">
-        {{ access.phoneOnline.value ? '🟢 الخدمة متاحة الآن' : '🔴 الخدمة متوقفة الآن — حاول بعد قليل' }}
-      </q-badge>
+      <q-badge v-if="!access.phoneOnline.value" color="negative" class="q-pa-sm self-start">🔴 الخدمة متوقفة الآن — حاول بعد قليل</q-badge>
 
       <div class="card column q-gutter-sm">
         <div v-if="pretty" class="idoom-line text-center" dir="ltr">{{ pretty }}</div>

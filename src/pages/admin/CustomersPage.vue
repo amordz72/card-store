@@ -16,10 +16,13 @@
     </q-form>
 
     <q-input v-model="query" dense outlined clearable label="بحث بالاسم أو الهاتف" bg-color="white" />
+    <!-- s169: hidden customers (e.g. DEMO) only on demand -->
+    <q-btn v-if="hiddenIds.size" flat dense no-caps class="self-start" color="grey-8" :icon="showHidden ? 'visibility_off' : 'visibility'"
+      :label="(showHidden ? 'أخفِ المخفيين' : 'أظهر المخفيين') + ' (' + hiddenIds.size + ')'" @click="showHidden = !showHidden" />
     <q-list class="card q-pa-none">
       <q-item v-for="c in shown" :key="c.customer_id" clickable :to="'/customers/' + c.customer_id" style="border-top:1px solid #EEF0F5">
         <q-item-section>
-          <q-item-label class="text-weight-bold">{{ c.name }}<q-badge v-if="!c.active" color="grey" class="q-ml-sm">موقوف</q-badge></q-item-label>
+          <q-item-label class="text-weight-bold">{{ c.name }}<q-badge v-if="!c.active" color="grey" class="q-ml-sm">موقوف</q-badge><q-badge v-if="hiddenIds.has(Number(c.customer_id))" color="grey-7" class="q-ml-sm">مخفي</q-badge></q-item-label>
           <q-item-label caption class="ltr text-right">{{ c.phone }}</q-item-label>
           <!-- Its settings at a glance (owner 2026-10-31), without opening it -->
           <q-item-label caption>{{ summary(c) }}</q-item-label>
@@ -50,16 +53,20 @@ const query = ref('')
 const blankForm = () => ({ name: '', phone: '', password: easyPassword() })
 const form = ref(blankForm())
 
+const hiddenIds = ref(new Set())
+const showHidden = ref(false)
 const shown = computed(() => {
   const q = (query.value || '').trim()
-  return q ? list.value.filter((c) => c.name.includes(q) || c.phone.includes(q.replace(/\s/g, ''))) : list.value
+  const base = showHidden.value ? list.value : list.value.filter((c) => !hiddenIds.value.has(Number(c.customer_id)))
+  return q ? base.filter((c) => c.name.includes(q) || c.phone.includes(q.replace(/\s/g, ''))) : base
 })
 
 // Flexy of each account (the same list as «فليكسي المحلات»), by customer id
 const flexyOf = ref({})
 async function load () {
-  const data = await run(() => api.customers())
+  const [data, hidden] = await Promise.all([run(() => api.customersAll()), api.hiddenCustomers()])
   if (data) list.value = data
+  hiddenIds.value = new Set((hidden || []).map(Number))
   loaded.value = true
   const rows = await api.flexyCustomers().catch(() => null)
   flexyOf.value = Object.fromEntries((rows || []).map((r) => [Number(r.customer_id), r]))
