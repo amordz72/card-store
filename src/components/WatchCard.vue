@@ -28,7 +28,11 @@
         </q-btn>
       </div>
       <router-link v-if="newsCount" to="/news" class="line bg-purple-7">🆕 {{ newsCount }} {{ newsCount === 1 ? 'جديد' : 'جديدة' }} في البرنامج</router-link>
-      <q-btn unelevated dense no-caps color="primary" icon="monitor_heart" label="افتح لوحة المراقبة" to="/watch" class="q-mt-xs" />
+      <div class="row q-gutter-xs q-mt-xs">
+        <q-btn unelevated dense no-caps color="primary" icon="monitor_heart" label="لوحة المراقبة" to="/watch" class="col" />
+        <q-btn outline dense no-caps color="primary" icon="battery_charging_full" label="تغذية الشرائح" to="/watch#feed" class="col" />
+        <q-btn outline dense no-caps color="primary" icon="inventory_2" label="دفتر المخزون" to="/stock?tab=ledger" class="col" />
+      </div>
     </div>
   </div>
 </template>

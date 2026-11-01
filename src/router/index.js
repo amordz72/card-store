@@ -8,7 +8,8 @@ import * as customerApi from 'src/api/customer'
 
 export default defineRouter(({ store }) => {
   const router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
+    // «#feed» opens the place itself (owner 2026-11-01: «لا أدري أين التغذية»); otherwise the top
+    scrollBehavior: (to) => (to.hash ? { el: to.hash, top: 70 } : { left: 0, top: 0 }),
     routes,
     history: createWebHashHistory(process.env.VUE_ROUTER_BASE)
   })
