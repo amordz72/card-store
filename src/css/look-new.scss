@@ -19,7 +19,8 @@
 
   // The header becomes one white card on the grey page
   .q-header { background: var(--look-bg) !important; border-bottom: 0 !important; }
-  .q-header .q-toolbar { background: #fff; margin: 10px 12px 2px; border-radius: 18px; box-shadow: var(--look-shadow); min-height: 58px; }
+  // width auto (owner 2026-11-01): Quasar's 100% plus the 12px margins went 12px past a 360px screen
+  .q-header .q-toolbar { width: auto; background: #fff; margin: 10px 12px 2px; border-radius: 18px; box-shadow: var(--look-shadow); min-height: 58px; }
   .q-footer .monitor-bar { margin: 4px 10px; border-radius: 14px; }
   .look-head { min-width: 0; }
   .look-balance { color: #2FAE1E; font-weight: 800; font-size: 22px; white-space: nowrap; }

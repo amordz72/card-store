@@ -34,20 +34,28 @@
       <div v-if="platformError" class="small text-negative">{{ platformError }}</div>
 
       <template v-if="products.length">
-        <q-input v-model="search" dense outlined clearable label="ابحث في المنتجات (الاسم أو الفئة)" />
+        <!-- Categories first (owner 2026-11-01): one tap opens a category, its products by price; «TEST» ones hidden -->
+        <q-input v-model="search" dense outlined clearable label="ابحث عن فئة أو منتج (free fire، pubg…)" />
         <q-toggle v-model="onlyAvailable" label="المتاح فقط" />
-        <div class="small muted">{{ shown.length }} من {{ products.length }} · التكلفة بالدينار تتغير مع سعر الدولار أعلاه</div>
-        <div v-for="p in shown.slice(0, limit)" :key="p.id" class="prod row items-center no-wrap q-gutter-sm">
-          <div class="col">
-            <div class="text-weight-bold">{{ p.name }} <span class="small muted">#{{ p.id }}</span></div>
-            <div class="small muted">{{ p.category }}<span v-if="p.params.length"> · {{ p.params.join('، ') }}</span><span v-if="!p.available" class="text-negative"> · غير متاح</span></div>
+        <div class="small muted">{{ groups.length }} فئة · {{ shownCount }} منتج · التكلفة بالدينار تتغير مع سعر الدولار أعلاه</div>
+        <q-expansion-item v-for="g in groups.slice(0, limit)" :key="g.name" dense class="cat" header-class="cat-head"
+          :default-opened="groups.length <= 3">
+          <template #header>
+            <q-item-section><span class="text-weight-bold">{{ g.name }}</span></q-item-section>
+            <q-item-section side><span class="small muted">{{ g.items.length }} · من {{ rate > 0 ? dzd(g.min) : usd(g.min) }}</span></q-item-section>
+          </template>
+          <div v-for="p in g.items" :key="p.id" class="prod row items-center no-wrap q-gutter-sm">
+            <div class="col">
+              <div class="text-weight-bold">{{ p.name }} <span class="small muted">#{{ p.id }}</span></div>
+              <div class="small muted"><span v-if="p.params.length">{{ p.params.join('، ') }}</span><span v-if="!p.available" class="text-negative"> · غير متاح</span></div>
+            </div>
+            <div class="text-right">
+              <div class="text-weight-bold">{{ rate > 0 ? dzd(p.price) : '—' }}</div>
+              <div class="small muted ltr">{{ usd(p.price) }}</div>
+            </div>
           </div>
-          <div class="text-right">
-            <div class="text-weight-bold">{{ rate > 0 ? dzd(p.price) : '—' }}</div>
-            <div class="small muted ltr">{{ usd(p.price) }}</div>
-          </div>
-        </div>
-        <q-btn v-if="shown.length > limit" flat no-caps color="primary" label="المزيد" @click="limit += 50" />
+        </q-expansion-item>
+        <q-btn v-if="groups.length > limit" flat no-caps color="primary" label="المزيد من الفئات" @click="limit += 50" />
       </template>
     </template>
   </div>
@@ -103,10 +111,25 @@ const ERRORS = {
 const say = (r) => ERRORS[r?.body?.error] || r?.body?.error || 'خطأ'
 const usd = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 3 }) + ' $')
 const dzd = (v) => (v === null || v === undefined || !(rate.value > 0) ? '—' : Math.round(Number(v) * rate.value).toLocaleString('en-US') + ' دج')
+const isTest = (p) => /\btest\b/i.test(p.name + ' ' + p.category)
 const shown = computed(() => {
   const q = String(search.value || '').trim().toLowerCase()
-  return products.value.filter((p) => (!onlyAvailable.value || p.available) &&
+  return products.value.filter((p) => !isTest(p) && (!onlyAvailable.value || p.available) &&
     (!q || (p.name + ' ' + p.category).toLowerCase().includes(q)))
+})
+const shownCount = computed(() => shown.value.length)
+// by category, each by price; the categories by name
+const groups = computed(() => {
+  const m = new Map()
+  for (const p of shown.value) {
+    const k = (p.category || 'أخرى').trim()
+    if (!m.has(k)) m.set(k, [])
+    m.get(k).push(p)
+  }
+  return [...m.entries()].map(([name, items]) => {
+    items.sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+    return { name, items, min: items[0]?.price ?? null }
+  }).sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }))
 })
 
 async function loadRate () {
@@ -144,5 +167,6 @@ onMounted(() => { load(); loadRate() })
 </script>
 
 <style scoped>
-.prod { border-top: 1px solid #EEF0F4; padding-top: 6px; }
+.prod { border-top: 1px solid #EEF0F4; padding: 6px 12px; }
+.cat { border: 1px solid #E3E6EC; border-radius: 10px; overflow: hidden; }
 </style>
