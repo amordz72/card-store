@@ -9,7 +9,7 @@
         {{ w.problems.value.length ? w.problems.value.length + (w.problems.value.length === 1 ? ' مشكلة' : ' مشاكل') : 'كل شيء يعمل' }}</span>
       <q-icon :name="open ? 'expand_less' : 'expand_more'" size="20px" />
     </button>
-    <div v-if="open" class="column q-gutter-xs q-pa-sm">
+    <div v-if="open" class="body">
       <div class="kpis">
         <router-link class="kpi" to="/watch">💻 {{ w.counts.value.pcOn }}/{{ w.counts.value.pcAll }} متصل</router-link>
         <router-link class="kpi" to="/watch">📶 {{ w.counts.value.simReady }}/{{ w.counts.value.simAll }} جاهزة</router-link>
@@ -52,6 +52,8 @@ const newsCount = computed(() => { void newsSeenRef.value; return unseenNews() }
 
 <style scoped>
 .watch { contain: inline-size; min-width: 0; max-width: 100%; overflow: hidden; }
+.body { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 4px; padding: 8px; min-width: 0; }
+.body > * { min-width: 0; max-width: 100%; }
 .kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .watch-head { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; text-align: right; }
 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
