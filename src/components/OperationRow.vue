@@ -34,7 +34,8 @@
     <!-- A Flexy row opens in place: what happened, the network's reply, and (owner's own) the SIM -->
     <div v-if="opened" class="q-px-md q-pb-sm column q-gutter-xs small">
       <div v-if="op.kind !== 'idoom' && op.kind !== 'game'" class="text-weight-bold">{{ explain(op.outcome_code, op.status) }}</div>
-      <template v-if="op.network_reply">
+      <!-- the raw reply: the owner only (owner 2026-11-01) -->
+      <template v-if="op.network_reply && admin">
         <div>رد الشبكة:</div>
         <div class="muted ltr text-right" style="white-space:pre-wrap">{{ op.network_reply }}</div>
       </template>
