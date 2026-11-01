@@ -25,11 +25,12 @@
         <div class="text-weight-bold">اختر البطاقة</div>
         <!-- The same short rows as «تعبئة» (owner 2026-11-01) -->
         <div v-if="lineBusy" class="busy-line">⏳ تعبئة جارية لهذا الخط · منذ {{ busySince }} — انتظر ردها</div>
-        <button v-for="c in cards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy || !access.phoneOnline.value" @click="confirmCharge(c)">
+        <div v-if="sentHere" class="sent-line">✅ أُرسلت — تابعها في «تعبئاتي». اكتب رقمًا آخر لتعبئة جديدة.</div>
+        <button v-for="c in (sentHere ? [] : cards)" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy || !access.phoneOnline.value" @click="confirmCharge(c)">
           <span class="col">{{ c.name }}</span>
           <span class="price">{{ money(c.base_price) }}</span>
         </button>
-        <div v-if="!cards.length" class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
+        <div v-if="!sentHere && !cards.length" class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
       </div>
 
       <div class="row items-center justify-between q-mt-md">
@@ -102,6 +103,11 @@ const catalog = ref([])
 const cards = computed(() => catalog.value.filter((p) => p.category === 'net' && p.available &&
   /idoom/i.test(p.brand) && /4g|lte/i.test(p.brand + ' ' + p.name) === is4g.value))
 
+// after «نعم، عبّئ» the cards hide until another number is typed (owner 2026-11-01)
+const sentLine = ref('')
+const sentHere = computed(() => !!sentLine.value && sentLine.value === digits.value)
+watch(digits, (v) => { if (v !== sentLine.value) sentLine.value = '' })
+
 const known = ref(null)
 watch(digits, async () => {
   known.value = null
@@ -122,6 +128,7 @@ async function reloadAll () {
 }
 
 function confirmCharge (c) {
+  const line = digits.value
   Dialog.create({
     title: 'تأكيد التعبئة',
     html: true,
@@ -131,7 +138,7 @@ function confirmCharge (c) {
   }).onOk(async () => {
     const r = await run(() => api.idoomCreate(customer.token, c.product_id, digits.value, crypto.randomUUID()),
       { success: 'أُرسل الطلب. تابع حالته في «تعبئاتي».' })
-    if (r) { buyer.refresh(); reset() }
+    if (r) { sentLine.value = line; buyer.refresh(); reset() }
   })
 }
 
@@ -179,4 +186,5 @@ onUnmounted(() => clearInterval(timer))
 .idoom-row:disabled { opacity: 0.5; cursor: default; }
 .idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap; min-width: 76px; text-align: center; }
 .busy-line { background: #E3F2FD; color: #0D47A1; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
+.sent-line { background: #E8F5E9; color: #1B5E20; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 </style>
