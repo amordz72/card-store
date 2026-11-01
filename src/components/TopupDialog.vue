@@ -5,7 +5,7 @@
         <div class="text-weight-bold">{{ session.isAdmin ? 'شحن رصيد المحل' : 'شحن رصيدي (بالدين)' }}</div>
         <div class="small muted">
           <template v-if="session.isAdmin">مبلغ تضعه لنفسك لتتابع استهلاكك وأرباحك.</template>
-          <template v-else>يضاف المبلغ إلى رصيدك وإلى دينك. المتاح لك الآن: <b>{{ money(available) }}</b></template>
+          <template v-else>يضاف المبلغ إلى رصيدك وإلى دينك.</template>
         </div>
         <!-- customer: quick amounts in steps of 500 (no awkward debt figures) -->
         <div v-if="!session.isAdmin" class="row q-gutter-sm">
