@@ -120,6 +120,12 @@ export const feedCards = () => rpc('store_admin_feed_cards')
 export const feedFaces = () => rpc('store_admin_feed_faces')
 // s170: suspect cards per value (feeding) and per product (Idoom); the owner's Idoom top-up from a suspect card
 export const feedSuspectFaces = () => rpc('store_admin_feed_suspect_faces')
+// s171: each batch's code with its history (Q4-H50-W70); by Idoom job; find by any part; the suppliers' letters
+export const batchCodeMap = (ids) => rpc('store_admin_batch_code_map', { p_batch_ids: ids }).catch(() => ({}))
+export const idoomJobBatches = (ids) => rpc('store_admin_idoom_job_batches', { p_job_ids: ids }).catch(() => ({}))
+export const batchFind = (part) => rpc('store_admin_batch_find', { p_part: part })
+export const supplierLetters = () => rpc('store_admin_supplier_letters').catch(() => ({}))
+export const supplierLetter = (supplierId, letter) => rpc('store_admin_supplier_letter', { p_supplier: supplierId, p_letter: letter })
 export const suspectCounts = () => rpc('store_admin_suspect_counts')
 export const idoomCreateSuspect = (productId, line, requestId) => rpc('store_admin_idoom_create_suspect', { p_product_id: productId, p_line: line, p_request_id: requestId }).then((r) => r?.[0] || null)
 export const feedFix = (cardId, code) => rpc('store_admin_feed_fix', { p_card: cardId, p_code: code })

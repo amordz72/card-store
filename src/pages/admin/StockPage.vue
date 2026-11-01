@@ -224,6 +224,9 @@
       <q-btn flat dense no-caps color="grey-8" label="تم" @click="alertSeen(a)" />
     </div>
     <CodeFind v-if="suspectReady" @batch="openBatchById" @changed="afterCodes" />
+    <!-- s171: a batch by any part of its code (H50 finds Q4-H50-W70) -->
+    <q-input v-if="Object.keys(batchCode).length" v-model="codeQuery" dense outlined clearable bg-color="white" label="رمز الدفعة (مثل H50)"
+      input-class="ltr" @update:model-value="findByCode" @clear="codeHits = null" />
     <!-- Filters: brand → card, supplier, «فيها متوفر» (on by default) -->
     <div class="card column q-gutter-xs">
       <div class="row q-gutter-xs">
@@ -256,7 +259,7 @@
     <!-- One small card per batch (fits a phone screen) -->
     <div v-for="b in shownBatches" :key="b.batch_id" class="card column q-gutter-xs">
       <div class="row items-center justify-between no-wrap">
-        <span class="text-weight-bold">{{ b.product_name }}</span>
+        <span class="text-weight-bold"><span v-if="batchCode[b.batch_id]" class="batch-code">{{ batchCode[b.batch_id] }}</span> {{ b.product_name }}</span>
         <span class="small muted">#{{ b.batch_id }}</span>
       </div>
       <div class="small muted">{{ b.supplier }} · {{ dateTime(b.created_at) }} · شراء {{ money(b.cost) }}
@@ -677,11 +680,25 @@ async function loadBatches () {
 // s167 (owner 2026-11-01): each batch's first code and bad count, the 2-bad alerts, «عرض» and «الصق كودًا».
 // Before s167 is applied the functions are missing: nothing of it shows.
 const extra = ref({})
+const batchCode = ref({})
+const codeQuery = ref('')
+const codeHits = ref(null)
+let codeTimer = null
+function findByCode (v) {
+  clearTimeout(codeTimer)
+  const q = String(v || '').trim()
+  if (!q) { codeHits.value = null; return }
+  codeTimer = setTimeout(async () => {
+    const ids = await api.batchFind(q).catch(() => [])
+    codeHits.value = new Set((ids || []).map(Number))
+  }, 300)
+}
 const suspectReady = ref(false)
 const batchAlertList = ref([])
 async function loadExtra () {
   const ids = batchList.value.map((b) => b.batch_id)
   try {
+    api.batchCodeMap(ids).then((m) => { batchCode.value = m || {} })
     const rows = ids.length ? await api.batchesExtra(ids) : []
     extra.value = Object.fromEntries(rows.map((r) => [r.batch_id, r]))
     suspectReady.value = true
@@ -690,7 +707,7 @@ async function loadExtra () {
 }
 const batchOpen = ref(false)
 const batchPicked = ref(null)
-function openBatch (b) { batchPicked.value = b; batchOpen.value = true }
+function openBatch (b) { batchPicked.value = { ...b, code: batchCode.value[b.batch_id] || null }; batchOpen.value = true }
 function openBatchById (id) {
   const b = batchList.value.find((x) => x.batch_id === id)
   openBatch(b || { batch_id: id, product_name: '', supplier: '' })
@@ -864,6 +881,7 @@ const shownBatches = computed(() => batchList.value.filter((b) =>
   (bf.value.supplier === 'all' || b.supplier === bf.value.supplier) &&
   (!bf.value.availOnly || b.available + b.frozen + b.suspect > 0) &&
   (!bf.value.suspectOnly || b.suspect > 0) &&
+  (!codeHits.value || codeHits.value.has(b.batch_id)) &&
   inRange(b.created_at)))
 
 // Only codes still in stock change; a code sold meanwhile is skipped by the database.
@@ -989,4 +1007,5 @@ onMounted(() => { load(); loadBatches(); loadCostChanges(); loadBatchChanges(); 
 .picked-bar.none { background: #FEF2F2; border-color: #FCA5A5; color: #B91C1C; }
 .brand-pick.on { border-color: var(--brand-accent, #C2410C); box-shadow: 0 0 0 2px #C7CAF5; }
 .alert-batch { border: 2px solid #C62828; }
+.batch-code { background: #EEF2FF; color: #3730A3; border-radius: 6px; padding: 1px 6px; font-family: monospace; font-size: 0.9rem; direction: ltr; unicode-bidi: isolate; }
 </style>
