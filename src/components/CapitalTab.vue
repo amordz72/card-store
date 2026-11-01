@@ -9,10 +9,13 @@
 
     <div class="card column q-gutter-xs">
       <div class="text-weight-bold">مالك الآن</div>
-      <div class="row justify-between"><span>البطاقات ({{ cardsLeft }} بطاقة بسعر شرائها)</span><b>{{ money(cardsTotal) }}</b></div>
+      <div class="row justify-between"><span>البطاقات ({{ cardsLeft }} بطاقة{{ suspect ? ' سليمة' : '' }} بسعر شرائها)</span><b>{{ money(cardsTotal) }}</b></div>
       <div v-for="o in simOps" :key="o.name" class="row justify-between"><span>رصيد شرائح {{ o.name }}</span><b>{{ money(o.total) }}</b></div>
       <div v-if="simError" class="small muted">{{ simError }}</div>
       <div class="row justify-between total"><span>المجموع</span><b>{{ money(cardsTotal + simTotal) }}</b></div>
+      <!-- s173 (owner 2026-11-01): the suspect cards apart, out of the total, at their purchase price -->
+      <div v-if="suspect && suspect.n > 0" class="row justify-between small text-deep-orange q-mt-xs">
+        <span>مشكوك فيها: {{ suspect.n }} بطاقة (خارج المجموع)</span><b>{{ money(suspect.capital) }}</b></div>
     </div>
 
     <div class="card column q-gutter-xs">
@@ -64,6 +67,7 @@ const ROUTES = { arsselli: 'أرسلي (موبيليس)', sama: 'سما (عرو�
 const { run } = useRun()
 const days = ref(30)
 const store = ref({ cards: [], cards_profit: [], flexy_shops: [] })
+const suspect = ref(null)
 const fx = ref({ rates: { now: [] }, routes: [] })
 const simOps = ref([])
 const flexyError = ref('')
@@ -121,11 +125,12 @@ const profitTotal = computed(() => profitRows.value.reduce((a, r) => a + r.net, 
 
 async function load () {
   const [s, p, m] = await Promise.all([
-    api.capital(days.value).catch(() => null),
+    api.capitalV2(days.value).catch(() => api.capital(days.value)).catch(() => null),
     flexy.ownerProfit(days.value).catch(() => null),
     flexy.ownerMonitor().catch(() => null)
   ])
   if (s) store.value = { cards: s.cards || [], cards_profit: s.cards_profit || [], flexy_shops: s.flexy_shops || [] }
+  suspect.value = s?.suspect || null
   if (p?.status === 200 && p.body?.ok) { fx.value = { rates: p.body.rates || { now: [] }, routes: p.body.routes || [] }; flexyError.value = '' }
   else flexyError.value = p?.body?.error === 'MIGRATION_0122' ? 'طبّق 0122 من «ينتظر تطبيقك» ليُحسب ربح الفليكسي.' : 'تعذّر حساب ربح الفليكسي الآن.'
   if (m?.status === 200 && m.body?.ok) { simOps.value = (m.body.operators || []).map((o) => ({ name: o.name, total: num(o.total) })); simError.value = '' }

@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-s',
+    date: '2026-11-01',
+    title: '«رأس المال» بلا المشكوك فيها (بعد تطبيق s173)',
+    items: [
+      { text: 'البطاقات المشكوك فيها خارج المجموع، وتظهر وحدها تحته بعددها وسعر شرائها', to: '/stock', pr: 'card-store، s173' }
+    ]
+  },
+  {
     id: '2026-11-01-r',
     date: '2026-11-01',
     title: 'اختر الدفعة بنفسك (بعد تطبيق 0134 وs172)',

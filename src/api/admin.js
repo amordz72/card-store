@@ -114,6 +114,8 @@ export const setLowStock = (days, count) => rpc('store_admin_set_low_stock', { p
 // v1.59: a card's own minimum (null clears it)
 // v1.60: cards in stock × their cost, card sales profit, the shops' flexy share (last N days)
 export const capital = (days) => rpc('store_admin_capital', { p_days: days })
+// s173: the cards without the suspect ones, and the suspect ones apart ({n, capital}); before s173 the call fails and capital() answers
+export const capitalV2 = (days) => rpc('store_admin_capital_v2', { p_days: days })
 // «التغذية» (v1.61): the cards taken to feed the Sama SIMs that need the owner, «صحّح الرمز» (back to feeding), «مستعملة»
 export const feedCards = () => rpc('store_admin_feed_cards')
 // v1.62: the Mobilis values the feeding can take now, with their counts (the page's list)
