@@ -391,3 +391,12 @@ export const setIndicators = (changePct, minAmount) => rpc('store_admin_set_indi
 
 // v1.46: one shop's visits page by page, with what it looked at (brands, buy sheets, searches)
 export const usageShop = (customerId, days) => rpc('store_admin_usage_shop', { p_customer: customerId, p_days: days })
+
+// s176: the network's own words kept with each judged card ({ [code_id]: { reply, reply_at, line } }); empty before s176
+export async function codeReplies (ids) {
+  if (!ids?.length) return {}
+  try {
+    const rows = await rpc('store_admin_code_replies', { p_ids: ids })
+    return Object.fromEntries((rows || []).map((r) => [r.code_id, r]))
+  } catch { return {} }
+}

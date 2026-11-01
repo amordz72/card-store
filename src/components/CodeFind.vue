@@ -15,6 +15,7 @@
       <div class="small muted">{{ c.product_name }} · دفعة <b><bdi dir="ltr">{{ codes[c.batch_id] || '#' + c.batch_id }}</bdi></b> · {{ c.supplier }}
         <span v-if="c.customer_name"> · بيع لـ<b>{{ c.customer_name }}</b> (طلب {{ c.order_id }}) · {{ dateTime(c.sold_at) }}</span>
         <span v-if="c.void_reason && c.status === 'void'"> · {{ c.void_reason }}</span></div>
+      <div v-if="replies[c.code_id]" class="small text-deep-orange ltr text-right">«{{ replies[c.code_id].reply }}» · {{ dateTime(replies[c.code_id].reply_at) }}<span v-if="replies[c.code_id].line"> · {{ replies[c.code_id].line }}</span></div>
       <div class="row q-gutter-xs">
         <q-btn v-for="s in CODE_STATES" :key="s.state" dense outline no-caps size="sm" :color="s.color" :label="s.label" :disable="busy"
           @click="setState(c, s.state)" />
@@ -37,6 +38,7 @@ const text = ref('')
 const results = ref([])
 const searched = ref(false)
 const codes = ref({})
+const replies = ref({})
 const clean = computed(() => String(text.value || '').replace(/[\s-]/g, ''))
 
 async function find () {
@@ -46,6 +48,7 @@ async function find () {
     results.value = r
     searched.value = true
     codes.value = await api.batchCodeMap([...new Set(r.map((x) => x.batch_id))])
+    replies.value = await api.codeReplies(r.map((x) => x.code_id))
   }
 }
 async function setState (c, state) {
