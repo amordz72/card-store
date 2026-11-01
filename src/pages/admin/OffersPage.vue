@@ -55,14 +55,14 @@
           </div>
           <template v-for="p in pagesOf(approved)" :key="p.key">
             <div class="pg">{{ p.label }}</div>
-            <div v-for="o in p.rows" :key="o.id" class="orow" :class="{ off: !o.active || o.status === 'doubt', picked: picked.has(o.id) }">
+            <div v-for="o in p.rows" :key="o.id" class="orow" :class="{ off: !o.active || doubtful(o), picked: picked.has(o.id) }">
               <q-checkbox v-if="editing" :model-value="picked.has(o.id)" dense size="sm" color="deep-orange" :disable="!canPick(o)"
                 @update:model-value="(v) => pick(o, v)" />
               <div class="col">
                 <div class="nm"><span class="code">{{ o.code }}</span> · <bdi dir="auto">{{ o.nameNetwork }}</bdi></div>
                 <div class="meta">
                   يظهر: «<bdi dir="auto">{{ o.nameDisplay }}</bdi>»<span v-if="o.hidden"> · مخفي مؤقتًا</span><span v-if="o.status === 'tested'"> · مجرّب ✓</span>
-                  <span v-if="o.status === 'doubt'" class="text-negative"> · الرمز ظهر مرتين في القائمة: لا يُرسل</span>
+                  <span v-if="doubtful(o)" class="text-negative"> · الرمز ظهر مرتين في القائمة: لا يُرسل</span>
                 </div>
                 <div v-if="o.probe" class="meta" :class="o.probe.price === o.price ? 'text-positive' : 'text-negative'">{{ probeText(o) }}</div>
                 <!-- «اعتماد الرمز» (Flexy Core 0065): the probe named this offer's price for its code shown twice -->
@@ -123,7 +123,7 @@
                 </div>
                 <div class="meta">
                   يظهر: «<bdi dir="auto">{{ shownNameOf(o) }}</bdi>»
-                  <span v-if="o.status === 'doubt'" class="text-negative"> · الرمز ظهر مرتين في القائمة: لا يُرسل</span>
+                  <span v-if="doubtful(o)" class="text-negative"> · الرمز ظهر مرتين في القائمة: لا يُرسل</span>
                 </div>
                 <div v-if="o.probe" class="meta" :class="o.probe.price === o.price ? 'text-positive' : 'text-negative'">{{ probeText(o) }}</div>
               </div>
@@ -291,6 +291,8 @@ function pagesOf (list) {
 }
 // A code shown twice, resolved by an approved probe of this code and price (Flexy Core 0065)
 const resolved = (o) => o.probeOk && o.probe && o.probe.code === o.code && o.probe.price === o.price
+// A code shown twice whose probe the owner approved sells (guarded by the price): not greyed, not «لا يُرسل»
+const doubtful = (o) => o.status === 'doubt' && !resolved(o)
 const canApproveProbe = (o) => !o.draft && o.status === 'doubt' && !resolved(o) && o.probe && o.probe.code === o.code && o.probe.price === o.price
 const tagOf = (o) => (o.status === 'doubt' && !resolved(o) ? { label: 'مشكوك', cls: 't-off' }
   : !o.active ? { label: 'غير مفعّل', cls: 't-off' }
@@ -341,7 +343,7 @@ function diffText (c) {
 }
 
 // المشاهدة: the opened offers (priced, not in doubt), one order for everybody, by section
-const opened = computed(() => approved.value.filter((o) => o.active && o.price && o.status !== 'doubt').sort((a, b) => a.viewIndex - b.viewIndex || a.id - b.id))
+const opened = computed(() => approved.value.filter((o) => o.active && o.price && !doubtful(o)).sort((a, b) => a.viewIndex - b.viewIndex || a.id - b.id))
 const shown = computed(() => opened.value.filter((o) => (filter.value === 'customer' ? o.audience === 'all' && !o.hidden : editing.value || !o.hidden)))
 const drag = ref(null)
 const sections = computed(() => {
