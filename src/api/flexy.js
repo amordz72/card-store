@@ -245,3 +245,5 @@ export const ownerModemLabel = (modemUuid, label) => owner('modems/label', { met
 // 0139: a SIM's minimum / daily maximum (null clears), and the «رقمي» USSD of a SIM type
 export const ownerSimLimits = (simUuid, min, max) => owner('sims/limits', { method: 'POST', body: { sim_uuid: simUuid, min_balance: min, max_per_day: max } })
 export const ownerNumberCode = (simType, code) => owner('number-code', { method: 'POST', body: { sim_type: simType, code } })
+// 0141: the automatic feeding — { on, below, upto, active_count, daily_max }
+export const ownerFeedAuto = (f) => owner('feed/auto', { method: 'POST', body: f })
