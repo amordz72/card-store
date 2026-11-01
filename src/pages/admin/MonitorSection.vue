@@ -92,7 +92,7 @@
         <div v-for="s in sortedSims" :key="s.sim_uuid" class="sim small">
           <span class="column"><span class="text-weight-bold"><span class="dot" :class="s.online ? 'ok' : 'down'" :title="s.online ? 'متصلة الآن' : 'غير متصلة'" /> {{ s.code || 'شريحة' }}</span>
             <span v-if="!s.online" class="tiny text-negative">غير متصلة<template v-if="s.last_seen_at"> منذ {{ ago(s.last_seen_at).replace('منذ ', '') }}</template></span>
-            <span class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></span>
+            <span class="tiny muted">{{ [s.station_code ? stationTag(s.station_code) : null, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></span>
             <!-- The connection log (Flexy Core 0070) -->
             <span v-if="s.outages_7d" class="tiny" :class="s.unstable ? 'text-negative text-weight-bold' : 'text-deep-orange-9'">
               <template v-if="s.unstable">غير مستقرة · </template>انقطعت {{ s.outages_24h }} اليوم · {{ s.outages_7d }} في 7 أيام ({{ s.offline_minutes_7d }} د)</span></span>
@@ -137,7 +137,7 @@
           <div v-for="s in pickedSims" :key="s.sim_uuid" class="column">
             <div class="row"><b class="col"><span class="dot" :class="s.online ? 'ok' : 'down'" /> {{ s.code || 'شريحة' }}<span class="small" :class="s.online ? 'text-positive' : 'text-negative'"> · {{ s.online ? 'متصلة' : 'غير متصلة' }}</span></b><span class="column items-end"><span>{{ s.balance == null ? '—' : money(s.balance) }}</span>
               <span class="tiny" :class="s.stale ? 'text-negative' : 'muted'">{{ picked.which === 'selling' ? 'رصيدها' : 'رصيدها المحفوظ' }}<template v-if="s.balance_checked_at">، قُرئ {{ ago(s.balance_checked_at) }}</template><template v-else>، لم يُقرأ</template><template v-if="s.stale"> · قراءة قديمة</template></span></span></div>
-            <div class="tiny muted">{{ [s.station_code, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.spent_since_read || s.topup_since_read || s.fed_since_read"> · آخر قراءة {{ money(s.balance_read) }}<template v-if="s.spent_since_read">، بيع بعدها {{ money(s.spent_since_read) }}</template><template v-if="s.topup_since_read">، شحن +{{ money(s.topup_since_read) }} (من رسالته)</template><template v-if="s.fed_since_read">، تغذية من المخزون +{{ money(s.fed_since_read) }}</template></template><template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></div>
+            <div class="tiny muted">{{ [s.station_code ? stationTag(s.station_code) : null, s.usb != null ? 'USB ' + s.usb : null].filter(Boolean).join(' · ') }}<template v-if="s.spent_since_read || s.topup_since_read || s.fed_since_read"> · آخر قراءة {{ money(s.balance_read) }}<template v-if="s.spent_since_read">، بيع بعدها {{ money(s.spent_since_read) }}</template><template v-if="s.topup_since_read">، شحن +{{ money(s.topup_since_read) }} (من رسالته)</template><template v-if="s.fed_since_read">، تغذية من المخزون +{{ money(s.fed_since_read) }}</template></template><template v-if="s.reserved"> · محجوز {{ money(s.reserved) }}</template></div>
             <div v-if="s.reason_text" class="small text-negative">السبب: {{ s.reason_text }}</div>
           </div>
         </q-card-section>
@@ -151,6 +151,7 @@
 </template>
 
 <script setup>
+import { stationTag } from 'src/api/stationTag'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Notify } from 'quasar'
 import * as flexy from 'src/api/flexy'

@@ -240,3 +240,5 @@ export const validate = (phone, amount, distributorAccount) => call('validate', 
 // «منصة topup-dz» (s178, owner 2026-11-01): read only, through flexy-api (the key stays on the server)
 export const ownerPlatformProfile = () => owner('platform/profile', { method: 'GET' })
 export const ownerPlatformProducts = () => owner('platform/products', { method: 'GET' })
+// «رقم USB» written on the modem (Flexy Core 0138): 1..999, or null to clear
+export const ownerModemLabel = (modemUuid, label) => owner('modems/label', { method: 'POST', body: { modem_uuid: modemUuid, label } })

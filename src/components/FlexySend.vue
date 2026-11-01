@@ -107,7 +107,7 @@
                 <template v-else>
                   <div v-if="!presenceOf[j.id].offline.length" class="text-positive">لا شيء كان منقطعًا في تلك الدقيقة.</div>
                   <div v-for="(x, i) in presenceOf[j.id].offline" :key="'o' + i" class="text-negative">
-                    منقطع: {{ KIND_NAME[x.kind] }} {{ x.code }}<template v-if="x.station_code"> ({{ x.station_code }}<template v-if="x.usb != null"> · USB {{ x.usb }}</template>)</template>
+                    منقطع: {{ KIND_NAME[x.kind] }} {{ x.code }}<template v-if="x.station_code"> ({{ stationTag(x.station_code) }}<template v-if="x.usb != null"> · USB {{ x.usb }}</template>)</template>
                     من <bdi dir="ltr">{{ algeriaTime(x.since) }}</bdi><template v-if="x.until"> إلى <bdi dir="ltr">{{ algeriaTime(x.until) }}</bdi></template><template v-else> وما زال</template>
                   </div>
                   <div v-for="(x, i) in presenceOf[j.id].events" :key="'e' + i" class="muted">
@@ -132,6 +132,7 @@
 </template>
 
 <script setup>
+import { stationTag } from 'src/api/stationTag'
 // One Flexy send screen for the shop's «فليكسي» and the owner's «إرسال فليكسي» (owner rule: admin and
 // customer share the same pages; developer/guidelines/role-aware-labels-and-context.md). Each page passes
 // its own way to the server; nothing here knows about wallets, keys or switches:

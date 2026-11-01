@@ -1,3 +1,4 @@
+import { isPhoneName, stationTag } from 'src/api/stationTag'
 // «آخر العمليات» (owner 2026-10-26): a tapped row says what happened in words, never «—».
 // One sentence per Flexy Core outcome code (flexy-core src/core/operations/*), then the status.
 // The order of a Sama offer: start → PIN asked → PIN → menu with the number → offer number → reply.
@@ -145,4 +146,4 @@ export const algeriaTime = (t) => (t ? ALGIERS.format(new Date(t)).replace(',', 
 // A SIM as the owner names it: «sama-4 · bergoug-n0 · 0656645038 · server-3»
 // «Mixed N» is the automatic offer (Flexy Core 0071+): shown «Sama Mix N» like the board's row (owner 2026-10-31: no word says how)
 export const offerTitle = (label) => (/^Mixed \d+$/.test(label || '') ? 'Sama Mix ' + label.slice(6) : label)
-export const simLine = (w) => [w.sim_code, w.sim_label, w.sim_msisdn, w.station_code].filter(Boolean).join(' · ')
+export const simLine = (w) => [w.sim_code, w.sim_label, w.sim_msisdn, stationTag(w.station_code, isPhoneName(w.computer_name))].filter(Boolean).join(' · ')

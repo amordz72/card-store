@@ -100,7 +100,7 @@
           </div>
           <div class="small" :class="x.retired ? 'muted' : 'text-deep-orange'">
             {{ x.retired ? 'تتبّعها ملغى' : 'غائبة' }}{{ x.last_seen_at ? ' منذ ' + since(x.last_seen_at) : '' }}
-            · آخر مكان: {{ x.station_code || '—' }}{{ x.usb != null ? ' · USB ' + x.usb : '' }}{{ stationOffText(x) }}
+            · آخر مكان: {{ x.station_code ? stationTag(x.station_code) : '—' }}{{ x.usb != null ? ' · USB ' + x.usb : '' }}{{ stationOffText(x) }}
           </div>
           <q-btn dense flat no-caps size="sm" :color="x.retired ? 'primary' : 'grey-8'" class="self-start" :loading="retiring === x.sim_uuid"
             :label="x.retired ? 'أرجع تتبّعها' : 'ألغِ تتبّعها على ' + (x.station_code || 'هذا الكمبيوتر')" @click="retire(x, !x.retired)" />
@@ -264,7 +264,14 @@
         </q-card-section>
         <q-separator />
         <q-card-section class="kv">
-          <span class="muted">الموديم</span><span>{{ picked.m.model || '—' }} · USB {{ picked.m.usb ?? '—' }}</span>
+          <span class="muted">الموديم</span><span>{{ picked.m.model || '—' }} · USB {{ usbOf(picked.m) ?? '—' }}</span>
+          <!-- «رقم USB» written on the device (owner 2026-11-01, 0138): follows it by IMEI / serial -->
+          <span class="muted">رقم USB</span>
+          <span class="row items-center no-wrap q-gutter-xs">
+            <q-input v-model.number="usbEdit" dense outlined type="number" inputmode="numeric" min="1" max="999" style="width:90px"
+              :placeholder="String(picked.m.usb ?? '')" />
+            <q-btn dense unelevated no-caps color="primary" label="احفظ" :loading="usbBusy" :disable="!picked.m.modem_uuid || usbEdit === (labels[picked.m.modem_uuid] ?? null)" @click="saveUsb(picked.m)" />
+          </span>
           <span class="muted">آخر ظهور</span><span>{{ picked.m.last_seen_at ? clock(picked.m.last_seen_at) : '—' }}</span>
           <template v-if="picked.m.sim">
             <span class="muted">الشريحة</span><span>{{ simName(picked.m.sim, picked.st) || 'بلا اسم' }}<template v-if="adminName(picked.m.sim)"> · {{ picked.m.sim.code }}</template><span v-if="picked.m.sim.label"> · {{ picked.m.sim.label }}</span></span>
@@ -389,6 +396,7 @@ import * as flexy from 'src/api/flexy'
 import { makeZip } from 'src/api/zip'
 import { copyForClaude } from 'src/composables/useClaudeCopy'
 import { money } from 'src/api/format'
+import { stationTag } from 'src/api/stationTag'
 import { useBell } from 'src/composables/useBell'
 import ModemPanel from 'src/components/ModemPanel.vue'
 import AddComputer from 'src/components/AddComputer.vue'
@@ -585,7 +593,7 @@ const adminNames = computed(() => {
 })
 const adminName = (sim) => (sim ? adminNames.value[sim.sim_uuid] || '' : '')
 // 0130: a phone may serve the shops too, so it is «📱 الهاتف» (its name on the phone), no longer «هاتف الإدارة»
-const stName = (st) => (st && (st.phone || isPhone(st)) ? '📱 ' + (st.computer_name || 'هاتف') : (st?.code || 'كمبيوتر'))
+const stName = (st) => (st && (st.phone || isPhone(st)) ? stationTag(st.code, true) + (st.computer_name ? ' · ' + String(st.computer_name).replace(/^هاتف[^·]*·\s*/, '') : '') : (st?.code ? stationTag(st.code) : 'كمبيوتر'))
 const simName = (sim, st) => (sim ? adminName(sim) || (st && (st.phone || isPhone(st)) ? 'إدارة' : sim.code) : '')
 const phones = computed(() => (tree.value?.stations || []).filter((s) => (s.phone || isPhone(s)) && s.level !== 'old'))
 const current = computed(() => computers.value.filter((s) => s.level !== 'old'))
@@ -728,6 +736,28 @@ function askAudienceAll (a) {
   const sims = shownSims.value.map((r) => r.m.sim)
   Dialog.create({ title: `الكل: ${a.label}`, message: `${sims.length} شريحة ظاهرة الآن تصبح «${a.label}».`, cancel: { label: 'إلغاء', flat: true }, ok: { label: 'نعم', color: a.color } })
     .onOk(() => setAudience(sims, a.value, 'all:' + a.value))
+}
+// «رقم USB» (owner 2026-11-01, Flexy Core 0138): the number written on the modem; Station Connect's own number when none
+const labels = computed(() => tree.value?.modem_labels || {})
+const usbOf = (m) => (m?.modem_uuid && labels.value[m.modem_uuid]) || m?.usb
+const usbEdit = ref(null)
+const usbBusy = ref(false)
+async function saveUsb (m) {
+  const v = usbEdit.value === '' || usbEdit.value === null ? null : Number(usbEdit.value)
+  if (v !== null && (!Number.isInteger(v) || v < 1 || v > 999)) return Notify.create({ type: 'negative', message: 'رقم USB من 1 إلى 999' })
+  usbBusy.value = true
+  try {
+    const res = await flexy.ownerModemLabel(m.modem_uuid, v)
+    if (res.status !== 200 || !res.body?.ok) throw new Error(res.body?.error === 'MIGRATION_0138_PENDING' ? 'طبّق 0138 من «ينتظر تطبيقك» أولًا.' : (res.body?.error || 'FLEXY_CORE'))
+    if (!tree.value.modem_labels) tree.value.modem_labels = {}
+    if (v === null) delete tree.value.modem_labels[m.modem_uuid]
+    else tree.value.modem_labels[m.modem_uuid] = v
+    Notify.create({ type: 'positive', message: v === null ? 'حُذف رقم USB.' : 'رقم USB: ' + v, position: 'top', timeout: 1500 })
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message })
+  } finally {
+    usbBusy.value = false
+  }
 }
 // «الشريحة المفضّلة» (owner 2026-11-01, Flexy Core 0131): the program sends from it first, to empty it; null before 0131
 const preferredMap = computed(() => tree.value?.sim_preferred || null)
@@ -1089,6 +1119,8 @@ const onboardingClass = (sim) => {
 
 const details = ref(false)
 const picked = ref(null)
+// «رقم USB»: the field shows the modem's saved number when its window opens
+watch(() => picked.value?.m?.modem_uuid, (id) => { usbEdit.value = id ? (labels.value[id] ?? null) : null })
 const form = ref({ label: '', note: '', pin: '', busy: false, error: '', saved: false })
 const reading = ref({ busy: false, ok: false, text: '' })
 function open (st, m) {
