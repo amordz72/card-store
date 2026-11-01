@@ -3,6 +3,14 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-zq',
+    date: '2026-11-01',
+    title: 'التغذية التلقائية لسما (بعد تطبيق 0141)',
+    items: [
+      { text: '«تغذية سما» ← «التغذية التلقائية»: شرائح سما «للكل» بين «تحت» 4000 و«حتى» 5000، بطاقة واحدة لكل شريحة في كل مرة، بالتوازي؛ «الشرائح النشطة» = الأنشط فقط', to: '/flexy/monitor', pr: 'card-store، 0141' }
+    ]
+  },
+  {
     id: '2026-11-01-zp',
     date: '2026-11-01',
     title: 'لوحة المراقبة',

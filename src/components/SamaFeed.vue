@@ -10,6 +10,23 @@
     </div>
     <div class="help small muted">«اشحنها» تأخذ أقدم بطاقة Mobilis بالقيمة المختارة من المخزون (تخرج من البيع) وترسلها إلى الشريحة حين تكون هادئة، ولا تقطع أي بيع. ردّ موبيليس يحسم: نجحت فيُضاف المبلغ لرصيدها، أو رفضتها الشبكة فتظهر هنا مع مورّدها. البطاقة لا تُرسل مرتين.</div>
     <div v-if="error" class="small text-negative">{{ error }}</div>
+    <!-- «التغذية التلقائية» (owner 2026-11-01, Flexy Core 0141): Sama SIMs «للكل» kept between «تحت» and «حتى», one card at a time
+         per SIM, all in parallel; the N most active only when set (the others stay for discovery) -->
+    <div v-if="auto" class="auto-box column q-gutter-xs">
+      <div class="row items-center no-wrap">
+        <q-toggle v-model="autoForm.on" color="positive" :label="autoForm.on ? 'التغذية التلقائية: تعمل' : 'التغذية التلقائية: متوقفة'" class="col" />
+      </div>
+      <div class="row q-gutter-xs">
+        <q-input v-model.number="autoForm.below" class="col" dense outlined type="number" inputmode="numeric" label="غذِّ تحت (دج)" />
+        <q-input v-model.number="autoForm.upto" class="col" dense outlined type="number" inputmode="numeric" label="حتى (دج)" />
+      </div>
+      <div class="row q-gutter-xs">
+        <q-input v-model.number="autoForm.active_count" class="col" dense outlined type="number" inputmode="numeric" label="الشرائح النشطة (0 = كلها)" />
+        <q-input v-model.number="autoForm.daily_max" class="col" dense outlined type="number" inputmode="numeric" label="بطاقات في اليوم لكل شريحة" />
+      </div>
+      <div class="tiny muted">بطاقة واحدة في كل مرة لكل شريحة (2000 ثم 1000، دون تجاوز «حتى»)، والتالية بعد قراءة رصيد جديدة. الشرائح «للكل» فقط. بطاقة مرفوضة توقف تغذية شريحتها 24 ساعة.</div>
+      <q-btn unelevated dense no-caps color="primary" label="احفظ" :loading="autoBusy" class="self-start" @click="saveAuto" />
+    </div>
 
     <div v-for="s in sims" :key="s.sim_uuid" class="feed-row">
       <span class="column">
@@ -225,6 +242,27 @@ function unreadyText (s) {
 }
 const tone = (f) => (f.status === 'success' ? 'text-positive' : f.status === 'refused' ? 'text-negative' : f.status === 'review' ? 'text-deep-orange-9' : 'muted')
 
+// 0141: the automatic feeding's settings (null before 0141)
+const auto = ref(null)
+const autoForm = ref({ on: false, below: 4000, upto: 5000, active_count: 0, daily_max: 3 })
+const autoBusy = ref(false)
+async function saveAuto () {
+  autoBusy.value = true
+  try {
+    const res = await flexy.ownerFeedAuto(autoForm.value)
+    if (res.status !== 200 || !res.body?.ok) {
+      const e = res.body?.error
+      throw new Error(e === 'FEED_AUTO_RANGE_INVALID' ? '«حتى» يجب أن تزيد على «تحت» بـ1000 على الأقل، ولا تتجاوز 30000.' : e === 'MIGRATION_0141' ? 'طبّق 0141 من «ينتظر تطبيقك» أولًا.' : (e || 'FLEXY_CORE'))
+    }
+    auto.value = res.body.auto
+    autoForm.value = { ...autoForm.value, ...res.body.auto }
+    Notify.create({ type: 'positive', message: res.body.auto?.on ? 'التغذية التلقائية تعمل.' : 'التغذية التلقائية متوقفة.', position: 'top' })
+  } catch (e) {
+    Notify.create({ type: 'negative', message: e.message })
+  } finally {
+    autoBusy.value = false
+  }
+}
 async function load () {
   busy.value = true
   try {
@@ -245,6 +283,9 @@ async function load () {
     if (res.status === 200 && res.body?.ok) {
       view.value = res.body
       if (list) error.value = ''
+      // 0141: the form takes the saved settings once (the 30 s refresh never overwrites what is being typed)
+      if (res.body.auto && !auto.value) autoForm.value = { ...res.body.auto }
+      auto.value = res.body.auto || null
     } else {
       error.value = say(res)
     }
@@ -352,4 +393,5 @@ onBeforeUnmount(() => clearTimeout(timer))
 .reply { background: #F3F4F6; border-radius: 6px; padding: 4px 6px; word-break: break-word; }
 .tiny { font-size: 11px; }
 .face { min-width: 120px; }
+.auto-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px; padding: 8px; }
 </style>
