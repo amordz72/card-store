@@ -20,7 +20,7 @@
       :credit-prefixes="access.creditPrefixes.value" :offer-prefixes="access.offerPrefixes.value" note="إن فشل الإرسال يرجع المبلغ إلى رصيدك تلقائيًا." :send="send" :lookup="lookupOffers" :send-offer="sendOffer" :available-offers="availableOffers"
       :rows="allOps" :has-more="hasMore" :loading-more="loadingMore" :refreshing="refreshing"
       @sent="afterSend" @refresh="refreshNow" @more="more">
-      <template #other="{ raw }"><IdoomCards :raw="raw" @sent="afterIdoom" /></template>
+      <template #other="{ raw }"><IdoomCards :raw="raw" :running-lines="idoomBusy" @sent="afterIdoom" /></template>
       <!-- Only when stopped (owner 2026-11-01: «إزالة كلمة متاح») -->
       <q-badge v-if="!access.open.value" color="negative" class="q-pa-sm self-start">الخدمة متوقفة الآن — حاول بعد قليل</q-badge>
     </FlexySend>
@@ -85,6 +85,7 @@ const loadIdoom = () => (idoomAccess.enabled.value
   ? api.idoomJobs(customer.token, PAGE, 0).then((l) => { idoomRows.value = l || [] }).catch(() => null)
   : Promise.resolve())
 const idoomRunning = computed(() => idoomRows.value.some((j) => ['queued', 'claimed'].includes(j.status)))
+const idoomBusy = computed(() => idoomRows.value.filter((j) => ['queued', 'claimed'].includes(j.status)).map((j) => ({ line: j.line, at: j.created_at })))
 const allOps = computed(() => [...ops.value, ...idoomRows.value.map((j) => ({
   id: 'idoom:' + j.job_id, title: j.product_name, phone: j.line, kind: 'idoom', amount: j.charged_amount,
   badge: idoomView(j), at: j.created_at, reply: null, running: ['queued', 'claimed'].includes(j.status)

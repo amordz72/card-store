@@ -10,8 +10,9 @@
     <div v-if="!access.enabled.value" class="muted text-center q-pa-sm">تعبئة إيدوم غير مفعّلة لحسابك. اطلب من المحل تفعيلها.</div>
     <template v-else>
       <!-- s170 (owner 2026-11-01): the owner may top up from a suspect card; the line's answer judges it -->
+      <div v-if="lineBusy" class="busy-line">⏳ تعبئة جارية لهذا الخط · منذ {{ busySince }} — انتظر ردها</div>
       <q-toggle v-if="owner && suspectTotal" v-model="fromSuspect" color="deep-orange" :label="'من المشكوك فيها (' + suspectTotal + ')'" />
-      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !access.phoneOnline.value" @click="confirmCharge(c)">
+      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy || !access.phoneOnline.value" @click="confirmCharge(c)">
         <span class="col">{{ c.name }}<span v-if="fromSuspect" class="small text-deep-orange"> · مشكوك فيها {{ suspectOf(c) }}</span></span>
         <span class="price">{{ money(c.base_price) }}</span>
       </button>
@@ -28,6 +29,7 @@
 //   raw: the digits typed. A fixed line is 9 digits from 01–04 (05–07 is a mobile still being typed);
 //   4G is 213 + 9 digits not starting 5–7 (213 6… is a mobile in international form).
 import { computed, onMounted, ref, watch } from 'vue'
+import { useLineBusy } from 'src/composables/useLineBusy'
 import { Dialog, Notify } from 'quasar'
 import { useCustomerStore } from 'stores/customer'
 import { useBuyer } from 'src/composables/useBuyer'
@@ -38,7 +40,9 @@ import * as adminApi from 'src/api/admin'
 import { money } from 'src/api/format'
 
 // owner: the owner's own page («تعبئة» for the owner, 2026-11-01): his API, always enabled, the phone's state from its executors
-const props = defineProps({ raw: { type: String, default: '' }, owner: { type: Boolean, default: false } })
+// runningLines: the top-ups still running ({ line, at }): this line's cards stay locked until its answer (owner 2026-11-01);
+// another number, Flexy or another 4G line go on
+const props = defineProps({ raw: { type: String, default: '' }, owner: { type: Boolean, default: false }, runningLines: { type: Array, default: () => [] } })
 const emit = defineEmits(['sent'])
 
 const customer = useCustomerStore()
@@ -69,6 +73,8 @@ const idoomAll = computed(() => catalog.value.filter((p) => p.category === 'net'
   /idoom/i.test(p.brand) && /4g|lte/i.test(p.brand + ' ' + p.name) === is4g.value))
 const suspectTotal = computed(() => idoomAll.value.reduce((n, c) => n + suspectOf(c), 0))
 const shownCards = computed(() => (fromSuspect.value ? idoomAll.value.filter((c) => suspectOf(c) > 0) : cards.value))
+
+const { busyLine: lineBusy, busySince } = useLineBusy(() => props.runningLines.map((r) => ({ line: r.line, created_at: r.at, status: 'queued' })), () => props.raw)
 
 const known = ref(null)
 watch(() => props.raw, async (want) => {
@@ -123,4 +129,5 @@ onMounted(async () => {
 .idoom-row:disabled { opacity: 0.5; cursor: default; }
 .idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap;
   min-width: 76px; text-align: center; }
+.busy-line { background: #E3F2FD; color: #0D47A1; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 </style>
