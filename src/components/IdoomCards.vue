@@ -12,11 +12,12 @@
       <!-- s170 (owner 2026-11-01): the owner may top up from a suspect card; the line's answer judges it -->
       <div v-if="lineBusy" class="busy-line">⏳ تعبئة جارية لهذا الخط · منذ {{ busySince }} — انتظر ردها</div>
       <q-toggle v-if="owner && suspectTotal" v-model="fromSuspect" color="deep-orange" :label="'من المشكوك فيها (' + suspectTotal + ')'" />
-      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy || !access.phoneOnline.value" @click="confirmCharge(c)">
+      <div v-if="sentHere" class="sent-line">✅ أُرسلت — تابعها في «آخر العمليات». اكتب رقمًا آخر لتعبئة جديدة.</div>
+      <button v-for="c in (sentHere ? [] : shownCards)" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy || !access.phoneOnline.value" @click="confirmCharge(c)">
         <span class="col">{{ c.name }}<span v-if="fromSuspect" class="small text-deep-orange"> · مشكوك فيها {{ suspectOf(c) }}</span></span>
         <span class="price">{{ money(c.base_price) }}</span>
       </button>
-      <div v-if="!shownCards.length" class="muted text-center q-pa-sm">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
+      <div v-if="!sentHere && !shownCards.length" class="muted text-center q-pa-sm">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة الآن</div>
       <div class="small muted">يُخصم ثمن البطاقة من رصيدك. إن لم تتم التعبئة يُعاد المبلغ تلقائيًا.</div>
     </template>
   </div>
@@ -76,6 +77,11 @@ const shownCards = computed(() => (fromSuspect.value ? idoomAll.value.filter((c)
 
 const { busyLine: lineBusy, busySince } = useLineBusy(() => props.runningLines.map((r) => ({ line: r.line, created_at: r.at, status: 'queued' })), () => props.raw)
 
+// after «نعم، عبّئ» the cards hide until another number is typed (owner 2026-11-01); clearing and retyping brings them back
+const sentLine = ref('')
+const sentHere = computed(() => !!sentLine.value && sentLine.value === props.raw)
+watch(() => props.raw, (v) => { if (v !== sentLine.value) sentLine.value = '' })
+
 const known = ref(null)
 watch(() => props.raw, async (want) => {
   known.value = null
@@ -109,6 +115,7 @@ async function confirmCharge (c) {
     if (r) {
       if (!props.owner) buyer.refresh()
       Notify.create({ type: 'positive', message: 'أُرسل الطلب. تابع حالته في «آخر العمليات».', position: 'top' })
+      sentLine.value = line
       emit('sent')
     }
   })
@@ -130,4 +137,5 @@ onMounted(async () => {
 .idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap;
   min-width: 76px; text-align: center; }
 .busy-line { background: #E3F2FD; color: #0D47A1; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
+.sent-line { background: #E8F5E9; color: #1B5E20; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 </style>

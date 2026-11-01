@@ -3,6 +3,15 @@
 // id: unique and increasing (date + letter); to: the page it concerns; pr: the repository and number.
 export const CHANGELOG = [
   {
+    id: '2026-11-01-u',
+    date: '2026-11-01',
+    title: 'بطاقات إيدوم تختفي بعد الإرسال · «Carte non existante» = مستعملة',
+    items: [
+      { text: 'بعد «نعم، عبّئ» تختفي البطاقات حتى تكتب رقمًا آخر (أو تمسح الرقم وتعيد كتابته)', to: '/idoom', pr: 'card-store' },
+      { text: 'بعد تطبيق s174: رد «Carte non existante» لم يعد «مراجعة»؛ البطاقة تُعلَّم مستعملة في دفعتها ويُعاد المبلغ للمحل كأي بطاقة مستعملة', to: '/idoom', pr: 'flexy-core، s174' }
+    ]
+  },
+  {
     id: '2026-11-01-t',
     date: '2026-11-01',
     title: 'قفل بطاقات إيدوم أثناء تعبئة نفس الخط',

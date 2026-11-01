@@ -30,11 +30,12 @@
       <!-- The same short rows as «تعبئة» (owner 2026-11-01); s170: from the suspect stock on his choice -->
       <q-toggle v-if="suspectTotal" v-model="fromSuspect" color="deep-orange" :label="'من المشكوك فيها (' + suspectTotal + ')'" />
       <div v-if="lineBusy" class="busy-line">⏳ تعبئة جارية لهذا الخط · منذ {{ busySince }} — انتظر ردها</div>
-      <button v-for="c in shownCards" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy" @click="confirmCharge(c)">
+      <div v-if="sentHere" class="sent-line">✅ أُرسلت — تابعها في «العمليات». اكتب رقمًا آخر لتعبئة جديدة.</div>
+      <button v-for="c in (sentHere ? [] : shownCards)" :key="c.product_id" type="button" class="idoom-row" :disabled="busy || !!lineBusy" @click="confirmCharge(c)">
         <span class="col">{{ c.name }}<span v-if="fromSuspect" class="small text-deep-orange"> · مشكوك فيها {{ suspectOf(c) }}</span></span>
         <span class="price">{{ money(c.base_price) }}</span>
       </button>
-      <div v-if="!shownCards.length" class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة في المخزن</div>
+      <div v-if="!sentHere && !shownCards.length" class="muted">لا توجد بطاقات {{ is4g ? 'Idoom 4G' : 'Idoom ADSL' }} متوفرة في المخزن</div>
     </div>
 
     <div class="row items-center justify-between q-mt-md">
@@ -114,6 +115,10 @@ let timer = null
 const digits = computed(() => line.value.replace(/\D/g, ''))
 const lineOk = computed(() => /^(0\d{8}|213\d{9})$/.test(digits.value))
 const { busyLine: lineBusy, busySince } = useLineBusy(() => jobs.value, () => digits.value)
+// after «نعم، اشحن» the cards hide until another number is typed (owner 2026-11-01)
+const sentLine = ref('')
+const sentHere = computed(() => !!sentLine.value && sentLine.value === digits.value)
+watch(digits, (v) => { if (v !== sentLine.value) sentLine.value = '' })
 // 4G LTE lines are 12 digits starting with 213; fixed lines (ADSL/FTTH) are 9 digits
 const is4g = computed(() => /^213\d{9}$/.test(digits.value))
 const spaced = (d) => (d || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{3})?$/, (m, a, b, c, e) => [a, b, c, e].filter(Boolean).join(' '))
@@ -190,6 +195,7 @@ const shownCards = computed(() => (fromSuspect.value ? idoomAll.value.filter((c)
 const loadSuspect = () => api.suspectCounts().then((v) => { suspectCounts.value = v || {} }).catch(() => { suspectCounts.value = {} })
 
 async function confirmCharge (c) {
+  const line = digits.value
   const suspect = fromSuspect.value
   // s172: the owner picks the batch (or the oldest)
   const pick = await api.pickBatch(Dialog, 'من أي دفعة؟ ' + c.name, await api.batchesForProduct(c.product_id, suspect))
@@ -206,7 +212,7 @@ async function confirmCharge (c) {
       : suspect ? api.idoomCreateSuspect(c.product_id, digits.value, crypto.randomUUID())
       : api.idoomCreate(c.product_id, digits.value, crypto.randomUUID())),
     { success: suspect ? 'أُرسل الشحن من بطاقة مشكوك فيها.' : 'أُرسل الشحن إلى الهاتف. تُسحب البطاقة بعد أن يتحقق الهاتف من الخط.' })
-    if (r) { load(); if (suspect) loadSuspect() }
+    if (r) { sentLine.value = line; load(); if (suspect) loadSuspect() }
   })
 }
 
@@ -261,4 +267,5 @@ watch(() => check.value?.status, (s) => { if (s === 'looked_up') loadInfo() })
 .idoom-row:disabled { opacity: 0.5; cursor: default; }
 .idoom-row .price { background: var(--q-primary); color: #fff; border-radius: 8px; padding: 3px 8px; font-weight: 700; white-space: nowrap; min-width: 76px; text-align: center; }
 .busy-line { background: #E3F2FD; color: #0D47A1; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
+.sent-line { background: #E8F5E9; color: #1B5E20; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 </style>
