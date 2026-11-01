@@ -248,7 +248,7 @@ const q = () => '?sim_uuid=' + encodeURIComponent(props.simUuid)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const busyStatus = (s) => s === 'queued' || s === 'claimed'
 const waiting = (s) => busyStatus(s.status)
-const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ') : '—')
+const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' }) : '—')
 const tail = (v) => (v ? '…' + String(v).slice(-6) : '—')
 const parse = (raw) => { try { return raw ? JSON.parse(raw) : null } catch { return null } }
 const pinLike = (v) => /\{\s*pin\s*\}/i.test(v) || /\*\d{4,8}(?=[*#]|$)/.test(v)

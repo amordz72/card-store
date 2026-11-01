@@ -364,7 +364,7 @@ function screenText () {
   const page = pageText() + '\n\n' + widthCheck() + claudePageText()
   return [
     CLAUDE_REMINDER,
-    title.value + ' · ' + new Date().toLocaleString('ar-DZ'),
+    title.value + ' · ' + new Date().toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' }),
     session.isAdmin && monitorBar.value ? '⚠ ' + monitorBar.value.text : '',
     page
   ].filter(Boolean).join('\n')

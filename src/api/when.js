@@ -7,10 +7,10 @@ export function when (t) {
   const a = new Date(d); a.setHours(0, 0, 0, 0)
   const b = new Date(); b.setHours(0, 0, 0, 0)
   const days = Math.round((b - a) / 86400000)
-  const hm = d.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
+  const hm = d.toLocaleTimeString('ar-DZ', { timeZone: 'Africa/Algiers', hour: '2-digit', minute: '2-digit' })
   if (days <= 0) return 'اليوم ' + hm
   if (days === 1) return 'أمس ' + hm
   if (days === 2) return 'قبل يومين ' + hm
   if (days < 7) return `قبل ${days} أيام ` + hm
-  return d.toLocaleDateString('ar-DZ', { day: '2-digit', month: '2-digit' })
+  return d.toLocaleDateString('ar-DZ', { timeZone: 'Africa/Algiers', day: '2-digit', month: '2-digit' })
 }

@@ -114,7 +114,7 @@ function view (g) {
 const playerId = ref('')
 const digits = computed(() => playerId.value.replace(/\s/g, ''))
 const idOk = computed(() => /^[0-9]{5,15}$/.test(digits.value))
-const when = (t) => new Date(t).toLocaleString('ar-DZ')
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' })
 
 // The cards the owner marked «يُشحن بالمعرّف», in stock
 const catalog = ref([])

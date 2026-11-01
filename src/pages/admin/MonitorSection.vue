@@ -192,7 +192,7 @@ function pick (key) {
 }
 const unseenIncidents = computed(() => (view.value?.incidents || []).filter((i) => !i.seen))
 const seeing = ref(null)
-const when = (t) => new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' })
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' })
 async function seeIncident (id) {
   seeing.value = id
   try {
@@ -220,7 +220,7 @@ const cards = computed(() => (view.value?.operators || []).map((o) => {
 }).filter((c) => c.stuck.length + c.off.length + c.ready > 0))
 const pickedSims = computed(() => (picked.value ? picked.value.list : []))
 
-const clock = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+const clock = (t) => new Date(t).toLocaleTimeString('ar-DZ', { timeZone: 'Africa/Algiers', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 // The SIM ledger's last close: 0 = what was sold explains the reading; an amount = what it does not
 function diffText (d) {
   if (d.state === 'matched') return 'الفرق: 0 ✓'

@@ -98,7 +98,7 @@ const lineOk = computed(() => /^(0\d{8}|213\d{9})$/.test(digits.value))
 const is4g = computed(() => /^213\d{9}$/.test(digits.value))
 const spaced = (d) => (d || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{3})?$/, (m, a, b, c, e) => [a, b, c, e].filter(Boolean).join(' '))
 const pretty = computed(() => spaced(digits.value))
-const when = (t) => new Date(t).toLocaleString('ar-DZ')
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' })
 
 // IDOOM cards that fit the line (same rule as the database: "4g"/"lte" in the name marks a 4G card)
 const catalog = ref([])

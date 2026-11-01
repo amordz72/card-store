@@ -157,7 +157,7 @@ const phone = computed(() => {
   return { online: false, label: `🔴 الهاتف غير متصل منذ ${age < 3600 ? Math.round(age / 60) + ' د' : Math.round(age / 3600) + ' سا'} (${p.name})` }
 })
 
-const when = (t) => new Date(t).toLocaleString('ar-DZ')
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' })
 
 async function load () {
   const [j, p] = await Promise.all([run(() => api.idoomJobs(30)), run(() => api.executors())])

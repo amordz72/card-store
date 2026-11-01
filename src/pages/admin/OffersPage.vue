@@ -252,7 +252,7 @@ const acting = ref(false)
 const error = ref('')
 
 const num = (n) => (n ? Number(n).toLocaleString('en-US') : '—')
-const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ') : '—')
+const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' }) : '—')
 const infoOf = (g) => groupInfo.value.find((x) => x.grp === g) || {}
 // «صيغ» (Flexy Core 0067): variants of a label are keyed «GOLD», «GOLD 2»…; the chip shows the label and the variant
 const chipLabel = (g) => {

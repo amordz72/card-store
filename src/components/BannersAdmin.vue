@@ -90,7 +90,7 @@ const PAGES = [
 const pageOptions = computed(() => [...PAGES,
   ...props.brands.map((b) => ({ value: '/store?brand=' + encodeURIComponent(b.name), label: 'المتجر ← ' + b.name }))])
 
-const dayText = (t) => new Date(t).toLocaleDateString('ar-DZ')
+const dayText = (t) => new Date(t).toLocaleDateString('ar-DZ', { timeZone: 'Africa/Algiers' })
 function period (b) {
   // ends_at is the start of the day after the last day
   const last = b.ends_at ? dayText(new Date(new Date(b.ends_at).getTime() - 1)) : null

@@ -245,6 +245,11 @@
       </div>
       <q-btn rounded no-caps dense class="self-start q-px-sm" :unelevated="bf.availOnly" :outline="!bf.availOnly" color="positive"
         :label="bf.availOnly ? '✓ فيها متوفر فقط' : 'فيها متوفر فقط'" :aria-pressed="bf.availOnly" @click="bf.availOnly = !bf.availOnly" />
+      <!-- By the day it was added (owner 2026-11-01: «لا توجد فلترة بالتاريخ»), Algeria's day -->
+      <div class="row q-gutter-xs">
+        <q-btn v-for="r in BATCH_RANGES" :key="r.id" dense rounded no-caps size="13px" class="q-px-sm" :ripple="false"
+          :unelevated="bf.range === r.id" :outline="bf.range !== r.id" :color="bf.range === r.id ? 'primary' : 'grey-7'" :label="r.label" @click="bf.range = r.id" />
+      </div>
       <q-btn rounded no-caps dense class="self-start q-px-sm" :unelevated="bf.suspectOnly" :outline="!bf.suspectOnly" color="deep-orange"
         :label="bf.suspectOnly ? '✓ فيها مشكوك فيها فقط' : 'فيها مشكوك فيها فقط'" :aria-pressed="bf.suspectOnly" @click="bf.suspectOnly = !bf.suspectOnly" />
     </div>
@@ -370,6 +375,7 @@ import { copyText } from 'src/composables/useCopy'
 import { newRequestId } from 'src/api/rpc'
 import * as api from 'src/api/admin'
 import { dateTime, money } from 'src/api/format'
+import { algeriaDay } from 'src/composables/useSavedFilter'
 import * as flexy from 'src/api/flexy'
 import { DEFAULT_READER, readCodes, toLines } from 'src/api/codeReader'
 import CatalogFilter from 'components/CatalogFilter.vue'
@@ -733,7 +739,7 @@ async function saveBuy () {
   if (await run(() => api.setBuyList(d.cover, d.trial, d.idle).then(() => true), { success: 'حُفظ.' })) loadBuy()
 }
 function copyOrder () {
-  const day = new Date().toLocaleDateString('ar-DZ', { day: 'numeric', month: 'numeric' })
+  const day = new Date().toLocaleDateString('ar-DZ', { timeZone: 'Africa/Algiers', day: 'numeric', month: 'numeric' })
   const total = orderLines.value.reduce((a, x) => a + (Number(x.unit_cost) || 0) * x.qty, 0)
   copyText([`طلبية ${day}:`, ...orderLines.value.map((x) => `${x.brand} ${x.name} × ${x.qty}`), total ? `المجموع التقريبي: ${money(total)}` : ''].filter(Boolean).join('\n'))
 }
@@ -833,7 +839,17 @@ function saveBatchEdit () {
     .onOk(go)
 }
 
-const bf = ref({ brand: null, product: null, supplier: 'all', availOnly: true, suspectOnly: false })
+const bf = ref({ brand: null, product: null, supplier: 'all', availOnly: true, suspectOnly: false, range: 'all' })
+const BATCH_RANGES = [{ id: 'all', label: 'كل الأيام' }, { id: 'today', label: 'اليوم' }, { id: 'yesterday', label: 'أمس' }, { id: '7d', label: '7 أيام' }, { id: '30d', label: '30 يومًا' }]
+function inRange (iso) {
+  const r = bf.value.range
+  if (!r || r === 'all') return true
+  const day = algeriaDay(new Date(iso))
+  const ago = (n) => algeriaDay(new Date(Date.now() - n * 86400000))
+  if (r === 'today') return day === ago(0)
+  if (r === 'yesterday') return day === ago(1)
+  return day >= ago(r === '7d' ? 6 : 29)
+}
 const brandImage = computed(() => Object.fromEntries(stock.value.map((p) => [p.brand, p.brand_image])))
 const batchBrands = computed(() => [...new Set(batchList.value.map((b) => b.brand))].map((name) => ({ name, image: brandImage.value[name] })))
 const batchProducts = computed(() => {
@@ -847,7 +863,8 @@ const shownBatches = computed(() => batchList.value.filter((b) =>
   (!bf.value.product || b.product_id === bf.value.product) &&
   (bf.value.supplier === 'all' || b.supplier === bf.value.supplier) &&
   (!bf.value.availOnly || b.available + b.frozen + b.suspect > 0) &&
-  (!bf.value.suspectOnly || b.suspect > 0)))
+  (!bf.value.suspectOnly || b.suspect > 0) &&
+  inRange(b.created_at)))
 
 // Only codes still in stock change; a code sold meanwhile is skipped by the database.
 async function stockCodeIds (b, test) {

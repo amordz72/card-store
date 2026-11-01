@@ -21,7 +21,7 @@
           <q-btn flat dense no-caps size="sm" color="primary" label="رأيتها كلها" @click="seenReplies('all')" />
         </div>
         <div v-for="n in newReplies" :key="n.id" class="new-reply">
-          <div class="small text-weight-bold">{{ STEPS[n.step] || 'رد جديد قبل التأكيد' }} · {{ OPERATORS[n.operator] || n.operator }}<span class="muted"> · {{ n.seenCount }} مرة · {{ new Date(n.lastAt).toLocaleString('ar-DZ') }}</span></div>
+          <div class="small text-weight-bold">{{ STEPS[n.step] || 'رد جديد قبل التأكيد' }} · {{ OPERATORS[n.operator] || n.operator }}<span class="muted"> · {{ n.seenCount }} مرة · {{ new Date(n.lastAt).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' }) }}</span></div>
           <div class="small ltr reply">{{ n.text }}</div>
           <q-btn flat dense no-caps size="sm" color="primary" label="رأيته" @click="seenReplies([n.id])" />
         </div>

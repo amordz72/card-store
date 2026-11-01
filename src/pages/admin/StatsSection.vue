@@ -306,7 +306,7 @@ const cell = (v) => {
   if (v instanceof Date || (typeof v === 'string' && ISO.test(v))) {
     const d = new Date(v)
     const today = new Date().toDateString() === d.toDateString()
-    return (today ? '' : d.toLocaleDateString('ar-DZ', { day: '2-digit', month: '2-digit' }) + ' ') + d.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
+    return (today ? '' : d.toLocaleDateString('ar-DZ', { timeZone: 'Africa/Algiers', day: '2-digit', month: '2-digit' }) + ' ') + d.toLocaleTimeString('ar-DZ', { timeZone: 'Africa/Algiers', hour: '2-digit', minute: '2-digit' })
   }
   return typeof v === 'object' ? JSON.stringify(v) : String(v)
 }
@@ -316,8 +316,8 @@ const HEADERS = {
   name: 'الاسم', label: 'الاسم', balance: 'الرصيد', balance_amount: 'الرصيد', checked_at: 'قُرئ', last_seen_at: 'آخر ظهور',
   operation_key: 'العملية', code: 'الرمز', error: 'الخطأ', rows: 'الأسطر', id: 'رقم', last_visit: 'آخر دخول'
 }
-const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '—')
-const hourOf = (t) => new Date(t).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' }) : '—')
+const hourOf = (t) => new Date(t).toLocaleTimeString('ar-DZ', { timeZone: 'Africa/Algiers', hour: '2-digit', minute: '2-digit' })
 // The owner's limit (0085, «المفاتيح»): the dashed line, and red bars above it
 const callsLimit = ref(0)
 const hourBars = computed(() => [

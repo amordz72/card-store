@@ -172,7 +172,7 @@ const FINISHED = {
   failed: { label: 'لم يتم — أُعيد المبلغ', color: 'orange-8' },
   cancelled: { label: 'ألغاه الزبون', color: 'grey' }
 }
-const when = (t) => new Date(t).toLocaleString('ar-DZ')
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' })
 function ago (t) {
   const m = Math.max(0, Math.round((Date.now() - new Date(t).getTime()) / 60000))
   return m < 1 ? 'الآن' : m < 60 ? `منذ ${m} د` : `منذ ${Math.round(m / 60)} سا`

@@ -63,7 +63,7 @@ const ago = (t) => {
   if (m < 1440) return `منذ ${Math.round(m / 60)} سا`
   return `منذ ${Math.round(m / 1440)} يوم`
 }
-const when = (t) => new Date(t).toLocaleString('ar-DZ')
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' })
 
 const siteUrl = window.location.origin + window.location.pathname
 // Published here by the Rech-Doom build (same key every version, so it installs over the old one)

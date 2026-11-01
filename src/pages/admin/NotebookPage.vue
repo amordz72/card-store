@@ -188,7 +188,7 @@ function hide (l) {
   Dialog.create({ title: 'احذف من الدفتر؟', message: l.text.slice(0, 120), cancel: 'إلغاء', ok: 'احذف' })
     .onOk(async () => take(await call('h' + l.id, () => flexy.notebookHide(l.id))))
 }
-const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '')
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' }) : '')
 onMounted(async () => take(await call('load', () => flexy.ownerNotebook())))
 </script>
 

@@ -152,7 +152,7 @@ const KEYS = {
   'balance.djezzy_auto_read': 'قراءة جيزي الآلية', 'balance.ooredoo_auto_read': 'قراءة أوريدو الآلية', 'auto.close_stuck': 'إغلاق العالق',
   'offers.background_discovery': 'الاستكشاف في الخلفية', 'balance.auto_read': 'قراءة أرسلي اليومية'
 }
-const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+const when = (t) => (t ? new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers', dateStyle: 'short', timeStyle: 'short' }) : '—')
 const shown = (v) => (v === true ? 'مفتوح' : v === false ? 'مقفل' : v == null ? '—' : String(v))
 function showAuto (res) {
   if (res.status === 200 && res.body?.ok) {

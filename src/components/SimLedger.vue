@@ -123,7 +123,7 @@ const noteText = (n) => {
   return wide ? base + '، مع الفترة السابقة' : base
 }
 const money = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('ar-DZ', { maximumFractionDigits: 2 }) + ' دج')
-const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ') : '—')
+const clock = (v) => (v ? new Date(v).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' }) : '—')
 // An unknown session a period settled shows what the period found.
 const effective = (l) => (l.deduction === 'unknown' && l.settled?.deducted !== null && l.settled?.deducted !== undefined ? (l.settled.deducted ? 'yes' : 'no') : l.deduction)
 const stateClass = (s) => (s === 'matched' || s === 'first' ? 'text-positive' : s === 'difference' ? 'text-negative' : 'text-deep-orange')

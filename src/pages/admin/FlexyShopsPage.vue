@@ -164,7 +164,7 @@ const STATUS = {
   not_sent: { label: 'لم تُرسل · أُعيد', color: 'grey-7' },
   review: { label: 'مراجعة', color: 'deep-orange' }
 }
-const when = (t) => new Date(t).toLocaleString('ar-DZ')
+const when = (t) => new Date(t).toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' })
 
 const settings = reactive({ open: false })
 // Shops send only when both are on: the store's switch and Flexy Core's apps switch.

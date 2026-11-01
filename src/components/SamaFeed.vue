@@ -183,10 +183,10 @@ function when (t) {
   const d = new Date(t)
   const today = new Date()
   const y = new Date(today.getTime() - 86400000)
-  const hm = d.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })
+  const hm = d.toLocaleTimeString('ar-DZ', { timeZone: 'Africa/Algiers', hour: '2-digit', minute: '2-digit' })
   if (d.toDateString() === today.toDateString()) return 'اليوم ' + hm
   if (d.toDateString() === y.toDateString()) return 'أمس ' + hm
-  return d.toLocaleDateString('ar-DZ', { day: 'numeric', month: 'numeric' }) + ' ' + hm
+  return d.toLocaleDateString('ar-DZ', { timeZone: 'Africa/Algiers', day: 'numeric', month: 'numeric' }) + ' ' + hm
 }
 function stateText (f) {
   switch (f.status) {
